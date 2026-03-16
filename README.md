@@ -1,32 +1,73 @@
 # Symphony .NET
 
-A .NET 10 implementation of Symphony, an AI agent orchestration system based on [OpenAI's Symphony specification](SPEC.md)
+A .NET 10 implementation of [OpenAI's Symphony](https://github.com/openai/symphony), an AI agent orchestration system
 
 > [!WARNING]
 > Symphony is prototype software intended for evaluation and development purposes
-> For production deployments, implement your own hardened version based on SPEC.md
+> For production deployments, implement your own hardened version
 
 ## Overview
 
 Symphony is an AI-powered agent that:
 
-1. Polls Linear for candidate work items
+1. Polls Linear or Jira for candidate work items
 2. Creates isolated workspaces for each issue
-3. Launches Codex in [App Server mode](https://developers.openai.com/codex/app-server/) within the workspace
+3. Launches Copilot through its SDK or Codex in [App Server mode](https://developers.openai.com/codex/app-server/) within the workspace
 4. Executes workflow prompts to guide AI-driven development
 5. Manages agent lifecycle until work is completed
 
 The system automatically stops agents and cleans up workspaces when issues reach terminal states (Done, Closed, Cancelled, or Duplicate)
 
-![Symphony: From 1000ft](images/symphony-1000ft.png)
+```mermaid
+flowchart LR
+
+GH["GitHub Issues (Future)"]
+JIRA["Jira (Not Tested)"]
+LIN["Linear (Current)"]
+
+SYM["Symphony"]
+WF["Workflow.md (Settings & Instructions)"]
+ORCH["Orchestration System"]
+
+REPO["GitHub Repo (Only Supported Repo)"]
+MCP["GitHub MCP\nPRs, Issues, Repo Actions"]
+
+COP["GitHub Copilot (Current)"]
+CLAUDE["Claude Code (Future)"]
+CODEX["OpenAI Codex (Not Tested)"]
+
+RUN["Agents run locally\nwhere Symphony runs"]
+FUTURE["Future: Agents may run\nin isolated containers"]
+
+GH --> SYM
+JIRA --> SYM
+LIN --> SYM
+
+SYM --> ORCH
+WF --> ORCH
+
+ORCH --> REPO
+REPO --> MCP
+
+ORCH --> COP
+ORCH --> CLAUDE
+ORCH --> CODEX
+
+COP --> RUN
+CLAUDE --> RUN
+CODEX --> RUN
+
+RUN --> FUTURE
+```
 
 ## Getting Started
 
 ### Prerequisites
 
 - .NET 10 SDK installed
-- Linear API token (set as LINEAR_API_KEY environment variable)
-- Codex app-server installed and available in PATH
+- Linear or Jira API token (set as LINEAR_API_KEY environment variable)
+- Codex app-server installed and available in PATH (when Codex is used)
+- Copilot CLI is installed and configured (when Copilot is used, though its not used but configurations are picked by SDK)
 
 ### Setup
 
@@ -61,6 +102,8 @@ dotnet run --project src/Symphony.App/Symphony.App.csproj -- path/to/WORKFLOW.md
 If no path is provided, Symphony defaults to ./WORKFLOW.md
 
 ## Configuration
+
+See [docs/CONFIG.md](docs/CONFIG.md) for the full configuration reference. A bundled sample workflow is available at [src/Symphony.App/WORKFLOW.md](src/Symphony.App/WORKFLOW.md).
 
 ### Workflow File Format
 
@@ -116,23 +159,29 @@ The workflow prompt supports the following template variables:
 ## Project Structure
 
 ```
-src/Symphony.App/
-├── Program.cs                  # Application entry point
-├── Agent/                      # AI agent execution
-│   ├── AgentRunner.cs
-│   └── *.cs
-├── Config/                     # Configuration management
-├── Domain/                     # Core domain models
-├── Linear/                     # Linear API integration
-├── Orchestration/              # Service orchestration
-├── Workflows/                  # Workflow execution
-├── Workspaces/                 # Workspace management
-└── Utils/                      # Utility functions
+src/Symphony.App/                 # Application
+├── Program.cs
+├── Agent/                        # Copilot SDK and Codex runners
+├── Config/
+├── Domain/
+├── IssueTracker/                 # Linear and Jira
+├── Orchestration/
+├── Workflows/
+├── Workspaces/
+└── Utils/
+tests/
+├── Symphony.Tests/               # NUnit suite (CI)
+├── Symphony.CodingAgentsProbe/   # Manual Copilot SDK probes (not CI)
+└── Symphony.PerformanceTests/    # Manual performance harness (not CI)
+docs/
+├── CONFIG.md
+├── adr/                          # Accepted architecture decisions
+└── plans/                        # Product and implementation plans
 ```
 
 ## Environment Variables
 
-- **LINEAR_API_KEY**: Linear personal API token (required)
+- **LINEAR_API_KEY**: Linear or Jira personal API token (required)
 - **SYMPHONY_WORKSPACE_ROOT**: Override default workspace root directory
 
 ## Development
@@ -140,14 +189,25 @@ src/Symphony.App/
 ### Building
 
 ```bash
-dotnet build
+dotnet build Symphony.slnx
 ```
 
 ### Running Tests
 
+The NUnit suite is the only project intended for CI:
+
 ```bash
-dotnet test
+dotnet test tests/Symphony.Tests
 ```
+
+`tests/Symphony.CodingAgentsProbe` and `tests/Symphony.PerformanceTests` are manual. Do not treat them as part of CI.
+
+```bash
+dotnet run --project tests/Symphony.CodingAgentsProbe -- copilot "Say hello in one sentence."
+dotnet run -c Release --project tests/Symphony.PerformanceTests
+```
+
+Architecture decisions live in [docs/adr/](docs/adr/). Product plans live in [docs/plans/](docs/plans/).
 
 ### Code Style
 

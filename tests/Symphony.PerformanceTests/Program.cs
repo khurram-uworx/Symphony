@@ -1,0 +1,1 @@
+Console.WriteLine("Symphony.PerformanceTests placeholder. Add benchmark scenarios as needed.");

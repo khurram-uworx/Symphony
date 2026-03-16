@@ -3,9 +3,14 @@
     <File Path=".editorconfig" />
     <File Path=".gitattributes" />
     <File Path=".gitignore" />
+    <File Path="AGENTS.md" />
+    <File Path="opencode.json" />
     <File Path="README.md" />
-    <File Path="SPEC.md" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Symphony.CodingAgentsProbe/Symphony.CodingAgentsProbe.csproj" />
+    <Project Path="tests/Symphony.PerformanceTests/Symphony.PerformanceTests.csproj" />
+    <Project Path="tests/Symphony.Tests/Symphony.Tests.csproj" />
   </Folder>
   <Project Path="src/Symphony.App/Symphony.App.csproj" />
-  <Project Path="src/Symphony.Tests/Symphony.Tests.csproj" />
 </Solution>

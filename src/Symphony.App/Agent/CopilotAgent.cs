@@ -1,4 +1,5 @@
-﻿using GitHub.Copilot.SDK;
+﻿using GitHub.Copilot;
+using GitHub.Copilot.Rpc;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
@@ -28,15 +29,13 @@ class CopilotAgent : ICodingAgent
 
         var sessionConfig = new SessionConfig
         {
-            OnPermissionRequest = (req, inv) => Task.FromResult(new PermissionRequestResult()
+#pragma warning disable GHCP001
+            OnPermissionRequest = (req, inv) => Task.FromResult(PermissionDecision.ApproveOnce()),
+#pragma warning restore GHCP001
+            McpServers = new Dictionary<string, McpServerConfig>
             {
-                Kind = PermissionRequestResultKind.Approved
-            }),
-            McpServers = new Dictionary<string, object>
-            {
-                ["linear"] = new McpLocalServerConfig
+                ["linear"] = new McpStdioServerConfig
                 {
-                    Type = "local",
                     Command = "npx",
                     Args = new List<string> { "-y", "mcp-remote", "https://mcp.linear.app/mcp" },
                     Tools = new List<string> { "*" },
@@ -44,13 +43,11 @@ class CopilotAgent : ICodingAgent
             },
             WorkingDirectory = workspacePath
         };
-        copilotClient.On(evt =>
+        sessionConfig.OnEvent = evt =>
         {
-            onEvent(new CodingAgentEvent(evt.Type, evt.Metadata.ToString(), DateTimeOffset.Now, new JsonElement { }));
-            this.logger.LogInformation("[Copilot:{Session}] {Type}: {Summary} [{Started}-{Modified}]",
-                evt.SessionId, evt.Type,
-                evt.Metadata.Summary, evt.Metadata.StartTime, evt.Metadata.ModifiedTime);
-        });
+            onEvent(new CodingAgentEvent(evt.Type, null, evt.Timestamp, new JsonElement()));
+            this.logger.LogInformation("[Copilot] {Type} {Id}", evt.Type, evt.Id);
+        };
 
         agent = copilotClient.AsAIAgent(sessionConfig);
         liveSession.SessionId = Guid.NewGuid().ToString();

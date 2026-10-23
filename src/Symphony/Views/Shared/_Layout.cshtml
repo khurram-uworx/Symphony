@@ -16,6 +16,7 @@
         <nav>
             @if (User.Identity?.IsAuthenticated == true)
             {
+                <a asp-controller="Account" asp-action="Index">Account</a>
                 <span class="who">@User.Identity.Name</span>
                 @if (User.IsInRole(AdminSeeder.AdminRole))
                 {

@@ -104,7 +104,20 @@ The web host selects its database from `appsettings.json`, overridden by environ
 
 Environment variables use `__` for nested keys: `Database__Provider`, `ConnectionStrings__SqlServer`, `ConnectionStrings__PostgreSQL`.
 
-A missing SQL Server or PostgreSQL connection string fails at startup. The error names the missing key and the configured provider. Provider-specific migrations are not part of this registration; schema initialization still uses the existing startup path.
+A missing SQL Server or PostgreSQL connection string fails at startup. The error names the missing key and the configured provider.
+
+Startup applies the EF Core migrations assembly for the selected provider. No manual SQL is required. `sqlite` uses `Symphony.Migrations.Sqlite`, `sqlserver` uses `Symphony.Migrations.SqlServer`, and `postgresql` / `postgres` / `npgsql` share `Symphony.Migrations.PostgreSQL`. Those sets are not portable: each one hardcodes that provider's store types. For SQLite, the parent directory is created before migrations run.
+
+Delete a database created by the old `EnsureCreated` path before starting again. That file has no `__EFMigrationsHistory`, and migrations cannot adopt it. `App_Data/` is gitignored.
+
+Add the next model change to every provider set. Use the migrations project as both project and startup project so the web host does not boot, migrate, or print admin credentials:
+
+```bash
+dotnet tool restore
+dotnet ef migrations add <Name> --project src/Symphony.Migrations.Sqlite --startup-project src/Symphony.Migrations.Sqlite
+dotnet ef migrations add <Name> --project src/Symphony.Migrations.SqlServer --startup-project src/Symphony.Migrations.SqlServer
+dotnet ef migrations add <Name> --project src/Symphony.Migrations.PostgreSQL --startup-project src/Symphony.Migrations.PostgreSQL
+```
 
 ### Workflow File Format
 

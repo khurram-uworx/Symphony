@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
@@ -41,6 +42,7 @@ class DatabaseRegistrationTests
         using var scope = provider.CreateScope();
         Assert.That(scope.ServiceProvider.GetService<SymphonyDbContext>(), Is.Not.Null);
         Assert.That(activeProvider(provider), Is.EqualTo(SqliteProvider));
+        Assert.That(migrationsAssembly(provider), Is.EqualTo("Symphony.Migrations.Sqlite"));
     }
 
     [Test]
@@ -65,6 +67,7 @@ class DatabaseRegistrationTests
         using var provider = register("sqlserver", sqlServer: "Server=localhost;Database=symphony");
 
         Assert.That(activeProvider(provider), Is.EqualTo(SqlServerProvider));
+        Assert.That(migrationsAssembly(provider), Is.EqualTo("Symphony.Migrations.SqlServer"));
     }
 
     [Test]
@@ -81,6 +84,7 @@ class DatabaseRegistrationTests
         using var provider = register("postgresql", postgreSql: "Host=localhost;Database=symphony");
 
         Assert.That(activeProvider(provider), Is.EqualTo(NpgsqlProvider));
+        Assert.That(migrationsAssembly(provider), Is.EqualTo("Symphony.Migrations.PostgreSQL"));
     }
 
     [Test]
@@ -89,6 +93,7 @@ class DatabaseRegistrationTests
         using var provider = register("postgres", postgreSql: "Host=localhost;Database=symphony");
 
         Assert.That(activeProvider(provider), Is.EqualTo(NpgsqlProvider));
+        Assert.That(migrationsAssembly(provider), Is.EqualTo("Symphony.Migrations.PostgreSQL"));
     }
 
     [Test]
@@ -97,6 +102,7 @@ class DatabaseRegistrationTests
         using var provider = register("npgsql", npgsql: "Host=localhost;Database=symphony");
 
         Assert.That(activeProvider(provider), Is.EqualTo(NpgsqlProvider));
+        Assert.That(migrationsAssembly(provider), Is.EqualTo("Symphony.Migrations.PostgreSQL"));
     }
 
     [Test]
@@ -171,6 +177,13 @@ class DatabaseRegistrationTests
             configuration(provider, sqlite, sqlServer, postgreSql, npgsql),
             contentRoot);
         return services.BuildServiceProvider();
+    }
+
+    static string migrationsAssembly(ServiceProvider provider)
+    {
+        using var scope = provider.CreateScope();
+        var options = scope.ServiceProvider.GetRequiredService<DbContextOptions<SymphonyDbContext>>();
+        return RelationalOptionsExtension.Extract(options).MigrationsAssembly!;
     }
 
     static string activeProvider(ServiceProvider provider)

@@ -216,6 +216,8 @@ The NUnit suite is the only project intended for CI:
 dotnet test tests/Symphony.Tests
 ```
 
+CI (`.github/workflows/ci.yml`) builds and tests only `tests/Symphony.Tests` with the filter `Category!=Integration&Category!=Smoke&Category!=ReleaseReadiness` and collects Cobertura coverage via `coverlet.collector`. The job fails if tests run but no coverage file is produced.
+
 `tests/Symphony.CodingAgentsProbe` and `tests/Symphony.PerformanceTests` are manual. Do not treat them as part of CI.
 
 ```bash

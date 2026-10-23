@@ -2,13 +2,13 @@
 
 ## Project overview
 
-Symphony is a .NET 10 AI agent orchestration system that monitors issue trackers (Linear, Jira), creates isolated workspaces, and drives AI agents (Copilot, Codex) through workflow prompts until issues are resolved.
+Symphony is a .NET 10 web host for AI agent orchestration. The entry point is the ASP.NET Core MVC app in `src/Symphony`. It serves HTTP and does not require a workflow file to start. Legacy candidate polling remains in the tree until it is removed; it is not how the app is run.
 
 **Primary docs:** [README.md](README.md) for setup, configuration, and usage. [docs/CONFIG.md](docs/CONFIG.md) for workflow configuration. [docs/adr/](docs/adr/) for accepted decisions. [docs/plans/](docs/plans/) for product plans.
 
 ## Repository map
 
-- `src/Symphony.App/`: main application — agent execution, config, domain models, issue tracker integration, orchestration, workspace management.
+- `src/Symphony/`: web host entry point. MVC controllers and views, plus agent execution, config, domain models, issue tracker integration, orchestration, and workspace management. Orchestration polling is not registered at startup.
 - `tests/Symphony.Tests/`: NUnit test suite. This is the only test project for default verification and CI.
 - `tests/Symphony.CodingAgentsProbe/`: manual Copilot SDK probes (hosted Copilot and BYOM). Not part of CI.
 - `tests/Symphony.PerformanceTests/`: manual performance harness. Not part of CI.

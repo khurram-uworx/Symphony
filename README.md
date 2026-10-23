@@ -8,15 +8,9 @@ A .NET 10 implementation of [OpenAI's Symphony](https://github.com/openai/sympho
 
 ## Overview
 
-Symphony is an AI-powered agent that:
+Symphony is a web host for AI-powered agent orchestration. Start the app with `dotnet run --project src/Symphony` and open the site. A workflow file is not required to start.
 
-1. Polls Linear or Jira for candidate work items
-2. Creates isolated workspaces for each issue
-3. Launches Copilot through its SDK or Codex in [App Server mode](https://developers.openai.com/codex/app-server/) within the workspace
-4. Executes workflow prompts to guide AI-driven development
-5. Manages agent lifecycle until work is completed
-
-The system automatically stops agents and cleans up workspaces when issues reach terminal states (Done, Closed, Cancelled, or Duplicate)
+The repository still contains the earlier candidate-polling runtime (Linear or Jira, isolated workspaces, Copilot SDK or Codex in [App Server mode](https://developers.openai.com/codex/app-server/)). That runtime is not registered at startup. Removing it is a later change.
 
 ```mermaid
 flowchart LR
@@ -65,7 +59,7 @@ RUN --> FUTURE
 ### Prerequisites
 
 - .NET 10 SDK installed
-- Linear or Jira API token (set as LINEAR_API_KEY environment variable)
+- Linear or Jira API token, only if you are using the legacy tracker clients. Not required to start the web host.
 - Codex app-server installed and available in PATH (when Codex is used)
 - Copilot CLI is installed and configured (when Copilot is used, though its not used but configurations are picked by SDK)
 
@@ -77,33 +71,26 @@ RUN --> FUTURE
    cd symphony
    ```
 
-2. Set your Linear API key:
+2. Build the project:
    ```bash
-   # Windows PowerShell
-   $env:LINEAR_API_KEY = "your_api_key_here"
-   
-   # Linux/macOS
-   export LINEAR_API_KEY="your_api_key_here"
+   dotnet build Symphony.slnx
    ```
 
-3. Build the project:
-   ```bash
-   dotnet build
-   ```
+The legacy tracker clients read `LINEAR_API_KEY` when they run. Setting it is not part of starting the web host.
 
 ### Running Symphony
 
-Run the application with a workflow configuration file:
+Start the web host. No workflow path is required:
 
 ```bash
-dotnet run --project src/Symphony.App/Symphony.App.csproj -- path/to/WORKFLOW.md
+dotnet run --project src/Symphony
 ```
 
-If no path is provided, Symphony defaults to ./WORKFLOW.md
+Kestrel listens on `http://localhost:5080`. Open that address in a browser. `/` returns the MVC home page.
 
 ## Configuration
 
-See [docs/CONFIG.md](docs/CONFIG.md) for the full configuration reference. A bundled sample workflow is available at [src/Symphony.App/WORKFLOW.md](src/Symphony.App/WORKFLOW.md).
+See [docs/CONFIG.md](docs/CONFIG.md) for the workflow configuration reference. A bundled sample workflow is available at [src/Symphony/WORKFLOW.md](src/Symphony/WORKFLOW.md). It is a sample file, not a launch argument.
 
 ### Workflow File Format
 
@@ -159,13 +146,15 @@ The workflow prompt supports the following template variables:
 ## Project Structure
 
 ```
-src/Symphony.App/                 # Application
-├── Program.cs
+src/Symphony/                    # Web host
+├── Program.cs                    # ASP.NET Core entry point
+├── Controllers/                  # MVC controllers
+├── Views/                        # MVC views
 ├── Agent/                        # Copilot SDK and Codex runners
 ├── Config/
 ├── Domain/
 ├── IssueTracker/                 # Linear and Jira
-├── Orchestration/
+├── Orchestration/                # Legacy polling runtime, not started by the web host
 ├── Workflows/
 ├── Workspaces/
 └── Utils/
@@ -181,7 +170,7 @@ docs/
 
 ## Environment Variables
 
-- **LINEAR_API_KEY**: Linear or Jira personal API token (required)
+- **LINEAR_API_KEY**: Linear or Jira personal API token (used by the legacy tracker clients; not required to start the web host)
 - **SYMPHONY_WORKSPACE_ROOT**: Override default workspace root directory
 
 ## Development
@@ -219,6 +208,8 @@ The project uses C# latest language features with:
 ## How It Works
 
 ### Agent Lifecycle
+
+The steps below describe the legacy polling runtime. `dotnet run` does not start it.
 
 1. **Poll**: Continuously monitors Linear for unstarted issues
 2. **Prepare**: Creates a dedicated workspace directory and runs setup hooks

@@ -12,5 +12,5 @@
     <Project Path="tests/Symphony.PerformanceTests/Symphony.PerformanceTests.csproj" />
     <Project Path="tests/Symphony.Tests/Symphony.Tests.csproj" />
   </Folder>
-  <Project Path="src/Symphony.App/Symphony.App.csproj" />
+  <Project Path="src/Symphony/Symphony.csproj" />
 </Solution>

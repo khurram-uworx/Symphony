@@ -9,6 +9,10 @@ As each task executes, if deferred work or a concern appears that is outside thi
 
 The web host starts without a database or authentication. Multi-user Identity needs a `SymphonyDbContext`, SQLite schema creation, and cookie authentication wired before T3 can seed an admin. There is no `Data/` folder, no EF packages, and `appsettings.json` has no `Database` section.
 
+## Grounding
+
+EF Core 10 `AddDbContextFactory` registers both `IDbContextFactory<TContext>` and a scoped `TContext`. The earlier sketch that also called `AddScoped(factory.CreateDbContext())` is dropped. `EnsureCreated` still cannot be followed by migrations on the same database; that remains the cleared T2/T7 split. `ConfigureApplicationCookie` stays after `AddIdentity`.
+
 ## Decisions already cleared
 
 - Schema initialization is `EnsureCreated` only. No migration files and no `dotnet-ef` tool. `Data/DatabaseInitializer` is the only call site so T7 (#12) can replace it. A database created by `EnsureCreated` cannot be migrated in place; delete `App_Data/symphony.db` when T7 switches.
@@ -26,7 +30,7 @@ Startup of `src/Symphony` now opens SQLite and calls `EnsureCreated` before `Run
 - `src/Symphony/Symphony.csproj` — three package references. Design is private so it does not flow to tests.
 - `src/Symphony/Data/SymphonyDbContext.cs` — new. No callers yet. T3+ will inject it.
 - `src/Symphony/Data/SqliteConnectionResolver.cs` — new. Called from registration.
-- `src/Symphony/Data/DatabaseRegistration.cs` — new extension `AddSymphonyDatabase`. Called from `Program.cs`.
+- `src/Symphony/Data/DatabaseRegistration.cs` — new extension `AddSymphonyDatabase`. Called from `Program.cs`. `AddDbContextFactory` also registers the scoped context (EF Core 6+); do not add a second scoped registration.
 - `src/Symphony/Data/IdentityRegistration.cs` — new extension `AddSymphonyIdentity`. Called from `Program.cs`.
 - `src/Symphony/Data/DatabaseInitializer.cs` — new. Called once from `Program.cs` after `Build()`.
 - `src/Symphony/Program.cs` — composition root. Top-level statements, not a symbol in the index. Adds auth middleware before the existing conventional route. No global authorize filter.
@@ -72,7 +76,7 @@ Sealed, primary constructor, `IdentityDbContext<IdentityUser, IdentityRole, stri
 - Read `Database:Provider`, default `sqlite` only when the key is absent.
 - Normalize with `ToLowerInvariant()`. Treat `postgresql`, `postgres`, and `npgsql` as `npgsql`.
 - `sqlite`: connection string from `ConnectionStrings:Sqlite`, default `Data Source=App_Data/symphony.db`. Resolve the path, then `AddDbContextFactory<SymphonyDbContext>(o => o.UseSqlite(resolved))`.
-- Also `AddScoped(sp => sp.GetRequiredService<IDbContextFactory<SymphonyDbContext>>().CreateDbContext())` so `AddEntityFrameworkStores` can construct `UserStore`. The container disposes that scoped instance.
+- Do not add a second `AddScoped` for `SymphonyDbContext`. EF Core 6+ `AddDbContextFactory` already registers the context as scoped and disposes it with the scope ([what's new in EF Core 6](https://learn.microsoft.com/ef/core/what-is-new/ef-core-6.0/whatsnew#dbcontext-factory-improvements), [EF Core 10 API remarks](https://learn.microsoft.com/dotnet/api/microsoft.extensions.dependencyinjection.entityframeworkservicecollectionextensions.adddbcontextfactory?view=efcore-10.0)). Identity stores resolve that scoped instance. Contexts created by calling the factory directly must still be disposed by the caller.
 - `sqlserver` and `npgsql`: throw `InvalidOperationException` that this build supports sqlite only.
 - Anything else: throw `Unsupported database provider`.
 

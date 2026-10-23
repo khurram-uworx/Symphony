@@ -32,6 +32,8 @@ dotnet run --project tests/Symphony.CodingAgentsProbe -- copilot "Say hello in o
 dotnet run -c Release --project tests/Symphony.PerformanceTests
 ```
 
+Release publishing is `.github/workflows/cd.yml`: it builds and pushes `ghcr.io/${{ github.repository_owner }}/symphony` (version tag + `latest`) on a `v*` tag or manual dispatch. `.github/workflows/docker.yml` is the manual publish entry point. `cd.yml` is the publish workflow, not a build-only check.
+
 ## Code Style
 
 - `.editorconfig` at repo root is authoritative; follow it over any convention below.

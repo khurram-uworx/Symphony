@@ -225,6 +225,10 @@ dotnet run --project tests/Symphony.CodingAgentsProbe -- copilot "Say hello in o
 dotnet run -c Release --project tests/Symphony.PerformanceTests
 ```
 
+### Container image
+
+A release image is published to `ghcr.io/<owner>/symphony` (tagged with the version and `latest`) by `.github/workflows/cd.yml` on a `v*` tag or via manual dispatch. `.github/workflows/docker.yml` can publish a requested tag manually.
+
 Architecture decisions live in [docs/adr/](docs/adr/). Product plans live in [docs/plans/](docs/plans/).
 
 ### Code Style

@@ -33,7 +33,7 @@ Set `<RootNamespace>Symphony</RootNamespace>` so new MVC files match the renamed
 
 ### 2. Web SDK and MVC host
 
-`Symphony.csproj`: SDK `Microsoft.NET.Sdk.Web`, keep `net10.0` and existing package references, drop `<OutputType>Exe</OutputType>`. The Web SDK references the shared ASP.NET Core framework, so no extra MVC package is required. Do not add Identity or EF.
+`Symphony.csproj`: SDK `Microsoft.NET.Sdk.Web`, keep `net10.0`, drop `<OutputType>Exe</OutputType>`. The Web SDK references the shared ASP.NET Core framework, so no extra MVC package is required. Drop the explicit `Microsoft.Extensions.DependencyInjection`, `Hosting`, `Http`, and `Logging` package references; the shared framework supplies them and pinning 10.0.13 warns NU1510. Keep the other existing packages. Do not add Identity or EF.
 
 `Program.cs` becomes a `WebApplication` builder. Do not call `WorkflowPathResolver.Resolve`. Do not register `WorkflowPath`, `WorkflowManager`, `ServiceConfigProvider`, `WorkspaceManager`, the tracker/agent factories, `AgentRunner`, or `OrchestratorService`. Those registrations are not valid without a workflow file, and registering them would start candidate polling. Leave the types in the project. `WorkflowPath` stays because `WorkflowManager` still takes it.
 

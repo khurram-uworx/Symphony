@@ -56,11 +56,11 @@ This document breaks the Symphony Web reimplementation into concrete, assignable
   - Verification tasks (T5, T34, T38, T43, T52) can be prepared early and executed after implementation.
   - Test-hardening tasks (T40, T49) can run alongside feature work if interfaces are stable.
 - Shared files with high merge-conflict risk:
-  - `src/Symphony.App/Symphony.App.csproj`
-  - `src/Symphony.App/Program.cs`
-  - `src/Symphony.App/Data/SymphonyDbContext.cs`
-  - `src/Symphony.App/appsettings*.json`
-  - `src/Symphony.App/Middleware/*`
+  - `src/Symphony/Symphony.csproj`
+  - `src/Symphony/Program.cs`
+  - `src/Symphony/Data/SymphonyDbContext.cs`
+  - `src/Symphony/appsettings*.json`
+  - `src/Symphony/Middleware/*`
   - `tests/Symphony.Tests/Symphony.Tests.csproj`
 - Open decisions still to be settled (see `docs/plans/SYMPHONY-WEB.md` section 15a):
   - Optional per-request override allow-list.
@@ -95,7 +95,9 @@ M1
 
 ### Goal
 
-Convert `Symphony.App` from a console host to a web host that can serve HTTP requests and run hosted services.
+Convert the app project from a console host to a web host that can serve HTTP requests and run hosted services.
+
+Landed in #6. The host is `src/Symphony` (`Symphony.csproj`, `AddControllersWithViews`, `HomeController`, `Views/`). Do not recreate `src/Symphony.App` or implement this task again.
 
 ### Why this exists
 
@@ -107,7 +109,7 @@ Confirm that the `symphony --workflow WORKFLOW.md` entry point is removed and th
 
 ### Scope
 
-- Change SDK to `Microsoft.NET.Sdk.Web` in `src/Symphony.App/Symphony.App.csproj`.
+- Change SDK to `Microsoft.NET.Sdk.Web` in `src/Symphony/Symphony.csproj`.
 - Keep `net10.0` and existing runtime packages.
 - Replace `WorkflowPathResolver.Resolve(args)` startup with a `WebApplication`/`Host` builder.
 - Add minimal routing and a placeholder landing page or health response.
@@ -136,16 +138,16 @@ Do not edit GitHub workflows in T1.
 ### Acceptance criteria
 
 - `dotnet build Symphony.slnx` succeeds.
-- `dotnet run --project src/Symphony.App` starts Kestrel.
+- `dotnet run --project src/Symphony` starts Kestrel.
 - Navigating to `/` returns a valid response.
 - No `WorkflowPath` is required to start.
 - `README.md` and `AGENTS.md` no longer tell an operator to start the product with a workflow file.
 
 ### Files likely involved
 
-- `src/Symphony.App/Symphony.App.csproj`
-- `src/Symphony.App/Program.cs`
-- `src/Symphony.App/WorkflowPathResolver.cs`
+- `src/Symphony/Symphony.csproj`
+- `src/Symphony/Program.cs`
+- `src/Symphony/WorkflowPathResolver.cs`
 - `README.md`
 - `AGENTS.md`
 
@@ -198,11 +200,11 @@ Multi-user authentication and roles are foundational. SQLite is the default loca
 
 ### Files likely involved
 
-- `src/Symphony.App/Symphony.App.csproj`
-- `src/Symphony.App/Data/SymphonyDbContext.cs`
-- `src/Symphony.App/Program.cs`
-- `src/Symphony.App/appsettings.json`
-- `src/Symphony.App/appsettings.Development.json`
+- `src/Symphony/Symphony.csproj`
+- `src/Symphony/Data/SymphonyDbContext.cs`
+- `src/Symphony/Program.cs`
+- `src/Symphony/appsettings.json`
+- `src/Symphony/appsettings.Development.json`
 
 ---
 
@@ -254,9 +256,9 @@ There is no public registration. The first admin must bootstrap access.
 
 ### Files likely involved
 
-- `src/Symphony.App/Identity/AdminSeeder.cs`
-- `src/Symphony.App/Program.cs`
-- `src/Symphony.App/Data/SymphonyDbContext.cs`
+- `src/Symphony/Identity/AdminSeeder.cs`
+- `src/Symphony/Program.cs`
+- `src/Symphony/Data/SymphonyDbContext.cs`
 
 ---
 
@@ -272,7 +274,7 @@ M1
 
 ### Goal
 
-Provide a minimal Razor Pages UI where an authenticated user can log in and see a personalized greeting.
+Provide a minimal MVC UI where an authenticated user can log in and see a personalized greeting.
 
 ### Why this exists
 
@@ -280,10 +282,10 @@ M1 acceptance requires seeing a web app and logging in with the printed password
 
 ### Scope
 
-- Add Identity UI or custom login page.
-- Add an authenticated page (for example `/` or `/dashboard`) showing `Hello, {UserName}`.
-- Add role-protected `/admin` area placeholder.
-- Add basic navigation/layout.
+- Add a custom MVC login and logout on `AccountController` (`Views/Account/Login.cshtml`). Do not add the Identity UI package, do not call `MapRazorPages()`, and do not scaffold `Areas/Identity/Pages`.
+- Add an authenticated screen on `HomeController` (`/`) showing `Hello, {UserName}`.
+- Add a role-protected `/admin` placeholder on `AdminController`.
+- Add basic navigation in `Views/Shared/_Layout.cshtml`.
 
 ### Constraints
 
@@ -292,8 +294,8 @@ M1 acceptance requires seeing a web app and logging in with the printed password
 
 ### Suggested implementation path
 
-- Use Razor Pages.
-- Configure default cookie redirect to login.
+- Use MVC controllers and views. The host already calls `AddControllersWithViews()`.
+- Set the cookie `LoginPath` to `/Account/Login`.
 - Keep styling minimal; functional first.
 
 ### Acceptance criteria
@@ -306,10 +308,14 @@ M1 acceptance requires seeing a web app and logging in with the printed password
 
 ### Files likely involved
 
-- `src/Symphony.App/Pages/Index.cshtml`
-- `src/Symphony.App/Pages/Shared/_Layout.cshtml`
-- `src/Symphony.App/Pages/Admin/Index.cshtml`
-- `src/Symphony.App/Program.cs`
+- `src/Symphony/Controllers/HomeController.cs`
+- `src/Symphony/Views/Home/Index.cshtml`
+- `src/Symphony/Controllers/AccountController.cs`
+- `src/Symphony/Views/Account/Login.cshtml`
+- `src/Symphony/Controllers/AdminController.cs`
+- `src/Symphony/Views/Admin/Index.cshtml`
+- `src/Symphony/Views/Shared/_Layout.cshtml`
+- `src/Symphony/Program.cs`
 
 ---
 
@@ -369,7 +375,7 @@ The nightly Release Readiness workflow already filters `Category=ReleaseReadines
 
 - `tests/Symphony.Tests/Symphony.Tests.csproj`
 - `tests/Symphony.Tests/WebSmokeTests.cs`
-- `src/Symphony.App/Program.cs`
+- `src/Symphony/Program.cs`
 - `AGENTS.md`
 
 ---
@@ -419,10 +425,10 @@ Confirm connection string keys and aliases: `Sqlite`, `SqlServer`, `PostgreSQL`/
 
 ### Files likely involved
 
-- `src/Symphony.App/Symphony.App.csproj`
-- `src/Symphony.App/Program.cs`
-- `src/Symphony.App/appsettings.json`
-- `src/Symphony.App/Data/SymphonyDbContext.cs`
+- `src/Symphony/Symphony.csproj`
+- `src/Symphony/Program.cs`
+- `src/Symphony/appsettings.json`
+- `src/Symphony/Data/SymphonyDbContext.cs`
 
 ---
 
@@ -469,10 +475,10 @@ Initialize schema according to provider and seed roles, first admin, default set
 
 ### Files likely involved
 
-- `src/Symphony.App/Data/DatabaseInitializer.cs`
-- `src/Symphony.App/Data/SymphonyDbContext.cs`
-- `src/Symphony.App/Identity/AdminSeeder.cs`
-- `src/Symphony.App/Program.cs`
+- `src/Symphony/Data/DatabaseInitializer.cs`
+- `src/Symphony/Data/SymphonyDbContext.cs`
+- `src/Symphony/Identity/AdminSeeder.cs`
+- `src/Symphony/Program.cs`
 
 ---
 
@@ -492,7 +498,7 @@ Create the application image using a multi-stage .NET Docker build for GHCR publ
 
 ### Scope
 
-- Create `src/Symphony.App/Dockerfile` using `dotnet/sdk:10.0` build and `dotnet/aspnet:10.0` runtime stages.
+- Create `src/Symphony/Dockerfile` using `dotnet/sdk:10.0` build and `dotnet/aspnet:10.0` runtime stages.
 - Restore and publish the web app for `linux-x64`.
 - Create app data directory and run as non-root where practical.
 - Expose port `8080` and set `ASPNETCORE_URLS=http://+:8080`.
@@ -513,7 +519,7 @@ Create the application image using a multi-stage .NET Docker build for GHCR publ
 
 ### Acceptance criteria
 
-- `docker build -f src/Symphony.App/Dockerfile .` succeeds.
+- `docker build -f src/Symphony/Dockerfile .` succeeds.
 - `docker compose up` (root) starts PostgreSQL and local app.
 - App creates schema automatically.
 - First-admin credentials print to container logs once.
@@ -521,10 +527,10 @@ Create the application image using a multi-stage .NET Docker build for GHCR publ
 
 ### Files likely involved
 
-- `src/Symphony.App/Dockerfile`
+- `src/Symphony/Dockerfile`
 - `.dockerignore`
-- `src/Symphony.App/Symphony.App.csproj`
-- `src/Symphony.App/Program.cs`
+- `src/Symphony/Symphony.csproj`
+- `src/Symphony/Program.cs`
 
 ---
 
@@ -637,7 +643,7 @@ Publish the web app image to GitHub Container Registry so QA can deploy it witho
 
 - `.github/workflows/docker.yml`
 - `.github/workflows/cd.yml`
-- `src/Symphony.App/Dockerfile`
+- `src/Symphony/Dockerfile`
 - `README.md`
 - `AGENTS.md`
 
@@ -688,7 +694,7 @@ Provide a ready-to-run `samples/docker-compose.yml` that spins up the published 
 ### Files likely involved
 
 - `samples/docker-compose.yml`
-- `src/Symphony.App/Program.cs`
+- `src/Symphony/Program.cs`
 - `CONTAINER-README.md` (or `README.md`)
 
 ---
@@ -768,7 +774,7 @@ Users are admin-invited and managed by admins in the first cut.
 
 ### Scope
 
-- Implement `/admin/users` Razor Pages or backing API.
+- Implement `/admin/users` as `AdminController` actions and `Views/Admin/Users.cshtml`, with a backing service. Do not use Razor Pages or a page model.
 - Create member and admin accounts.
 - Enable/disable account.
 - Delete account.
@@ -796,9 +802,9 @@ Users are admin-invited and managed by admins in the first cut.
 
 ### Files likely involved
 
-- `src/Symphony.App/Pages/Admin/Users.cshtml`
-- `src/Symphony.App/Pages/Admin/Users.cshtml.cs`
-- `src/Symphony.App/Services/UserManagementService.cs`
+- `src/Symphony/Controllers/AdminController.cs`
+- `src/Symphony/Views/Admin/Users.cshtml`
+- `src/Symphony/Services/UserManagementService.cs`
 
 ---
 
@@ -841,9 +847,10 @@ Add a member-facing account area with a personalized greeting and navigation.
 
 ### Files likely involved
 
-- `src/Symphony.App/Pages/Account/Index.cshtml`
-- `src/Symphony.App/Pages/Shared/_Layout.cshtml`
-- `src/Symphony.App/Pages/Admin/Index.cshtml`
+- `src/Symphony/Controllers/AccountController.cs`
+- `src/Symphony/Views/Account/Index.cshtml`
+- `src/Symphony/Views/Shared/_Layout.cshtml`
+- `src/Symphony/Views/Admin/Index.cshtml`
 
 ---
 
@@ -886,8 +893,8 @@ Persist Data Protection keys and harden cookie options for multi-instance and co
 
 ### Files likely involved
 
-- `src/Symphony.App/Program.cs`
-- `src/Symphony.App/appsettings.json`
+- `src/Symphony/Program.cs`
+- `src/Symphony/appsettings.json`
 
 ---
 
@@ -938,10 +945,10 @@ Each user owns a saved configuration used to build runtime `ServiceConfig`.
 
 ### Files likely involved
 
-- `src/Symphony.App/Domain/UserConfiguration.cs`
-- `src/Symphony.App/Data/SymphonyDbContext.cs`
-- `src/Symphony.App/Services/ConfigurationService.cs`
-- `src/Symphony.App/Data/Migrations/*`
+- `src/Symphony/Domain/UserConfiguration.cs`
+- `src/Symphony/Data/SymphonyDbContext.cs`
+- `src/Symphony/Services/ConfigurationService.cs`
+- `src/Symphony/Data/Migrations/*`
 
 ---
 
@@ -987,9 +994,9 @@ Expose `GET /api/configuration` and `PUT /api/configuration` for the current use
 
 ### Files likely involved
 
-- `src/Symphony.App/Api/ConfigurationEndpoints.cs`
-- `src/Symphony.App/Dto/ConfigurationDtos.cs`
-- `src/Symphony.App/Services/ConfigurationService.cs`
+- `src/Symphony/Api/ConfigurationEndpoints.cs`
+- `src/Symphony/Dto/ConfigurationDtos.cs`
+- `src/Symphony/Services/ConfigurationService.cs`
 
 ---
 
@@ -1009,7 +1016,7 @@ Provide `/account/configuration` for editing personal work tool and agent setup.
 
 ### Scope
 
-- Build Razor Page form for tracker settings, states, Copilot BYOM, workspace root, hooks, max turns/concurrency, default workflow.
+- Build an MVC form on `AccountController` (`Views/Account/Configuration.cshtml`) for tracker settings, states, Copilot BYOM, workspace root, hooks, max turns/concurrency, default workflow. Do not use a Razor Page or a page model.
 - Save via API or service.
 - Mask existing secrets and support "leave blank to keep".
 - Provide provider-specific option sections.
@@ -1033,9 +1040,9 @@ Provide `/account/configuration` for editing personal work tool and agent setup.
 
 ### Files likely involved
 
-- `src/Symphony.App/Pages/Account/Configuration.cshtml`
-- `src/Symphony.App/Pages/Account/Configuration.cshtml.cs`
-- `src/Symphony.App/Dto/ConfigurationDtos.cs`
+- `src/Symphony/Controllers/AccountController.cs`
+- `src/Symphony/Views/Account/Configuration.cshtml`
+- `src/Symphony/Dto/ConfigurationDtos.cs`
 
 ---
 
@@ -1079,9 +1086,9 @@ Persist named, user-owned workflows with unique names per owner.
 
 ### Files likely involved
 
-- `src/Symphony.App/Domain/Workflow.cs`
-- `src/Symphony.App/Data/SymphonyDbContext.cs`
-- `src/Symphony.App/Services/WorkflowService.cs`
+- `src/Symphony/Domain/Workflow.cs`
+- `src/Symphony/Data/SymphonyDbContext.cs`
+- `src/Symphony/Services/WorkflowService.cs`
 
 ---
 
@@ -1128,9 +1135,9 @@ Expose user-owned workflow endpoints under `/api/workflows`.
 
 ### Files likely involved
 
-- `src/Symphony.App/Api/WorkflowEndpoints.cs`
-- `src/Symphony.App/Dto/WorkflowDtos.cs`
-- `src/Symphony.App/Services/WorkflowService.cs`
+- `src/Symphony/Api/WorkflowEndpoints.cs`
+- `src/Symphony/Dto/WorkflowDtos.cs`
+- `src/Symphony/Services/WorkflowService.cs`
 
 ---
 
@@ -1175,9 +1182,9 @@ Provide `/account/workflows` to create, edit, rename, copy, and delete workflows
 
 ### Files likely involved
 
-- `src/Symphony.App/Pages/Account/Workflows.cshtml`
-- `src/Symphony.App/Pages/Account/Workflows.cshtml.cs`
-- `src/Symphony.App/Api/WorkflowEndpoints.cs`
+- `src/Symphony/Controllers/AccountController.cs`
+- `src/Symphony/Views/Account/Workflows.cshtml`
+- `src/Symphony/Api/WorkflowEndpoints.cs`
 
 ---
 
@@ -1222,10 +1229,10 @@ Seed the bundled default `WORKFLOW` workflow and default app settings for users/
 
 ### Files likely involved
 
-- `src/Symphony.App/WORKFLOW.md`
-- `src/Symphony.App/Data/DatabaseInitializer.cs`
-- `src/Symphony.App/Services/UserManagementService.cs`
-- `src/Symphony.App/Services/WorkflowService.cs`
+- `src/Symphony/WORKFLOW.md`
+- `src/Symphony/Data/DatabaseInitializer.cs`
+- `src/Symphony/Services/UserManagementService.cs`
+- `src/Symphony/Services/WorkflowService.cs`
 
 ---
 
@@ -1275,8 +1282,8 @@ Tracker credentials, Copilot BYOM secrets, encrypted PAT snapshots, and API key 
 
 ### Files likely involved
 
-- `src/Symphony.App/Security/SecretProtector.cs`
-- `src/Symphony.App/Security/Redaction.cs`
+- `src/Symphony/Security/SecretProtector.cs`
+- `src/Symphony/Security/Redaction.cs`
 - `tests/Symphony.Tests/SecretProtectorTests.cs`
 
 ---
@@ -1331,10 +1338,10 @@ Define allowed front matter override keys and validation bounds.
 
 ### Files likely involved
 
-- `src/Symphony.App/Config/ServiceConfigFactory.cs`
-- `src/Symphony.App/Config/ServiceConfigProvider.cs`
-- `src/Symphony.App/Config/CopilotConfig.cs`
-- `src/Symphony.App/Workflows/WorkflowLoader.cs`
+- `src/Symphony/Config/ServiceConfigFactory.cs`
+- `src/Symphony/Config/ServiceConfigProvider.cs`
+- `src/Symphony/Config/CopilotConfig.cs`
+- `src/Symphony/Workflows/WorkflowLoader.cs`
 - `tests/Symphony.Tests/ServiceConfigFactoryTests.cs`
 
 ---
@@ -1384,11 +1391,11 @@ Persist `Job`, `JobIssue`, and `JobEvent` aggregates with required indices.
 
 ### Files likely involved
 
-- `src/Symphony.App/Domain/Job.cs`
-- `src/Symphony.App/Domain/JobIssue.cs`
-- `src/Symphony.App/Domain/JobEvent.cs`
-- `src/Symphony.App/Data/SymphonyDbContext.cs`
-- `src/Symphony.App/Data/Migrations/*`
+- `src/Symphony/Domain/Job.cs`
+- `src/Symphony/Domain/JobIssue.cs`
+- `src/Symphony/Domain/JobEvent.cs`
+- `src/Symphony/Data/SymphonyDbContext.cs`
+- `src/Symphony/Data/Migrations/*`
 
 ---
 
@@ -1437,10 +1444,10 @@ Implement `POST /api/work` to queue explicitly submitted work.
 
 ### Files likely involved
 
-- `src/Symphony.App/Api/WorkEndpoints.cs`
-- `src/Symphony.App/Dto/WorkRequestDtos.cs`
-- `src/Symphony.App/Services/JobService.cs`
-- `src/Symphony.App/Security/SecretProtector.cs`
+- `src/Symphony/Api/WorkEndpoints.cs`
+- `src/Symphony/Dto/WorkRequestDtos.cs`
+- `src/Symphony/Services/JobService.cs`
+- `src/Symphony/Security/SecretProtector.cs`
 
 ---
 
@@ -1485,9 +1492,9 @@ Provide `/account/run` as a friendly launcher over the same submission payload.
 
 ### Files likely involved
 
-- `src/Symphony.App/Pages/Account/Run.cshtml`
-- `src/Symphony.App/Pages/Account/Run.cshtml.cs`
-- `src/Symphony.App/Api/WorkEndpoints.cs`
+- `src/Symphony/Controllers/AccountController.cs`
+- `src/Symphony/Views/Account/Run.cshtml`
+- `src/Symphony/Api/WorkEndpoints.cs`
 
 ---
 
@@ -1530,9 +1537,9 @@ Use the database as source of truth, with an in-memory signal to wake job proces
 
 ### Files likely involved
 
-- `src/Symphony.App/Processing/JobQueue.cs`
-- `src/Symphony.App/Processing/JobProcessor.cs`
-- `src/Symphony.App/Api/WorkEndpoints.cs`
+- `src/Symphony/Processing/JobQueue.cs`
+- `src/Symphony/Processing/JobProcessor.cs`
+- `src/Symphony/Api/WorkEndpoints.cs`
 
 ---
 
@@ -1577,11 +1584,11 @@ Make runtime config injectable and mockable instead of using a concrete singleto
 
 ### Files likely involved
 
-- `src/Symphony.App/Config/IServiceConfigProvider.cs`
-- `src/Symphony.App/Config/ServiceConfigProvider.cs`
-- `src/Symphony.App/Config/StaticServiceConfigProvider.cs`
-- `src/Symphony.App/Agent/AgentRunner.cs`
-- `src/Symphony.App/Workspaces/WorkspaceManager.cs`
+- `src/Symphony/Config/IServiceConfigProvider.cs`
+- `src/Symphony/Config/ServiceConfigProvider.cs`
+- `src/Symphony/Config/StaticServiceConfigProvider.cs`
+- `src/Symphony/Agent/AgentRunner.cs`
+- `src/Symphony/Workspaces/WorkspaceManager.cs`
 
 ---
 
@@ -1626,8 +1633,8 @@ Select the correct issue tracker from config and support inline work with `NullI
 
 ### Files likely involved
 
-- `src/Symphony.App/IssueTracker/IssueTrackerFactory.cs`
-- `src/Symphony.App/IssueTracker/NullIssueTracker.cs`
+- `src/Symphony/IssueTracker/IssueTrackerFactory.cs`
+- `src/Symphony/IssueTracker/NullIssueTracker.cs`
 - `tests/Symphony.Tests/NullIssueTrackerTests.cs`
 
 ---
@@ -1673,10 +1680,10 @@ Create Copilot SDK agents from service config with BYOM settings; retain Codex s
 
 ### Files likely involved
 
-- `src/Symphony.App/Agent/CodingAgentFactory.cs`
-- `src/Symphony.App/Agent/CopilotAgent.cs`
-- `src/Symphony.App/Program.cs`
-- `src/Symphony.App/Config/ServiceConfig.cs`
+- `src/Symphony/Agent/CodingAgentFactory.cs`
+- `src/Symphony/Agent/CopilotAgent.cs`
+- `src/Symphony/Program.cs`
+- `src/Symphony/Config/ServiceConfig.cs`
 
 ---
 
@@ -1720,9 +1727,9 @@ Allow workflow front matter to override run-level workspace, hooks, and agent li
 
 ### Files likely involved
 
-- `src/Symphony.App/Workflows/WorkflowLoader.cs`
-- `src/Symphony.App/Config/ServiceConfigFactory.cs`
-- `src/Symphony.App/Config/ConfigReader` (in `ServiceConfigProvider.cs`)
+- `src/Symphony/Workflows/WorkflowLoader.cs`
+- `src/Symphony/Config/ServiceConfigFactory.cs`
+- `src/Symphony/Config/ConfigReader` (in `ServiceConfigProvider.cs`)
 
 ---
 
@@ -1782,10 +1789,10 @@ Process queued jobs from the database with concurrency controls and per-issue ex
 
 ### Files likely involved
 
-- `src/Symphony.App/Processing/JobProcessor.cs`
-- `src/Symphony.App/Services/JobService.cs`
-- `src/Symphony.App/Config/ServiceConfigFactory.cs`
-- `src/Symphony.App/Workspaces/WorkspaceManager.cs`
+- `src/Symphony/Processing/JobProcessor.cs`
+- `src/Symphony/Services/JobService.cs`
+- `src/Symphony/Config/ServiceConfigFactory.cs`
+- `src/Symphony/Workspaces/WorkspaceManager.cs`
 
 ---
 
@@ -1830,9 +1837,9 @@ Persist per-issue outcomes and telemetry events during job processing.
 
 ### Files likely involved
 
-- `src/Symphony.App/Services/JobService.cs`
-- `src/Symphony.App/Processing/JobProcessor.cs`
-- `src/Symphony.App/Security/Redaction.cs`
+- `src/Symphony/Services/JobService.cs`
+- `src/Symphony/Processing/JobProcessor.cs`
+- `src/Symphony/Security/Redaction.cs`
 
 ---
 
@@ -1878,10 +1885,10 @@ Fetch issue details from the owner's configured tracker when `ticketIds` are sup
 
 ### Files likely involved
 
-- `src/Symphony.App/Processing/JobProcessor.cs`
-- `src/Symphony.App/IssueTracker/LinearClient.cs`
-- `src/Symphony.App/IssueTracker/JiraClient.cs`
-- `src/Symphony.App/Domain/Models.cs`
+- `src/Symphony/Processing/JobProcessor.cs`
+- `src/Symphony/IssueTracker/LinearClient.cs`
+- `src/Symphony/IssueTracker/JiraClient.cs`
+- `src/Symphony/Domain/Models.cs`
 
 ---
 
@@ -1926,9 +1933,9 @@ Expose job status, list, and cancellation endpoints with ownership/admin rules.
 
 ### Files likely involved
 
-- `src/Symphony.App/Api/JobEndpoints.cs`
-- `src/Symphony.App/Dto/JobStatusDtos.cs`
-- `src/Symphony.App/Services/JobService.cs`
+- `src/Symphony/Api/JobEndpoints.cs`
+- `src/Symphony/Dto/JobStatusDtos.cs`
+- `src/Symphony/Services/JobService.cs`
 
 ---
 
@@ -1960,7 +1967,7 @@ Provide `/admin/jobs` and `/admin/jobs/{id}` with filtering, pagination, issue t
 
 ### Suggested implementation path
 
-- Razor Pages with query binding.
+- `AdminController` actions with query binding. Do not use Razor Pages.
 - Client-side refresh every 3-5 seconds.
 
 ### Acceptance criteria
@@ -1972,10 +1979,9 @@ Provide `/admin/jobs` and `/admin/jobs/{id}` with filtering, pagination, issue t
 
 ### Files likely involved
 
-- `src/Symphony.App/Pages/Admin/Jobs.cshtml`
-- `src/Symphony.App/Pages/Admin/Jobs.cshtml.cs`
-- `src/Symphony.App/Pages/Admin/JobDetail.cshtml`
-- `src/Symphony.App/Pages/Admin/JobDetail.cshtml.cs`
+- `src/Symphony/Controllers/AdminController.cs`
+- `src/Symphony/Views/Admin/Jobs.cshtml`
+- `src/Symphony/Views/Admin/JobDetail.cshtml`
 
 ---
 
@@ -2065,9 +2071,9 @@ Safely accept, store, and use per-request GitHub repository and PAT.
 
 ### Files likely involved
 
-- `src/Symphony.App/Security/GitHubPatRedaction.cs`
-- `src/Symphony.App/Dto/WorkRequestDtos.cs`
-- `src/Symphony.App/Services/JobService.cs`
+- `src/Symphony/Security/GitHubPatRedaction.cs`
+- `src/Symphony/Dto/WorkRequestDtos.cs`
+- `src/Symphony/Services/JobService.cs`
 
 ---
 
@@ -2110,8 +2116,8 @@ Verify Copilot SDK agents run using each user's BYOM settings.
 
 ### Files likely involved
 
-- `src/Symphony.App/Agent/CopilotAgent.cs`
-- `src/Symphony.App/Config/ServiceConfigFactory.cs`
+- `src/Symphony/Agent/CopilotAgent.cs`
+- `src/Symphony/Config/ServiceConfigFactory.cs`
 - `tests/Symphony.Tests/CopilotByomSmokeTests.cs`
 
 ---
@@ -2159,8 +2165,8 @@ Ensure jobs run in user-scoped workspace folders and respect per-user/global/per
 
 ### Files likely involved
 
-- `src/Symphony.App/Workspaces/WorkspaceManager.cs`
-- `src/Symphony.App/Processing/JobProcessor.cs`
+- `src/Symphony/Workspaces/WorkspaceManager.cs`
+- `src/Symphony/Processing/JobProcessor.cs`
 - `tests/Symphony.Tests/WorkspacePathSafetyTests.cs`
 
 ---
@@ -2260,11 +2266,12 @@ Add user-owned API keys with create, rotate, enable/disable, revoke, and metadat
 
 ### Files likely involved
 
-- `src/Symphony.App/Domain/ApiKey.cs`
-- `src/Symphony.App/Data/SymphonyDbContext.cs`
-- `src/Symphony.App/Api/ApiKeyEndpoints.cs`
-- `src/Symphony.App/Middleware/ApiKeyMiddleware.cs`
-- `src/Symphony.App/Pages/Account/ApiKeys.cshtml`
+- `src/Symphony/Domain/ApiKey.cs`
+- `src/Symphony/Data/SymphonyDbContext.cs`
+- `src/Symphony/Api/ApiKeyEndpoints.cs`
+- `src/Symphony/Middleware/ApiKeyMiddleware.cs`
+- `src/Symphony/Controllers/AccountController.cs`
+- `src/Symphony/Views/Account/ApiKeys.cshtml`
 
 ---
 
@@ -2353,8 +2360,8 @@ Make `/account/run` API tab show a live curl example using the user's actual ena
 
 ### Files likely involved
 
-- `src/Symphony.App/Pages/Account/Run.cshtml`
-- `src/Symphony.App/Pages/Account/ApiKeys.cshtml`
+- `src/Symphony/Views/Account/Run.cshtml`
+- `src/Symphony/Views/Account/ApiKeys.cshtml`
 
 ---
 
@@ -2397,9 +2404,9 @@ Harden public API endpoints with validation and rate limits.
 
 ### Files likely involved
 
-- `src/Symphony.App/Program.cs`
-- `src/Symphony.App/Api/*`
-- `src/Symphony.App/Dto/*`
+- `src/Symphony/Program.cs`
+- `src/Symphony/Api/*`
+- `src/Symphony/Dto/*`
 
 ---
 
@@ -2491,9 +2498,9 @@ Allow admins to retry a job by creating a new linked job.
 
 ### Files likely involved
 
-- `src/Symphony.App/Api/JobEndpoints.cs`
-- `src/Symphony.App/Services/JobService.cs`
-- `src/Symphony.App/Dto/JobStatusDtos.cs`
+- `src/Symphony/Api/JobEndpoints.cs`
+- `src/Symphony/Services/JobService.cs`
+- `src/Symphony/Dto/JobStatusDtos.cs`
 
 ---
 
@@ -2539,8 +2546,8 @@ Ensure job cancellation, stale running recovery, and workspace cleanup work reli
 
 ### Files likely involved
 
-- `src/Symphony.App/Processing/JobProcessor.cs`
-- `src/Symphony.App/Workspaces/WorkspaceManager.cs`
+- `src/Symphony/Processing/JobProcessor.cs`
+- `src/Symphony/Workspaces/WorkspaceManager.cs`
 - `tests/Symphony.Tests/JobRecoveryTests.cs`
 
 ---
@@ -2585,10 +2592,10 @@ Add SignalR push for job progress while keeping polling fallback.
 
 ### Files likely involved
 
-- `src/Symphony.App/Hubs/JobUpdateHub.cs`
-- `src/Symphony.App/Pages/Admin/Jobs.cshtml`
-- `src/Symphony.App/Pages/Account/...cshtml`
-- `src/Symphony.App/Program.cs`
+- `src/Symphony/Hubs/JobUpdateHub.cs`
+- `src/Symphony/Views/Admin/Jobs.cshtml`
+- `src/Symphony/Views/Account/*.cshtml`
+- `src/Symphony/Program.cs`
 
 ---
 
@@ -2631,9 +2638,10 @@ Allow admins to view/update global settings such as concurrency, default workspa
 
 ### Files likely involved
 
-- `src/Symphony.App/Pages/Admin/Settings.cshtml`
-- `src/Symphony.App/Api/AppSettingEndpoints.cs`
-- `src/Symphony.App/Services/AppSettingsService.cs`
+- `src/Symphony/Controllers/AdminController.cs`
+- `src/Symphony/Views/Admin/Settings.cshtml`
+- `src/Symphony/Api/AppSettingEndpoints.cs`
+- `src/Symphony/Services/AppSettingsService.cs`
 
 ---
 
@@ -2675,9 +2683,9 @@ Ensure audit snapshots are protected and not surfaced through normal APIs/UI.
 
 ### Files likely involved
 
-- `src/Symphony.App/Dto/JobStatusDtos.cs`
-- `src/Symphony.App/Services/JobService.cs`
-- `src/Symphony.App/Security/Redaction.cs`
+- `src/Symphony/Dto/JobStatusDtos.cs`
+- `src/Symphony/Services/JobService.cs`
+- `src/Symphony/Security/Redaction.cs`
 
 ---
 
@@ -2813,10 +2821,10 @@ Remove legacy candidate polling from the shipped web path and apply final harden
 
 ### Files likely involved
 
-- `src/Symphony.App/Orchestration/OrchestratorService.cs`
-- `src/Symphony.App/Program.cs`
-- `src/Symphony.App/Pages/**/*.cshtml`
-- `src/Symphony.App/IssueTracker/IIssueTracker.cs`
+- `src/Symphony/Orchestration/OrchestratorService.cs`
+- `src/Symphony/Program.cs`
+- `src/Symphony/Views/**/*.cshtml`
+- `src/Symphony/IssueTracker/IIssueTracker.cs`
 
 ---
 

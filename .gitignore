@@ -365,3 +365,6 @@ FodyWeavers.xsd
 .dotnet/
 
 .codememory/
+
+# Local SQLite database
+App_Data/

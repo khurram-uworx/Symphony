@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Symphony.Data\Symphony.Data.csproj" />
+    <ProjectReference Include="..\..\src\Symphony.Migrations.Sqlite\Symphony.Migrations.Sqlite.csproj" />
     <ProjectReference Include="..\..\src\Symphony\Symphony.csproj" />
   </ItemGroup>
 

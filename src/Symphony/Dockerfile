@@ -1,0 +1,17 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY . .
+RUN dotnet restore src/Symphony/Symphony.csproj
+RUN dotnet publish src/Symphony/Symphony.csproj \
+    -c Release -r linux-x64 --no-self-contained -o /app
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+COPY --from=build --chown=app:app /app .
+USER root
+RUN mkdir -p /app/App_Data /home/app/.aspnet/DataProtection-Keys \
+    && chown -R app:app /app/App_Data /home/app/.aspnet
+USER app
+EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:8080
+ENTRYPOINT ["dotnet", "Symphony.dll"]

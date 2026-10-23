@@ -4,7 +4,7 @@
 
 Symphony is a .NET 10 web host for AI agent orchestration. The entry point is the ASP.NET Core MVC app in `src/Symphony`. It serves HTTP and does not require a workflow file to start. Legacy candidate polling remains in the tree until it is removed; it is not how the app is run.
 
-**Primary docs:** [README.md](README.md) for setup, configuration, and usage. [docs/CONFIG.md](docs/CONFIG.md) for workflow configuration. [docs/adr/](docs/adr/) for accepted decisions. [docs/plans/](docs/plans/) for product plans.
+**Primary docs:** [README.md](README.md) for setup, configuration, and usage. [CONTAINER-README.md](CONTAINER-README.md) for the published image and sample compose. [docs/CONFIG.md](docs/CONFIG.md) for workflow configuration. [docs/adr/](docs/adr/) for accepted decisions. [docs/plans/](docs/plans/) for product plans.
 
 ## Repository map
 

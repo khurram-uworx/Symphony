@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: symphony
+      POSTGRES_PASSWORD: symphony
+      POSTGRES_DB: symphony
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U symphony -d symphony"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: src/Symphony/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Database__Provider: postgresql
+      ConnectionStrings__PostgreSQL: "Host=postgres;Port=5432;Database=symphony;Username=symphony;Password=symphony"
+      # Provider switching examples:
+      # Database__Provider: sqlite
+      # ConnectionStrings__Sqlite: "Data Source=App_Data/symphony.db"
+      # Database__Provider: sqlserver
+      # ConnectionStrings__SqlServer: "Server=...;Database=symphony;..."
+    volumes:
+      - appdata:/app/App_Data
+      - dataprotection:/home/app/.aspnet/DataProtection-Keys
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  pgdata:
+  appdata:
+  dataprotection:

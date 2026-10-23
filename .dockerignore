@@ -1,0 +1,15 @@
+**/bin/
+**/obj/
+.git/
+.github/
+.vs/
+.vscode/
+.idea/
+.opencode/
+.codememory/
+.memori/
+docs/
+packages/
+scripts/
+tests/
+App_Data/

@@ -37,15 +37,18 @@ public static class DatabaseRegistration
                 if (string.IsNullOrWhiteSpace(sqlite))
                     sqlite = "Data Source=App_Data/symphony.db";
                 var resolved = SqliteConnectionResolver.Resolve(sqlite, contentRoot);
-                services.AddDbContextFactory<SymphonyDbContext>(options => options.UseSqlite(resolved));
+                services.AddDbContextFactory<SymphonyDbContext>(options =>
+                    options.UseSqlite(resolved, sqlite => sqlite.MigrationsAssembly("Symphony.Migrations.Sqlite")));
                 break;
             case "sqlserver":
                 var sqlServer = require(configuration, configured, "SqlServer");
-                services.AddDbContextFactory<SymphonyDbContext>(options => options.UseSqlServer(sqlServer));
+                services.AddDbContextFactory<SymphonyDbContext>(options =>
+                    options.UseSqlServer(sqlServer, sql => sql.MigrationsAssembly("Symphony.Migrations.SqlServer")));
                 break;
             case "npgsql":
                 var postgres = require(configuration, configured, "PostgreSQL", "Npgsql");
-                services.AddDbContextFactory<SymphonyDbContext>(options => options.UseNpgsql(postgres));
+                services.AddDbContextFactory<SymphonyDbContext>(options =>
+                    options.UseNpgsql(postgres, npgsql => npgsql.MigrationsAssembly("Symphony.Migrations.PostgreSQL")));
                 break;
             default:
                 throw new InvalidOperationException($"Unsupported database provider '{configured}'.");

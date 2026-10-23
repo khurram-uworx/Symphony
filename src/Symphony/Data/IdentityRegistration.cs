@@ -18,6 +18,11 @@ public static class IdentityRegistration
             options.AccessDeniedPath = "/Account/AccessDenied";
         });
 
+        services.Configure<SecurityStampValidatorOptions>(options =>
+        {
+            options.ValidationInterval = TimeSpan.Zero;
+        });
+
         return builder;
     }
 }

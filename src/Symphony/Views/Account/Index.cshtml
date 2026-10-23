@@ -1,0 +1,36 @@
+@{
+    ViewData["Title"] = "Account";
+    var displayName = ViewData["DisplayName"] as string ?? User.Identity?.Name;
+    var roles = (ViewData["Roles"] as IEnumerable<string>) ?? Array.Empty<string>();
+}
+<section class="panel">
+    <h1>Account</h1>
+    <p class="muted">Hello, @displayName</p>
+
+    <dl class="details">
+        <dt>Display name</dt>
+        <dd>@displayName</dd>
+        <dt>Role</dt>
+        <dd>@(roles.Any() ? string.Join(", ", roles) : "User")</dd>
+    </dl>
+
+    <h2>Shortcuts</h2>
+    <ul class="shortcuts">
+        <li>
+            <a asp-controller="Account" asp-action="Configuration">Configuration</a>
+            <span class="muted">coming soon</span>
+        </li>
+        <li>
+            <a asp-controller="Account" asp-action="Workflows">Workflows</a>
+            <span class="muted">coming soon</span>
+        </li>
+        <li>
+            <a asp-controller="Account" asp-action="ApiKeys">API keys</a>
+            <span class="muted">coming soon</span>
+        </li>
+        <li>
+            <a asp-controller="Account" asp-action="Run">Run launcher</a>
+            <span class="muted">coming soon</span>
+        </li>
+    </ul>
+</section>

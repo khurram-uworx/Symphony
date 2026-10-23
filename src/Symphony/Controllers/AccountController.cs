@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Symphony.Controllers;
 
-public sealed class AccountController(SignInManager<IdentityUser> signInManager) : Controller
+public sealed class AccountController(
+    SignInManager<IdentityUser> signInManager,
+    UserManager<IdentityUser> userManager) : Controller
 {
     static bool isLoginPath(string returnUrl)
     {
@@ -51,6 +53,20 @@ public sealed class AccountController(SignInManager<IdentityUser> signInManager)
 
         ModelState.AddModelError(string.Empty, "Invalid username or password.");
         return View(input);
+    }
+
+    [HttpGet]
+    [Authorize]
+    public async Task<IActionResult> Index()
+    {
+        var user = await userManager.GetUserAsync(User);
+        var roles = user is null
+            ? Array.Empty<string>()
+            : await userManager.GetRolesAsync(user);
+
+        ViewData["DisplayName"] = user?.UserName ?? User.Identity?.Name;
+        ViewData["Roles"] = roles;
+        return View();
     }
 
     [HttpPost]

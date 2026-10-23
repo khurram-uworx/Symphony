@@ -1,0 +1,78 @@
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<IdentityUser> UserManager
+@model IEnumerable<IdentityUser>
+@{
+    ViewData["Title"] = "Users";
+}
+<section class="panel">
+    <h1>Users</h1>
+    @if (TempData["Message"] is string message)
+    {
+        <p class="muted">@message</p>
+    }
+    @if (TempData["Error"] is string error)
+    {
+        <p class="validation">@error</p>
+    }
+
+    <form asp-action="CreateUser" method="post">
+        <label>Username <input name="userName" autocomplete="username" required /></label>
+        <label>Password <input name="password" type="password" autocomplete="new-password" required /></label>
+        <label>Role
+            <select name="role">
+                <option value="User">User</option>
+                <option value="Admin">Admin</option>
+            </select>
+        </label>
+        <button type="submit">Create user</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Roles</th>
+                <th>Locked out until</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var user in Model)
+        {
+            <tr>
+                <td>@user.UserName</td>
+                <td>@string.Join(", ", await UserManager.GetRolesAsync(user))</td>
+                <td>@(user.LockoutEnd?.ToString() ?? "not locked")</td>
+                <td class="table-actions">
+                    <form asp-action="EnableUser" method="post" style="display:inline">
+                        <input type="hidden" name="userId" value="@user.Id" />
+                        <button type="submit">Enable</button>
+                    </form>
+                    <form asp-action="DisableUser" method="post" style="display:inline">
+                        <input type="hidden" name="userId" value="@user.Id" />
+                        <button type="submit">Disable</button>
+                    </form>
+                    <form asp-action="ResetPassword" method="post" style="display:inline">
+                        <input type="hidden" name="userId" value="@user.Id" />
+                        <button type="submit">Reset password</button>
+                    </form>
+                    <form asp-action="ChangeRole" method="post" style="display:inline">
+                        <input type="hidden" name="userId" value="@user.Id" />
+                        <select name="role">
+                            <option value="User">User</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                        <button type="submit">Set role</button>
+                    </form>
+                    <form asp-action="DeleteUser" method="post" style="display:inline" onsubmit="return confirm('Delete this user?');">
+                        <input type="hidden" name="userId" value="@user.Id" />
+                        <button type="submit" class="danger">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</section>
+
+

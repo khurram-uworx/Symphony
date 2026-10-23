@@ -282,7 +282,9 @@ button[type="submit"]:active {
 }
 
 table {
+    display: block;
     width: 100%;
+    overflow-x: auto;
     border-collapse: collapse;
     margin-top: 20px;
     font-size: 0.9rem;

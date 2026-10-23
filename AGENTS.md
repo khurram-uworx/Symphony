@@ -52,4 +52,6 @@ dotnet run -c Release --project tests/Symphony.PerformanceTests
 - **Pattern:** Arrange-Act-Assert (AAA); no explicit comments needed
 - **Organization:** one test class per source class, `*Tests.cs` suffix; split by behavior when a class is large
 - **Mocking:** prefer real implementations where feasible; use `Substitute.For<T>()` only when external dependencies require it
+- **Scope:** `tests/Symphony.Tests` is unit tests. Integration tests there are an emergency only, and must stay in-process. No browser, Docker, or external network. See [ADR-0002](docs/adr/0002-test-boundaries-and-playwright.md).
+- **Playwright:** always through the Playwright MCP, against a host launched with `dotnet run`. Do not add Playwright or web smoke tests to `Symphony.Tests`. Later browser scripts, if needed, are JavaScript or TypeScript under `tests/`, not in `Symphony.Tests`.
 - **Default run:** the CI category filter above. Never run Integration tests to "see if the suite is green."

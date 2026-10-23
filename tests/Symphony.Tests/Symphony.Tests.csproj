@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Symphony.Data\Symphony.Data.csproj" />
     <ProjectReference Include="..\..\src\Symphony\Symphony.csproj" />
   </ItemGroup>
 

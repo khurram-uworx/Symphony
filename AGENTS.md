@@ -20,10 +20,12 @@ Symphony is a .NET 10 web host for AI agent orchestration. The entry point is th
 
 ```bash
 dotnet build Symphony.slnx
-dotnet test tests/Symphony.Tests
+dotnet test tests/Symphony.Tests --filter "Category!=Integration&Category!=Smoke&Category!=ReleaseReadiness"
 ```
 
-CI is `.github/workflows/ci.yml`. It builds and tests only `tests/Symphony.Tests`. Probes and performance tests are opt-in and are not CI:
+Do not run `dotnet test` without that filter. Integration tests, including `DapploJiraTests`, need `JIRA_URL`, `JIRA_USER`, and `JIRA_TOKEN`. Without those variables they fail immediately with `ArgumentNullException` on `uriString`. That failure is expected. Do not investigate it, change those tests, or invent credentials unless the human explicitly asked to run Integration tests.
+
+CI is `.github/workflows/ci.yml`. It builds and tests only `tests/Symphony.Tests` with the same filter. Probes and performance tests are opt-in and are not CI:
 
 ```bash
 dotnet run --project tests/Symphony.CodingAgentsProbe -- copilot "Say hello in one sentence."
@@ -50,3 +52,4 @@ dotnet run -c Release --project tests/Symphony.PerformanceTests
 - **Pattern:** Arrange-Act-Assert (AAA); no explicit comments needed
 - **Organization:** one test class per source class, `*Tests.cs` suffix; split by behavior when a class is large
 - **Mocking:** prefer real implementations where feasible; use `Substitute.For<T>()` only when external dependencies require it
+- **Default run:** the CI category filter above. Never run Integration tests to "see if the suite is green."

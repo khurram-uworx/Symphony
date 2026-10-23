@@ -92,6 +92,20 @@ Kestrel listens on `http://localhost:5080`. Open that address in a browser. `/` 
 
 See [docs/CONFIG.md](docs/CONFIG.md) for the workflow configuration reference. A bundled sample workflow is available at [src/Symphony/WORKFLOW.md](src/Symphony/WORKFLOW.md). It is a sample file, not a launch argument.
 
+### Web host database
+
+The web host selects its database from `appsettings.json`, overridden by environment variables. SQLite is the default and does not need a server. Switching providers is configuration only; do not change code.
+
+| `Database:Provider` | Connection string | Notes |
+| --- | --- | --- |
+| `sqlite` (default) | `ConnectionStrings:Sqlite` | Defaults to `Data Source=App_Data/symphony.db` when omitted |
+| `sqlserver` | `ConnectionStrings:SqlServer` | Required. No default |
+| `postgresql` | `ConnectionStrings:PostgreSQL` | Required. `postgres` and `npgsql` are provider aliases. `ConnectionStrings:Npgsql` is used only when `PostgreSQL` is not set |
+
+Environment variables use `__` for nested keys: `Database__Provider`, `ConnectionStrings__SqlServer`, `ConnectionStrings__PostgreSQL`.
+
+A missing SQL Server or PostgreSQL connection string fails at startup. The error names the missing key and the configured provider. Provider-specific migrations are not part of this registration; schema initialization still uses the existing startup path.
+
 ### Workflow File Format
 
 Create a WORKFLOW.md file with YAML front matter and a Markdown prompt body:

@@ -12,8 +12,6 @@ Symphony runs as an ASP.NET Core MVC web host. Start it with `dotnet run --proje
 
 The web host uses ASP.NET Core Identity for sign-in, selects its database through configuration, applies EF Core migrations on startup, and seeds a first administrator whose generated password is printed to the console. A greeting is shown after sign-in.
 
-A legacy candidate-polling runtime remains in the source tree but is not registered at startup and is not the product entry point.
-
 ## Getting Started
 
 ### Prerequisites
@@ -89,7 +87,7 @@ src/Symphony/                    # Web host
   Config/
   Domain/
   IssueTracker/                 # Linear and Jira
-  Orchestration/                # Legacy polling runtime, not started by the web host
+  Orchestration/                # Orchestration components
   Workflows/
   Workspaces/
   Utils/

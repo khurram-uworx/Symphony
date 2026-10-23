@@ -82,4 +82,3 @@ public sealed class AccountController(
     [AllowAnonymous]
     public IActionResult AccessDenied() => View();
 }
-EOF

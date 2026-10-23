@@ -192,7 +192,7 @@ CodeMemory additionally creates the SQLite parent directory during startup; Symp
 ### Admin web UI
 
 - Use ASP.NET Core Identity with cookie authentication.
-- Identity UI can be used for first cut, or later replaced with custom pages.
+- Login and logout are custom MVC actions on `AccountController` (`Views/Account/Login.cshtml`). Do not add the Identity UI package, do not call `MapRazorPages()`, and do not scaffold `Areas/Identity/Pages`. Set the cookie `LoginPath` to `/Account/Login`, which matches the conventional route `{controller}/{action}/{id?}`.
 - Require role `Admin` for all `/admin/*` routes.
 - `/admin/users` lets admins create and manage users in `Admin` and `User` (member) roles:
   - create/disable/delete accounts
@@ -477,11 +477,13 @@ Recommended: mark stale `Running` jobs as `Failed` and emit an interrupted-run e
 - Each user's jobs run under a user-scoped workspace folder derived from that user's configured workspace base root.
 - Workspaces are never shared between users.
 
-## 9) Web UI (admin and member pages)
+## 9) Web UI (admin and member screens)
 
-Recommended first UI implementation: Razor Pages. Blazor Server can be evaluated later.
+UI is MVC controllers and views, matching the host that already calls `AddControllersWithViews()`. Controllers live under `src/Symphony/Controllers/`. Views live under `src/Symphony/Views/{Controller}/`, with the shared layout at `src/Symphony/Views/Shared/_Layout.cshtml`. Do not add a `Pages/` folder or Razor Pages. Blazor Server can be evaluated later.
 
-### Pages
+Preserve these URL contracts. Implement them with attribute routes or additional conventional routes on the controllers; do not introduce MVC Areas.
+
+### Screens
 
 - `/admin`: dashboard with counters and recent jobs
 - `/admin/jobs`: filterable, paginated job list
@@ -547,8 +549,9 @@ Retain Codex source code, but do not register `CodexAgent`, do not expose it in 
 
 ## 11) Project and entrypoint changes
 
-- Change `src/Symphony.App/Symphony.App.csproj` SDK to `Microsoft.NET.Sdk.Web`.
-- Add packages:
+T1 landed the host at `src/Symphony`. `src/Symphony/Symphony.csproj` already uses `Microsoft.NET.Sdk.Web`, and `src/Symphony/Program.cs` already calls `AddControllersWithViews()` and maps `{controller=Home}/{action=Index}/{id?}`. Do not recreate `src/Symphony.App`.
+
+- Add packages to `src/Symphony/Symphony.csproj`:
   - `Microsoft.AspNetCore.Identity.EntityFrameworkCore`
   - `Microsoft.EntityFrameworkCore.Sqlite`
   - `Microsoft.EntityFrameworkCore.SqlServer`
@@ -558,7 +561,7 @@ Retain Codex source code, but do not register `CodexAgent`, do not expose it in 
 - Add provider selection:
   - default config value `Database:Provider = sqlite`
   - connection strings `Sqlite`, `SqlServer`, and `PostgreSQL`/`Npgsql`, matching CodeMemory's multi-provider registration style.
-- Replace `Program.cs` with web application bootstrap:
+- Extend `src/Symphony/Program.cs` (do not replace the MVC host) with:
   - select EF Core provider from configuration
   - configure DbContext factory for SQLite/SQL Server/PostgreSQL
   - create SQLite database directory when needed
@@ -642,6 +645,7 @@ This web application is the product. The earlier workflow-file polling mode is *
 8. Concurrency: per-user limits are primary; global concurrency is a process-wide safety ceiling. Workspaces are user-scoped folders.
 9. In-memory queue: database remains source of truth; in-memory channels are wake-up signals only.
 10. Service accounts: not supported in the first cut. API keys are user-owned only.
+11. Project path and UI stack: the web host is `src/Symphony`, not `src/Symphony.App`. UI is MVC controllers and views. Do not use Razor Pages, a `Pages/` folder, or the Identity UI Razor Class Library. Login is a custom `AccountController`.
 
 ### 15a) Remaining open decisions
 

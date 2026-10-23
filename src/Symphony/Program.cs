@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Symphony.Data;
+using Symphony.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,7 @@ builder.Logging.AddSimpleConsole(options =>
 builder.Services.AddControllersWithViews();
 builder.Services.AddSymphonyDatabase(builder.Configuration, builder.Environment.ContentRootPath);
 builder.Services.AddSymphonyIdentity();
+builder.Services.AddScoped<UserManagementService>();
 
 var app = builder.Build();
 

@@ -103,6 +103,6 @@ Static file: `wwwroot/css/site.css`. .NET 10 serves `wwwroot` with `MapStaticAss
 
 ## GitHub issues log
 
-- [ ] #10 — T5 smoke test must expect anonymous `/` to redirect to login, not return 200 (existing issue; comment when this lands)
+- [x] #10 — T5 smoke test must expect anonymous `/` to redirect to login, not return 200 (commented on the issue while protecting Home)
 - [ ] #19 — member account area stays out of this branch (existing)
 - [ ] #20 — cookie hardening and HTTPS stay out of this branch (existing)

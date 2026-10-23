@@ -1,5 +1,7 @@
 @{
     ViewData["Title"] = "Symphony";
 }
-<h1>Symphony</h1>
-<p>The web host is running.</p>
+<section class="panel">
+    <h1>Hello, @User.Identity?.Name</h1>
+    <p class="muted">You are signed in.</p>
+</section>

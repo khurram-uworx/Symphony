@@ -9,7 +9,10 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=build --chown=app:app /app .
 USER root
-RUN mkdir -p /app/App_Data /home/app/.aspnet/DataProtection-Keys \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libkrb5-3 libgssapi-krb5-2 \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /app/App_Data /home/app/.aspnet/DataProtection-Keys \
     && chown -R app:app /app/App_Data /home/app/.aspnet
 USER app
 EXPOSE 8080

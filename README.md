@@ -216,12 +216,18 @@ The NUnit suite is the only project intended for CI:
 dotnet test tests/Symphony.Tests
 ```
 
+CI (`.github/workflows/ci.yml`) builds and tests only `tests/Symphony.Tests` with the filter `Category!=Integration&Category!=Smoke&Category!=ReleaseReadiness` and collects Cobertura coverage via `coverlet.collector`. The job fails if tests run but no coverage file is produced.
+
 `tests/Symphony.CodingAgentsProbe` and `tests/Symphony.PerformanceTests` are manual. Do not treat them as part of CI.
 
 ```bash
 dotnet run --project tests/Symphony.CodingAgentsProbe -- copilot "Say hello in one sentence."
 dotnet run -c Release --project tests/Symphony.PerformanceTests
 ```
+
+### Container image
+
+A release image is published to `ghcr.io/<owner>/symphony` (tagged with the version and `latest`) by `.github/workflows/cd.yml` on a `v*` tag or via manual dispatch. `.github/workflows/docker.yml` can publish a requested tag manually.
 
 Architecture decisions live in [docs/adr/](docs/adr/). Product plans live in [docs/plans/](docs/plans/).
 

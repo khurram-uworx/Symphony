@@ -11,6 +11,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
+    env:
+      ASPNETCORE_ENVIRONMENT: Production
 
     steps:
     - uses: actions/checkout@v7
@@ -31,6 +33,12 @@ jobs:
 
     - name: Test
       run: dotnet test tests/Symphony.Tests/Symphony.Tests.csproj --no-build --configuration Release --verbosity normal --filter "Category!=Integration&Category!=Smoke&Category!=ReleaseReadiness" --logger "trx;LogFileName=ci.trx" --results-directory TestResults --collect:"XPlat Code Coverage"
+
+    - name: Verify coverage file
+      run: |
+        if ! find . -name 'coverage.cobertura.xml' | grep -q .; then
+          echo "No coverage file produced"; exit 1
+        fi
 
     - name: Upload test durations
       if: always()

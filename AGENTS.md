@@ -25,12 +25,14 @@ dotnet test tests/Symphony.Tests --filter "Category!=Integration&Category!=Smoke
 
 Do not run `dotnet test` without that filter. Integration tests, including `DapploJiraTests`, need `JIRA_URL`, `JIRA_USER`, and `JIRA_TOKEN`. Without those variables they fail immediately with `ArgumentNullException` on `uriString`. That failure is expected. Do not investigate it, change those tests, or invent credentials unless the human explicitly asked to run Integration tests.
 
-CI is `.github/workflows/ci.yml`. It builds and tests only `tests/Symphony.Tests` with the same filter. Probes and performance tests are opt-in and are not CI:
+CI is `.github/workflows/ci.yml`. It builds and tests only `tests/Symphony.Tests` with the same filter and collects Cobertura coverage via `coverlet.collector`; the job fails if tests run but no coverage file is produced. Probes and performance tests are opt-in and are not CI:
 
 ```bash
 dotnet run --project tests/Symphony.CodingAgentsProbe -- copilot "Say hello in one sentence."
 dotnet run -c Release --project tests/Symphony.PerformanceTests
 ```
+
+Release publishing is `.github/workflows/cd.yml`: it builds and pushes `ghcr.io/${{ github.repository_owner }}/symphony` (version tag + `latest`) on a `v*` tag or manual dispatch. `.github/workflows/docker.yml` is the manual publish entry point. `cd.yml` is the publish workflow, not a build-only check.
 
 ## Code Style
 

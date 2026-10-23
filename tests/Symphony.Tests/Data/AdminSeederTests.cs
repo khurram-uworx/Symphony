@@ -184,6 +184,8 @@ class AdminSeederTests
         var saved = await check.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>()
             .FindByNameAsync(takenName);
 
+        var roles = check.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
         Assert.That(exception!.Message, Does.Contain(takenName));
         Assert.That(exception.Message, Does.Not.Contain(takenPassword));
         Assert.That(output.ToString(), Is.Empty);
@@ -191,6 +193,8 @@ class AdminSeederTests
         Assert.That(await check.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>()
             .IsInRoleAsync(saved, AdminSeeder.AdminRole), Is.False);
         Assert.That(await check.ServiceProvider.GetRequiredService<SymphonyDbContext>().Users.CountAsync(), Is.EqualTo(1));
+        Assert.That(await roles.RoleExistsAsync(AdminSeeder.AdminRole), Is.False);
+        Assert.That(await roles.RoleExistsAsync(AdminSeeder.UserRole), Is.False);
     }
 
     async Task<ServiceProvider> createInitializedProvider()

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Symphony.Data;
@@ -26,5 +27,16 @@ app.MapControllerRoute(
 
 await DatabaseInitializer.InitializeAsync(
     app.Services.GetRequiredService<IDbContextFactory<SymphonyDbContext>>());
+
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var services = scope.ServiceProvider;
+    await AdminSeeder.SeedAsync(
+        services.GetRequiredService<SymphonyDbContext>(),
+        services.GetRequiredService<UserManager<IdentityUser>>(),
+        services.GetRequiredService<RoleManager<IdentityRole>>(),
+        app.Configuration["SeedAdmin:UserName"],
+        Console.Out);
+}
 
 app.Run();

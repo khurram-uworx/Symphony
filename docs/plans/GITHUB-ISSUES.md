@@ -50,7 +50,7 @@ This allows simple `open` / `closed` configurations and richer label-based workf
 Add a new tracker implementation:
 
 ```text
-src/Symphony.App/IssueTracker/GitHubIssuesClient.cs
+src/Symphony/IssueTracker/GitHubIssuesClient.cs
 ```
 
 It should implement `IIssueTracker`:

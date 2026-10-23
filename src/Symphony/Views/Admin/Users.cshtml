@@ -43,7 +43,7 @@
                 <td>@user.UserName</td>
                 <td>@string.Join(", ", await UserManager.GetRolesAsync(user))</td>
                 <td>@(user.LockoutEnd?.ToString() ?? "not locked")</td>
-                <td>
+                <td class="table-actions">
                     <form asp-action="EnableUser" method="post" style="display:inline">
                         <input type="hidden" name="userId" value="@user.Id" />
                         <button type="submit">Enable</button>
@@ -66,7 +66,7 @@
                     </form>
                     <form asp-action="DeleteUser" method="post" style="display:inline" onsubmit="return confirm('Delete this user?');">
                         <input type="hidden" name="userId" value="@user.Id" />
-                        <button type="submit">Delete</button>
+                        <button type="submit" class="danger">Delete</button>
                     </form>
                 </td>
             </tr>

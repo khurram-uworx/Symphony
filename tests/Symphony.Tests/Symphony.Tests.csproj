@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Symphony.App\Symphony.App.csproj" />
+    <ProjectReference Include="..\..\src\Symphony\Symphony.csproj" />
   </ItemGroup>
 
 </Project>

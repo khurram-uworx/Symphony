@@ -4,6 +4,9 @@ namespace Symphony.Data;
 
 public static class SqliteConnectionResolver
 {
+    static bool isMemory(string dataSource) =>
+        string.Equals(dataSource, ":memory:", StringComparison.OrdinalIgnoreCase);
+
     public static string Resolve(string connectionString, string contentRoot)
     {
         var builder = new SqliteConnectionStringBuilder(connectionString);
@@ -19,7 +22,4 @@ public static class SqliteConnectionResolver
 
         return builder.ToString();
     }
-
-    static bool isMemory(string dataSource) =>
-        string.Equals(dataSource, ":memory:", StringComparison.OrdinalIgnoreCase);
 }

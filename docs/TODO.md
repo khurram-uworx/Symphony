@@ -140,3 +140,5 @@ After the PR exists, Playwright MCP against `dotnet run` on a disposable SQLite 
 ## GitHub issues log
 
 - [x] #17 — T8D must record provider-specific migration differences (commented on the issue during the docs step)
+
+G2 note: the add-migration commands were only in this plan. They are now in README so deleting this file does not hide them. No new GitHub issue.

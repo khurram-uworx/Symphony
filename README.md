@@ -110,6 +110,15 @@ Startup applies the EF Core migrations assembly for the selected provider. No ma
 
 Delete a database created by the old `EnsureCreated` path before starting again. That file has no `__EFMigrationsHistory`, and migrations cannot adopt it. `App_Data/` is gitignored.
 
+Add the next model change to every provider set. Use the migrations project as both project and startup project so the web host does not boot, migrate, or print admin credentials:
+
+```bash
+dotnet tool restore
+dotnet ef migrations add <Name> --project src/Symphony.Migrations.Sqlite --startup-project src/Symphony.Migrations.Sqlite
+dotnet ef migrations add <Name> --project src/Symphony.Migrations.SqlServer --startup-project src/Symphony.Migrations.SqlServer
+dotnet ef migrations add <Name> --project src/Symphony.Migrations.PostgreSQL --startup-project src/Symphony.Migrations.PostgreSQL
+```
+
 ### Workflow File Format
 
 Create a WORKFLOW.md file with YAML front matter and a Markdown prompt body:

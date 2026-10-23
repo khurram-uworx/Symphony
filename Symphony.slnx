@@ -13,5 +13,8 @@
     <Project Path="tests/Symphony.Tests/Symphony.Tests.csproj" />
   </Folder>
   <Project Path="src/Symphony.Data/Symphony.Data.csproj" />
+  <Project Path="src/Symphony.Migrations.PostgreSQL/Symphony.Migrations.PostgreSQL.csproj" />
+  <Project Path="src/Symphony.Migrations.SqlServer/Symphony.Migrations.SqlServer.csproj" />
+  <Project Path="src/Symphony.Migrations.Sqlite/Symphony.Migrations.Sqlite.csproj" />
   <Project Path="src/Symphony/Symphony.csproj" />
 </Solution>

@@ -55,7 +55,7 @@ skill.
 
 Work from the symbol level, not ad-hoc grepping:
 
-- `get_architecture_overview` / `get_component_clusters` — locate the affected component (`src/Symphony.App` vs `tests` vs docs).
+- `get_architecture_overview` / `get_component_clusters` — locate the affected component (`src/Symphony` vs `tests` vs docs).
 - `semantic_search` — find symbols related to the issue's domain.
 - For each candidate symbol:
   - `get_edit_context` — source, dependencies, and test coverage.

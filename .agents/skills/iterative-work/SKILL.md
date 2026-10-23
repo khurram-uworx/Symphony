@@ -36,7 +36,7 @@ When the work calls for a performance measurement, an A/B comparison, or an isol
    ```
 
    Read the matching `README.md` for what each mode already measures. `Nivara.SimdProbe`
-   exists precisely to answer "is this hand-written kernel worth keeping in `src/Symphony.App`,
+   exists precisely to answer "is this hand-written kernel worth keeping in `src/Symphony`,
    and does the BCL beat it?" — the question behind most kernel investigations — so the
    answer is usually an existing mode or a sibling of one. If a mode covers the question,
    **use it**. If it covers the question but not the shape, add a case to it. Only fall

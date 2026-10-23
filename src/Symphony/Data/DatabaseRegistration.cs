@@ -11,6 +11,19 @@ public static class DatabaseRegistration
             var value => value
         };
 
+    static string require(IConfiguration configuration, string provider, params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            var value = configuration.GetConnectionString(key);
+            if (!string.IsNullOrWhiteSpace(value)) return value;
+        }
+
+        var names = string.Join("' or '", keys);
+        throw new InvalidOperationException(
+            $"Connection string '{names}' is required for Database:Provider '{provider}'.");
+    }
+
     public static IServiceCollection AddSymphonyDatabase(
         this IServiceCollection services,
         IConfiguration configuration,
@@ -20,15 +33,20 @@ public static class DatabaseRegistration
         switch (normalize(configured))
         {
             case "sqlite":
-                var connectionString = configuration.GetConnectionString("Sqlite")
-                    ?? "Data Source=App_Data/symphony.db";
-                var resolved = SqliteConnectionResolver.Resolve(connectionString, contentRoot);
+                var sqlite = configuration.GetConnectionString("Sqlite");
+                if (string.IsNullOrWhiteSpace(sqlite))
+                    sqlite = "Data Source=App_Data/symphony.db";
+                var resolved = SqliteConnectionResolver.Resolve(sqlite, contentRoot);
                 services.AddDbContextFactory<SymphonyDbContext>(options => options.UseSqlite(resolved));
                 break;
             case "sqlserver":
+                var sqlServer = require(configuration, configured, "SqlServer");
+                services.AddDbContextFactory<SymphonyDbContext>(options => options.UseSqlServer(sqlServer));
+                break;
             case "npgsql":
-                throw new InvalidOperationException(
-                    $"Database provider '{configured}' is not supported in this build. Only sqlite is available.");
+                var postgres = require(configuration, configured, "PostgreSQL", "Npgsql");
+                services.AddDbContextFactory<SymphonyDbContext>(options => options.UseNpgsql(postgres));
+                break;
             default:
                 throw new InvalidOperationException($"Unsupported database provider '{configured}'.");
         }

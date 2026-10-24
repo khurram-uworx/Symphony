@@ -236,8 +236,20 @@
             result.hidden = false;
             const jobId = body.jobId;
             const statusUrl = body.statusUrl;
-            result.innerHTML = '<p class="muted">Job queued: <strong>' + jobId + '</strong></p>' +
-                '<p><a href="' + statusUrl + '">Open job status</a></p>';
+            result.replaceChildren();
+            const paragraph = document.createElement('p');
+            paragraph.className = 'muted';
+            paragraph.appendChild(document.createTextNode('Job queued: '));
+            const strong = document.createElement('strong');
+            strong.textContent = jobId;
+            paragraph.appendChild(strong);
+            const linkParagraph = document.createElement('p');
+            const link = document.createElement('a');
+            link.href = statusUrl;
+            link.textContent = 'Open job status';
+            linkParagraph.appendChild(link);
+            result.appendChild(paragraph);
+            result.appendChild(linkParagraph);
             setStatus('Work submitted successfully.', false);
         } catch (error) {
             setStatus(error.message, true);

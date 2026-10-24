@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Symphony.Api;
 using Symphony.Data;
+using Symphony.Processing;
 using Symphony.Security;
 using Symphony.Services;
 
@@ -35,6 +36,13 @@ builder.Services.AddScoped<ConfigurationService>(serviceProvider =>
 builder.Services.AddScoped<WorkflowService>(serviceProvider =>
     new WorkflowService(
         serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>()));
+
+builder.Services.AddSingleton<JobQueue>();
+builder.Services.AddScoped<JobService>(serviceProvider =>
+    new JobService(
+        serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),
+        serviceProvider.GetRequiredService<ISecretProtector>(),
+        serviceProvider.GetService<JobQueue>()));
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -52,6 +60,7 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapConfigurationEndpoints();
 app.MapWorkflowEndpoints();
+app.MapWorkEndpoints();
 await DatabaseInitializer.InitializeAsync(
     app.Services.GetRequiredService<IDbContextFactory<SymphonyDbContext>>());
 

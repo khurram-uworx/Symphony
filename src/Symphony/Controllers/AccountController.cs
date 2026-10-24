@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.IO;
 using System.Security.Claims;
 using Symphony.Data;
 using Symphony.Dto;
@@ -12,16 +14,22 @@ namespace Symphony.Controllers;
 public sealed class AccountController(
     SignInManager<IdentityUser> signInManager,
     UserManager<IdentityUser> userManager,
-    ConfigurationService? configurationService = null) : Controller
+    ConfigurationService? configurationService = null,
+    IWebHostEnvironment? environment = null) : Controller
 {
     readonly SignInManager<IdentityUser> signInManager = signInManager;
     readonly UserManager<IdentityUser> userManager = userManager;
     readonly ConfigurationService? configuredConfigurationService = configurationService;
+    readonly IWebHostEnvironment? configuredEnvironment = environment;
 
     ConfigurationService ConfigurationService =>
         configuredConfigurationService
         ?? HttpContext?.RequestServices?.GetService<ConfigurationService>()
         ?? throw new InvalidOperationException("ConfigurationService is not available.");
+
+    IWebHostEnvironment? WebHostEnvironment =>
+        configuredEnvironment
+        ?? HttpContext?.RequestServices?.GetService<IWebHostEnvironment>();
 
     static bool isLoginPath(string returnUrl)
     {
@@ -152,6 +160,26 @@ public sealed class AccountController(
 
         TempData["Message"] = "Configuration saved.";
         return RedirectToAction(nameof(Configuration));
+    }
+
+    [HttpGet]
+    [Authorize]
+    public Task<IActionResult> Workflows(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var template = string.Empty;
+        var environment = WebHostEnvironment;
+        if (environment is not null)
+        {
+            var path = Path.Combine(environment.ContentRootPath, "WORKFLOW.md");
+            if (System.IO.File.Exists(path))
+                template = System.IO.File.ReadAllText(path, System.Text.Encoding.UTF8);
+        }
+
+        ViewData["Title"] = "Workflows";
+        ViewData["WorkflowTemplate"] = template;
+        return Task.FromResult<IActionResult>(View("Workflows"));
     }
 
     [HttpGet]

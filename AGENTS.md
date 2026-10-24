@@ -51,6 +51,13 @@ Release publishing is `.github/workflows/cd.yml`: it builds and pushes `ghcr.io/
 - **No comments** in generated code unless explaining a non-obvious design decision.
 - **No Hungarian notation** — no prefixes encoding scope or mutability.
 
+## UI Design
+
+- Look at the existing pages, CSS components, spacing, typography, and component conventions before adding or changing UI. Keep new work visually consistent with the surrounding product rather than inventing one-off styles.
+- Designs should be sleek and modern: consistent spacing, alignment, color tokens, affordances, and interactions. Avoid bare-bone 90s-style HTML inputs/buttons/forms, loose alignment, ambiguous actions, or ad hoc styling.
+- Prefer shared design patterns and existing CSS classes/variables over inline styles or isolated component markup. When adding a new visual element, place it within the established layout and visual hierarchy instead of appending it awkwardly.
+- Destructive actions should be clearly identifiable as dangerous and should not be visually inconsistent with primary/secondary actions.
+
 ## Testing Conventions
 
 - **Framework:** NUnit 4.x — `[Test]`, `Assert.That(...)`, `Assert.ThrowsAsync`, no `[TestCase]`

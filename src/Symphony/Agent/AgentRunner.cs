@@ -16,7 +16,7 @@ record AgentRunResult(bool Success, string? Reason, Exception? Exception)
 
 class AgentRunner
 {
-    readonly ServiceConfigProvider configProvider;
+    readonly IServiceConfigProvider configProvider;
     readonly WorkspaceManager workspaceManager;
     readonly ICodingAgent agent;
     readonly IIssueTracker issueTracker;
@@ -24,7 +24,7 @@ class AgentRunner
     readonly PromptRenderer promptRenderer;
 
     public AgentRunner(
-        ServiceConfigProvider configProvider,
+        IServiceConfigProvider configProvider,
         WorkspaceManager workspaceManager,
         ICodingAgent agent,
         IIssueTracker issueTracker,

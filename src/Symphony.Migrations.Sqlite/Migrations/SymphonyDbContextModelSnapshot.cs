@@ -224,6 +224,159 @@ namespace Symphony.Migrations.Sqlite.Migrations
                     b.ToTable("AppSettings");
                 });
 
+            modelBuilder.Entity("Symphony.Data.Job", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EncryptedRequestSnapshot")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OwnerUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("QueuedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Repository")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("RetryOfJobId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SummaryJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WorkflowName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId", "QueuedAt");
+
+                    b.HasIndex("State", "QueuedAt");
+
+                    b.ToTable("Jobs");
+                });
+
+            modelBuilder.Entity("Symphony.Data.JobEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EventName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("JobId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("JobIssueId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PayloadJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("Timestamp")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobIssueId");
+
+                    b.HasIndex("JobId", "Timestamp");
+
+                    b.ToTable("JobEvents");
+                });
+
+            modelBuilder.Entity("Symphony.Data.JobIssue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Identifier")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IssueId")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("JobId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TurnCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("WorkspacePath")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobId");
+
+                    b.ToTable("JobIssues");
+                });
+
             modelBuilder.Entity("Symphony.Data.UserConfiguration", b =>
                 {
                     b.Property<string>("Id")
@@ -419,6 +572,35 @@ namespace Symphony.Migrations.Sqlite.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Symphony.Data.JobEvent", b =>
+                {
+                    b.HasOne("Symphony.Data.Job", "Job")
+                        .WithMany("Events")
+                        .HasForeignKey("JobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Symphony.Data.JobIssue", "JobIssue")
+                        .WithMany()
+                        .HasForeignKey("JobIssueId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Job");
+
+                    b.Navigation("JobIssue");
+                });
+
+            modelBuilder.Entity("Symphony.Data.JobIssue", b =>
+                {
+                    b.HasOne("Symphony.Data.Job", "Job")
+                        .WithMany("Issues")
+                        .HasForeignKey("JobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Job");
+                });
+
             modelBuilder.Entity("Symphony.Data.UserConfiguration", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "User")
@@ -439,6 +621,13 @@ namespace Symphony.Migrations.Sqlite.Migrations
                         .IsRequired();
 
                     b.Navigation("Owner");
+                });
+
+            modelBuilder.Entity("Symphony.Data.Job", b =>
+                {
+                    b.Navigation("Events");
+
+                    b.Navigation("Issues");
                 });
 #pragma warning restore 612, 618
         }

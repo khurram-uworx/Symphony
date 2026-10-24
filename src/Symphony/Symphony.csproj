@@ -16,6 +16,7 @@
     <Content Include="WORKFLOW.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <EmbeddedResource Include="WORKFLOW.md" />
   </ItemGroup>
 
 

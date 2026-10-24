@@ -12,6 +12,8 @@ public sealed class SymphonyDbContext(DbContextOptions<SymphonyDbContext> option
 
     public DbSet<Workflow> Workflows { get; set; } = default!;
 
+    public DbSet<AppSetting> AppSettings { get; set; } = default!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -88,6 +90,18 @@ public sealed class SymphonyDbContext(DbContextOptions<SymphonyDbContext> option
                 .IsRequired();
 
             entity.Property(workflow => workflow.UpdatedAt)
+                .IsRequired();
+        });
+
+        modelBuilder.Entity<AppSetting>(entity =>
+        {
+            entity.HasKey(setting => setting.Key);
+
+            entity.Property(setting => setting.Key)
+                .HasMaxLength(256)
+                .IsRequired();
+
+            entity.Property(setting => setting.Value)
                 .IsRequired();
         });
     }

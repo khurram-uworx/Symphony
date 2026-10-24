@@ -466,6 +466,7 @@ public sealed class WorkflowService(IDbContextFactory<SymphonyDbContext> factory
     }
 
 
+    static void ValidateUserId(string userId)
     {
         if (string.IsNullOrWhiteSpace(userId))
             throw new ArgumentException("User id cannot be empty.", nameof(userId));

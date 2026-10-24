@@ -8,10 +8,10 @@ using Symphony.Workspaces;
 
 namespace Symphony.Agent;
 
-record AgentRunResult(bool Success, string? Reason, Exception? Exception)
+record AgentRunResult(bool Success, string? Reason, Exception? Exception, int TurnCount = 0)
 {
-    public static AgentRunResult CreateSuccess() => new(true, null, null);
-    public static AgentRunResult Fail(string reason, Exception? ex = null) => new(false, reason, ex);
+    public static AgentRunResult CreateSuccess(int turnCount = 0) => new(true, null, null, turnCount);
+    public static AgentRunResult Fail(string reason, Exception? ex = null, int turnCount = 0) => new(false, reason, ex, turnCount);
 }
 
 class AgentRunner
@@ -88,7 +88,7 @@ class AgentRunner
                 }
                 catch (CodingAgentException ex)
                 {
-                    return AgentRunResult.Fail(ex.Message, ex.InnerException ?? ex);
+                    return AgentRunResult.Fail(ex.Message, ex.InnerException ?? ex, liveSession.TurnCount);
                 }
 
                 var refreshed = await issueTracker.FetchIssueStatesByIdsAsync(new[] { issue.Id }, cancellationToken);
@@ -108,12 +108,12 @@ class AgentRunner
         catch (WorkflowException ex)
         {
             await workspaceManager.RunHookBestEffortAsync(config.Hooks.AfterRun, workspace.Path, config.Hooks.TimeoutMs, cancellationToken);
-            return AgentRunResult.Fail("prompt error", ex);
+            return AgentRunResult.Fail("prompt error", ex, liveSession.TurnCount);
         }
         catch (Exception ex)
         {
             await workspaceManager.RunHookBestEffortAsync(config.Hooks.AfterRun, workspace.Path, config.Hooks.TimeoutMs, cancellationToken);
-            return AgentRunResult.Fail("agent turn error", ex);
+            return AgentRunResult.Fail("agent turn error", ex, liveSession.TurnCount);
         }
         finally
         {
@@ -122,6 +122,6 @@ class AgentRunner
 
         await workspaceManager.RunHookBestEffortAsync(config.Hooks.AfterRun, workspace.Path, config.Hooks.TimeoutMs, cancellationToken);
 
-        return AgentRunResult.CreateSuccess();
+        return AgentRunResult.CreateSuccess(liveSession.TurnCount);
     }
 }

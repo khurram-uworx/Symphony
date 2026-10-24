@@ -26,6 +26,34 @@ public record CopilotConfig(
             return false;
         }
 
+        if (string.IsNullOrWhiteSpace(ModelId))
+        {
+            error = "CopilotModelId is required when CopilotProvider is configured.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(ApiKey))
+        {
+            error = "CopilotApiKey is required when CopilotProvider is configured.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(BaseUrl))
+        {
+            error = "CopilotBaseUrl is required when CopilotProvider is configured.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(WireApi))
+        {
+            var wireApi = WireApi.Trim().ToLowerInvariant();
+            if (wireApi is not ("completions" or "responses"))
+            {
+                error = "CopilotWireApi must be completions or responses.";
+                return false;
+            }
+        }
+
         error = null;
         return true;
     }

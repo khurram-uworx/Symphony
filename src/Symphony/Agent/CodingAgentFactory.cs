@@ -31,14 +31,7 @@ sealed class CodingAgentFactory
         if (copilot is null)
             return;
 
-        var provider = copilot.Provider?.Trim();
-        if (string.IsNullOrWhiteSpace(provider))
-            return;
-
-        var normalized = provider.ToLowerInvariant();
-        if (normalized is not ("openai" or "azure" or "anthropic"))
-            throw new ArgumentException(
-                $"Unsupported Copilot provider type '{copilot.Provider}'. Supported values: 'openai', 'azure', 'anthropic'.",
-                nameof(config));
+        if (!copilot.IsValid(out var error))
+            throw new ArgumentException(error, nameof(config));
     }
 }

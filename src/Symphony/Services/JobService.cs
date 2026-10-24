@@ -38,7 +38,7 @@ public sealed class JobService
         this.jobQueue = jobQueue;
     }
 
-    readonly IDbContextFactory<SymphonyDbContext> Factory => factory;
+    IDbContextFactory<SymphonyDbContext> Factory => factory;
 
     static void ValidateUserId(string userId)
     {
@@ -52,16 +52,7 @@ public sealed class JobService
         CancellationToken cancellationToken = default) =>
         CreateCoreAsync(userId, request, cancellationToken);
 
-    public Task<Job> CreateAsync(
-        string userId,
-        WorkRequest? request,
-        CancellationToken cancellationToken = default) =>
-        CreateCoreAsync(userId, request, cancellationToken);
-
     public Task<Job> CreateJobAsync(string userId, WorkRequest request, CancellationToken cancellationToken = default) =>
-        CreateCoreAsync(userId, request, cancellationToken);
-
-    public Task<Job> CreateJobAsync(string userId, WorkRequest? request, CancellationToken cancellationToken = default) =>
         CreateCoreAsync(userId, request, cancellationToken);
 
     public Task<Job> SubmitAsync(string userId, WorkRequest request, CancellationToken cancellationToken = default) =>

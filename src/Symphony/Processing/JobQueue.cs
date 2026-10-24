@@ -37,12 +37,9 @@ public sealed class JobQueue : IJobQueue
         return Task.CompletedTask;
     }
 
-    public Task SignalAsync(CancellationToken cancellationToken = default) =>
+    Task IJobQueue.SignalAsync(CancellationToken cancellationToken = default) =>
         SignalInstanceAsync(cancellationToken);
 
     public async Task<bool> WaitForSignalInstanceAsync(CancellationToken cancellationToken = default) =>
         await channel.Reader.ReadAsync(cancellationToken);
-
-    public async Task<bool> WaitForSignalAsync(CancellationToken cancellationToken = default) =>
-        await WaitForSignalInstanceAsync(cancellationToken);
 }

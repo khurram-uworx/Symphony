@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Symphony.Dto;
 
-public sealed class WorkGitHubRequest
+public class WorkGitHubRequest
 {
     public string? Repository { get; set; }
 

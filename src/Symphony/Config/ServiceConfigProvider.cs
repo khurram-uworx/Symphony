@@ -3,20 +3,21 @@ using Symphony.Workflows;
 
 namespace Symphony.Config;
 
-record ServiceConfig(
+public record ServiceConfig(
     WorkflowDefinition Workflow,
     TrackerConfig Tracker,
-    PollingConfig Polling,
     WorkspaceConfig Workspace,
     HooksConfig Hooks,
     AgentConfig Agent,
-    CodexConfig? Codex)
+    CodexConfig? Codex,
+    CopilotConfig? Copilot)
 {
+    public CopilotConfig? CopilotConfig => Copilot;
     public HashSet<string> ActiveStates => Tracker.ActiveStates;
     public HashSet<string> TerminalStates => Tracker.TerminalStates;
 }
 
-record TrackerConfig(
+public record TrackerConfig(
     string Kind,
     string Endpoint,
     string ApiKey,
@@ -62,7 +63,7 @@ record TrackerConfig(
     }
 }
 
-record PollingConfig(int IntervalMs)
+public record PollingConfig(int IntervalMs)
 {
     public static PollingConfig From(IReadOnlyDictionary<string, object> root)
     {
@@ -77,7 +78,7 @@ record PollingConfig(int IntervalMs)
     }
 }
 
-record WorkspaceConfig(string Root)
+public record WorkspaceConfig(string Root)
 {
     public static WorkspaceConfig From(IReadOnlyDictionary<string, object> root)
     {
@@ -88,7 +89,7 @@ record WorkspaceConfig(string Root)
     }
 }
 
-record HooksConfig(
+public record HooksConfig(
     string? AfterCreate,
     string? BeforeRun,
     string? AfterRun,
@@ -113,7 +114,7 @@ record HooksConfig(
     }
 }
 
-record AgentConfig(
+public record AgentConfig(
     int MaxConcurrentAgents,
     int MaxRetryBackoffMs,
     int MaxTurns,
@@ -151,7 +152,7 @@ record AgentConfig(
     }
 }
 
-record CodexConfig(
+public record CodexConfig(
     string Command,
     string? ApprovalPolicy,
     string? ThreadSandbox,
@@ -200,13 +201,12 @@ class ServiceConfigProvider
         var config = definition.Config;
 
         var tracker = TrackerConfig.From(config);
-        var polling = PollingConfig.From(config);
         var workspace = WorkspaceConfig.From(config);
         var hooks = HooksConfig.From(config);
         var agent = AgentConfig.From(config);
         var codex = CodexConfig.From(config);
 
-        return new ServiceConfig(definition, tracker, polling, workspace, hooks, agent, codex);
+        return new ServiceConfig(definition, tracker, workspace, hooks, agent, codex, null);
     }
 
     public ConfigValidationResult ValidateForDispatch(ServiceConfig config)
@@ -233,7 +233,7 @@ class ServiceConfigProvider
     }
 }
 
-static class ConfigReader
+public static class ConfigReader
 {
     public static bool SectionExists(IReadOnlyDictionary<string, object> root, string key)
     {

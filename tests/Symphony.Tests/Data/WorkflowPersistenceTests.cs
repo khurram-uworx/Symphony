@@ -142,7 +142,8 @@ class WorkflowPersistenceTests
 
     [Test]
     public async Task DeleteAsync_DeletesNonLastWorkflow()
-    {        await using var provider = createProvider();
+    {
+        await using var provider = createProvider();
         var factory = provider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>();
         await DatabaseInitializer.InitializeAsync(factory);
         await ensureUserAsync(provider, "user-1");

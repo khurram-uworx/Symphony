@@ -9,19 +9,19 @@ public class ConfigurationDto
 
     public string UserId { get; set; } = string.Empty;
 
-    public string TrackerKind { get; set; } = string.Empty;
+    public string? TrackerKind { get; set; }
 
-    public string TrackerEndpoint { get; set; } = string.Empty;
+    public string? TrackerEndpoint { get; set; }
 
-    public string TrackerApiKey { get; set; } = string.Empty;
+    public string? TrackerApiKey { get; set; }
 
-    public string TrackerProjectSlug { get; set; } = string.Empty;
+    public string? TrackerProjectSlug { get; set; }
 
     public string? TrackerActiveStates { get; set; }
 
     public string? TrackerTerminalStates { get; set; }
 
-    public string WorkspaceRoot { get; set; } = string.Empty;
+    public string? WorkspaceRoot { get; set; }
 
     public string? HookAfterCreate { get; set; }
 
@@ -98,13 +98,13 @@ public class ConfigurationDto
         {
             Id = string.IsNullOrWhiteSpace(Id) ? Guid.NewGuid().ToString() : Id,
             UserId = UserId,
-            TrackerKind = TrackerKind,
-            TrackerEndpoint = TrackerEndpoint,
-            TrackerApiKey = TrackerApiKey,
-            TrackerProjectSlug = TrackerProjectSlug,
+            TrackerKind = TrackerKind ?? string.Empty,
+            TrackerEndpoint = TrackerEndpoint ?? string.Empty,
+            TrackerApiKey = TrackerApiKey ?? string.Empty,
+            TrackerProjectSlug = TrackerProjectSlug ?? string.Empty,
             TrackerActiveStates = TrackerActiveStates,
             TrackerTerminalStates = TrackerTerminalStates,
-            WorkspaceRoot = WorkspaceRoot,
+            WorkspaceRoot = WorkspaceRoot ?? string.Empty,
             HookAfterCreate = HookAfterCreate,
             HookBeforeRun = HookBeforeRun,
             HookAfterRun = HookAfterRun,

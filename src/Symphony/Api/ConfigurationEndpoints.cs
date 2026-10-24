@@ -13,12 +13,10 @@ public static class ConfigurationEndpoints
 {
     public static IEndpointRouteBuilder MapConfigurationEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/configuration").RequireAuthorization();
+        var group = endpoints.MapGroup("/api/configuration");
 
         group.MapGet("/", GetAsync);
-        group.MapGet("", GetAsync);
         group.MapPut("/", PutAsync);
-        group.MapPut("", PutAsync);
 
         return endpoints;
     }

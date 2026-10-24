@@ -3,6 +3,7 @@ using GitHub.Copilot.Rpc;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Symphony.Config;
 using Symphony.Orchestration;
 using System.Text.Json;
@@ -15,6 +16,11 @@ class CopilotAgent : ICodingAgent
     readonly ILogger<CopilotAgent> logger;
     CopilotClient? copilotClient;
     AIAgent? agent;
+
+    public CopilotAgent(ServiceConfig config)
+        : this(NullLogger<CopilotAgent>.Instance, config)
+    {
+    }
 
     public CopilotAgent(ILogger<CopilotAgent> logger, ServiceConfig config)
     {
@@ -43,6 +49,34 @@ class CopilotAgent : ICodingAgent
             },
             WorkingDirectory = workspacePath
         };
+
+        var copilotConfig = config.Copilot;
+        if (copilotConfig is not null)
+        {
+            var providerType = copilotConfig.Provider?.Trim();
+            if (!string.IsNullOrWhiteSpace(providerType))
+            {
+                if (!string.IsNullOrWhiteSpace(copilotConfig.ModelId))
+                    sessionConfig.Model = copilotConfig.ModelId;
+
+                sessionConfig.Provider = new GitHub.Copilot.ProviderConfig
+                {
+                    Type = providerType.ToLowerInvariant(),
+                    BaseUrl = string.IsNullOrWhiteSpace(copilotConfig.BaseUrl)
+                        ? null
+                        : copilotConfig.BaseUrl.TrimEnd('/') + "/",
+                    ApiKey = copilotConfig.ApiKey,
+                    WireApi = copilotConfig.WireApi,
+                    ModelId = copilotConfig.ModelId,
+                    WireModel = copilotConfig.ModelId
+                };
+            }
+            else if (!string.IsNullOrWhiteSpace(copilotConfig.ModelId))
+            {
+                sessionConfig.Model = copilotConfig.ModelId;
+            }
+        }
+
         sessionConfig.OnEvent = evt =>
         {
             onEvent(new CodingAgentEvent(evt.Type, null, evt.Timestamp, new JsonElement()));

@@ -10,6 +10,37 @@ public record CopilotConfig(
     public string ProviderType => Provider;
     public string? Type => Provider;
 
+    public bool IsValid(out string? error)
+    {
+        var provider = Provider?.Trim();
+        if (string.IsNullOrWhiteSpace(provider))
+        {
+            error = null;
+            return true;
+        }
+
+        var normalized = provider.ToLowerInvariant();
+        if (normalized is not ("openai" or "azure" or "anthropic"))
+        {
+            error = "CopilotProvider must be one of openai, azure, anthropic.";
+            return false;
+        }
+
+        error = null;
+        return true;
+    }
+
+    public static bool IsValid(CopilotConfig? config, out string? error)
+    {
+        if (config is null)
+        {
+            error = null;
+            return true;
+        }
+
+        return config.IsValid(out error);
+    }
+
     public static CopilotConfig From(IReadOnlyDictionary<string, object> root)
     {
         var copilot = ConfigReader.ReadMap(root, "copilot");

@@ -8,26 +8,6 @@ namespace Symphony.Tests;
 public class NullIssueTrackerTests
 {
     [Test]
-    public async Task FetchCandidateIssuesAsync_ReturnsEmpty()
-    {
-        var tracker = new NullIssueTracker();
-
-        var result = await tracker.FetchCandidateIssuesAsync(CancellationToken.None);
-
-        Assert.That(result, Is.Empty);
-    }
-
-    [Test]
-    public async Task FetchTerminalIssuesAsync_ReturnsEmpty()
-    {
-        var tracker = new NullIssueTracker();
-
-        var result = await tracker.FetchTerminalIssuesAsync(CancellationToken.None);
-
-        Assert.That(result, Is.Empty);
-    }
-
-    [Test]
     public async Task FetchIssueStatesByIdsAsync_WithSeededIssues_ReturnsThemUnchanged()
     {
         var issue = new Issue(
@@ -53,7 +33,17 @@ public class NullIssueTrackerTests
     }
 
     [Test]
-    public async Task FetchIssueStatesByIdsAsync_WithIssueListInput_ReturnsItUnchanged()
+    public async Task FetchIssueStatesByIdsAsync_WithUnknownIds_OmitsThem()
+    {
+        var tracker = new NullIssueTracker();
+
+        var result = await tracker.FetchIssueStatesByIdsAsync(new[] { "ENG-1", "ENG-2" }, CancellationToken.None);
+
+        Assert.That(result, Is.Empty);
+    }
+
+    [Test]
+    public async Task FetchIssueStatesByIdsAsync_MixedKnownAndUnknown_ReturnsOnlyKnown()
     {
         var issue = new Issue(
             "2",
@@ -69,11 +59,11 @@ public class NullIssueTrackerTests
             null,
             null);
 
-        var tracker = new NullIssueTracker();
-        var input = new[] { issue };
+        var tracker = new NullIssueTracker(new[] { issue });
 
-        var result = await tracker.FetchIssueStatesByIdsAsync(input, CancellationToken.None);
+        var result = await tracker.FetchIssueStatesByIdsAsync(new[] { "missing", issue.Id }, CancellationToken.None);
 
-        Assert.That(result, Is.EqualTo(input));
+        Assert.That(result, Has.Count.EqualTo(1));
+        Assert.That(result[0].Id, Is.EqualTo(issue.Id));
     }
 }

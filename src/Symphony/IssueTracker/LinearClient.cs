@@ -164,16 +164,6 @@ class LinearClient : IIssueTracker
         return doc;
     }
 
-    public async Task<IReadOnlyList<Issue>> FetchCandidateIssuesAsync(CancellationToken cancellationToken)
-    {
-        return await fetchIssuesByStatesAsync(config.ActiveStates, cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<Issue>> FetchTerminalIssuesAsync(CancellationToken cancellationToken)
-    {
-        return await fetchIssuesByStatesAsync(config.TerminalStates, cancellationToken);
-    }
-
     public async Task<IReadOnlyList<Issue>> FetchIssueStatesByIdsAsync(
         IReadOnlyList<string> ids, CancellationToken cancellationToken)
     {

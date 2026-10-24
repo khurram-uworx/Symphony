@@ -16,46 +16,49 @@
         @Html.AntiForgeryToken()
         <div asp-validation-summary="All" class="validation" role="alert"></div>
 
-        <h2>Tracker</h2>
+        <h2>Work source</h2>
+        <p class="muted">Optional. Needed only when submitting ticket IDs; inline work items need no tracker.</p>
         <label>
-            Tracker kind
-            <select asp-for="TrackerKind">
-                <option value="">(select)</option>
+            Work source
+            <select asp-for="TrackerKind" id="tracker-kind">
+                <option value="none">None (inline work only)</option>
                 <option value="linear">Linear</option>
                 <option value="jira">Jira</option>
             </select>
         </label>
         <span asp-validation-for="TrackerKind" class="field-error"></span>
 
-        <label>
-            Tracker endpoint
-            <input asp-for="TrackerEndpoint" autocomplete="off" />
-        </label>
-        <span asp-validation-for="TrackerEndpoint" class="field-error"></span>
+        <div data-tracker-kind="linear jira">
+            <label>
+                Tracker endpoint
+                <input asp-for="TrackerEndpoint" autocomplete="off" />
+            </label>
+            <span asp-validation-for="TrackerEndpoint" class="field-error"></span>
 
-        <label>
-            Tracker API key
-            <input asp-for="TrackerApiKey" type="password" autocomplete="off" placeholder="Leave blank to keep" />
-        </label>
-        <span asp-validation-for="TrackerApiKey" class="field-error"></span>
+            <label>
+                Tracker API key
+                <input asp-for="TrackerApiKey" type="password" autocomplete="off" placeholder="Leave blank to keep" />
+            </label>
+            <span asp-validation-for="TrackerApiKey" class="field-error"></span>
 
-        <label>
-            Project slug
-            <input asp-for="TrackerProjectSlug" autocomplete="off" />
-        </label>
-        <span asp-validation-for="TrackerProjectSlug" class="field-error"></span>
+            <label>
+                Project slug
+                <input asp-for="TrackerProjectSlug" autocomplete="off" />
+            </label>
+            <span asp-validation-for="TrackerProjectSlug" class="field-error"></span>
 
-        <label>
-            Active states (comma separated)
-            <input asp-for="TrackerActiveStates" autocomplete="off" />
-        </label>
-        <span asp-validation-for="TrackerActiveStates" class="field-error"></span>
+            <label>
+                Active states (comma separated)
+                <input asp-for="TrackerActiveStates" autocomplete="off" />
+            </label>
+            <span asp-validation-for="TrackerActiveStates" class="field-error"></span>
 
-        <label>
-            Terminal states (comma separated)
-            <input asp-for="TrackerTerminalStates" autocomplete="off" />
-        </label>
-        <span asp-validation-for="TrackerTerminalStates" class="field-error"></span>
+            <label>
+                Terminal states (comma separated)
+                <input asp-for="TrackerTerminalStates" autocomplete="off" />
+            </label>
+            <span asp-validation-for="TrackerTerminalStates" class="field-error"></span>
+        </div>
 
         <h2>Workspace</h2>
         <label>
@@ -170,15 +173,29 @@
 <script>
     (function () {
         var provider = document.getElementById('copilot-provider');
-        if (!provider) return;
-        function update() {
-            var value = (provider.value || '').toLowerCase();
-            document.querySelectorAll('[data-copilot-provider]').forEach(function (el) {
-                var providers = (el.getAttribute('data-copilot-provider') || '').split(/\s+/);
-                el.hidden = providers.indexOf(value) === -1;
-            });
+        if (provider) {
+            function updateCopilot() {
+                var value = (provider.value || '').toLowerCase();
+                document.querySelectorAll('[data-copilot-provider]').forEach(function (el) {
+                    var providers = (el.getAttribute('data-copilot-provider') || '').split(/\s+/);
+                    el.hidden = providers.indexOf(value) === -1;
+                });
+            }
+            provider.addEventListener('change', updateCopilot);
+            updateCopilot();
         }
-        provider.addEventListener('change', update);
-        update();
+
+        var tracker = document.getElementById('tracker-kind');
+        if (tracker) {
+            function updateTracker() {
+                var value = (tracker.value || '').toLowerCase();
+                document.querySelectorAll('[data-tracker-kind]').forEach(function (el) {
+                    var kinds = (el.getAttribute('data-tracker-kind') || '').split(/\s+/);
+                    el.hidden = kinds.indexOf(value) === -1;
+                });
+            }
+            tracker.addEventListener('change', updateTracker);
+            updateTracker();
+        }
     })();
 </script>

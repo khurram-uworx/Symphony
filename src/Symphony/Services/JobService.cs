@@ -101,6 +101,17 @@ public sealed class JobService
 
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
 
+        var hasTicketIds = request.TicketIds is not null && request.TicketIds.Count > 0;
+        var hasWorkItems = request.WorkItems is not null && request.WorkItems.Count > 0;
+        if (hasTicketIds && !hasWorkItems)
+        {
+            var userConfig = await db.UserConfigurations.AsNoTracking().FirstOrDefaultAsync(item => item.UserId == userId, cancellationToken);
+            var kind = string.IsNullOrWhiteSpace(userConfig?.TrackerKind) ? "none" : userConfig!.TrackerKind;
+            var normalizedKind = kind.Trim().ToLowerInvariant();
+            if (normalizedKind is "" or "none" or "inline" or "null")
+                throw new ArgumentException("No tracker configured. Submit work items or configure a tracker before submitting ticket IDs.", nameof(request));
+        }
+
         var workflows = await db.Workflows
             .AsNoTracking()
             .Where(workflow => workflow.OwnerUserId == userId)

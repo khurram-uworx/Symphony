@@ -77,7 +77,7 @@ public class ServiceConfigFactory
 
     static TrackerConfig BuildTracker(UserConfiguration user)
     {
-        var kind = user.TrackerKind ?? string.Empty;
+        var kind = string.IsNullOrWhiteSpace(user.TrackerKind) ? TrackerConfig.None : user.TrackerKind;
         var endpoint = user.TrackerEndpoint;
         if (string.IsNullOrWhiteSpace(endpoint) && string.Equals(kind, "linear", StringComparison.OrdinalIgnoreCase))
             endpoint = "https://api.linear.app/graphql";

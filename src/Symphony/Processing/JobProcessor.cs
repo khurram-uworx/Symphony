@@ -10,7 +10,6 @@ using Symphony.Data;
 using Symphony.Domain;
 using Symphony.IssueTracker;
 using Symphony.Security;
-using Symphony.Orchestration;
 using Symphony.Services;
 using Symphony.Workflows;
 using Symphony.Workspaces;
@@ -220,10 +219,6 @@ public sealed class JobProcessor : BackgroundService
 
         var config = ServiceConfigFactory.Build(userConfig, workflow.Content);
         var hasTickets = TryResolveTicketIds(job, secretProtector, out var ticketIds);
-        IIssueTracker tracker = hasTickets
-            ? IssueTrackerFactory.Create(config)
-            : new NullIssueTracker();
-
         var snapshot = TryParseSnapshot(job, secretProtector);
         var workItems = ReadWorkItems(snapshot);
         var issues = new List<Issue>();
@@ -231,29 +226,41 @@ public sealed class JobProcessor : BackgroundService
 
         if (hasTickets)
         {
-            var fetched = new List<Issue>();
-            try
+            if (config.Tracker.IsNone)
             {
-                fetched = (await tracker.FetchIssueStatesByIdsAsync(ticketIds, cancellationToken)).ToList();
-            }
-            catch (Exception ex)
-            {
-                processorLogger.LogWarning(ex, "Failed to resolve ticket IDs.");
-            }
-
-            foreach (var ticketId in ticketIds)
-            {
-                var issue = fetched.FirstOrDefault(item =>
-                    string.Equals(item.Id, ticketId, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(item.Identifier, ticketId, StringComparison.OrdinalIgnoreCase));
-                if (issue is not null)
+                foreach (var ticketId in ticketIds)
                 {
-                    issues.Add(issue);
-                }
-                else
-                {
-                    await jobService.CreateFailedIssueRowAsync(job.Id, ticketId, ticketId, "Ticket not found.", cancellationToken);
+                    await jobService.CreateFailedIssueRowAsync(job.Id, ticketId, ticketId, "No tracker configured; submit work items or configure a tracker.", cancellationToken);
                     failedTicketCount++;
+                }
+            }
+            else
+            {
+                IIssueTracker tracker = IssueTrackerFactory.Create(config);
+                var fetched = new List<Issue>();
+                try
+                {
+                    fetched = (await tracker.FetchIssueStatesByIdsAsync(ticketIds, cancellationToken)).ToList();
+                }
+                catch (Exception ex)
+                {
+                    processorLogger.LogWarning(ex, "Failed to resolve ticket IDs.");
+                }
+
+                foreach (var ticketId in ticketIds)
+                {
+                    var issue = fetched.FirstOrDefault(item =>
+                        string.Equals(item.Id, ticketId, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(item.Identifier, ticketId, StringComparison.OrdinalIgnoreCase));
+                    if (issue is not null)
+                    {
+                        issues.Add(issue);
+                    }
+                    else
+                    {
+                        await jobService.CreateFailedIssueRowAsync(job.Id, ticketId, ticketId, "Ticket not found.", cancellationToken);
+                        failedTicketCount++;
+                    }
                 }
             }
         }
@@ -286,11 +293,12 @@ public sealed class JobProcessor : BackgroundService
 
             await jobService.AppendEventAsync(job.Id, null, "issue.started", $"Started {issue.Identifier}.", null, cancellationToken);
             var issueRowId = await jobService.CreateIssueRowAsync(job.Id, issue, scopedConfig.Workspace.Root, cancellationToken);
+            IIssueTracker issueTracker = IssueTrackerFactory.Create(scopedConfig);
             var runner = new AgentRunner(
                 configProvider,
                 workspaceManager,
                 codingAgent,
-                tracker,
+                issueTracker,
                 processorLogger is ILogger<AgentRunner> arLogger ? arLogger : Microsoft.Extensions.Logging.Abstractions.NullLogger<AgentRunner>.Instance);
 
             var runResult = await RunIssueWithRetryAsync(runner, issue, scopedConfig, userConfig?.MaxRetryBackoffMs ?? 300000, cancellationToken);

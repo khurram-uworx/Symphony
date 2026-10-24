@@ -545,6 +545,9 @@ public sealed class JobProcessor : BackgroundService
 
     static ICodingAgent TryCreateCodingAgent(ServiceConfig config, ILogger logger)
     {
+        if (config.Copilot is null || string.IsNullOrWhiteSpace(config.Copilot.Provider))
+            return new NoOpCodingAgent();
+
         try
         {
             return CodingAgentFactory.Create(config);

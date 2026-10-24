@@ -205,8 +205,9 @@ class ServiceConfigProvider : IServiceConfigProvider
         var hooks = HooksConfig.From(config);
         var agent = AgentConfig.From(config);
         var codex = CodexConfig.From(config);
+        var copilot = CopilotConfig.From(config);
 
-        return new ServiceConfig(definition, tracker, workspace, hooks, agent, codex, null);
+        return new ServiceConfig(definition, tracker, workspace, hooks, agent, codex, copilot);
     }
 
     public ConfigValidationResult ValidateForDispatch(ServiceConfig config)
@@ -223,6 +224,18 @@ class ServiceConfigProvider : IServiceConfigProvider
 
         if (string.IsNullOrWhiteSpace(config.Tracker.ProjectSlug))
             return ConfigValidationResult.Fail("tracker.project_slug is missing");
+
+        if (config.Copilot is not null)
+        {
+            var copilotProvider = config.Copilot.Provider?.Trim();
+            if (!string.IsNullOrWhiteSpace(copilotProvider))
+            {
+                var normalized = copilotProvider.ToLowerInvariant();
+                if (normalized is not ("openai" or "azure" or "anthropic"))
+                    return ConfigValidationResult.Fail(
+                        $"Unsupported Copilot provider type '{config.Copilot.Provider}'. Supported values: 'openai', 'azure', 'anthropic'.");
+            }
+        }
 
         return ConfigValidationResult.Ok();
     }

@@ -8,7 +8,9 @@ namespace Symphony.Services;
 public sealed class UserManagementService(
     UserManager<IdentityUser> users,
     RoleManager<IdentityRole> roles,
-    SignInManager<IdentityUser>? signInManager = null)
+    SignInManager<IdentityUser>? signInManager = null,
+    IDbContextFactory<SymphonyDbContext>? dbContextFactory = null,
+    WorkflowService? workflowService = null)
 {
     const string Upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const string Lower = "abcdefghijklmnopqrstuvwxyz";
@@ -18,6 +20,8 @@ public sealed class UserManagementService(
     readonly UserManager<IdentityUser> users = users;
     readonly RoleManager<IdentityRole> roles = roles;
     readonly SignInManager<IdentityUser>? signInManager = signInManager;
+    readonly IDbContextFactory<SymphonyDbContext>? dbContextFactory = dbContextFactory;
+    readonly WorkflowService? workflowService = workflowService;
 
     public Task<IReadOnlyList<IdentityUser>> GetUsersAsync(CancellationToken cancellationToken = default) =>
         GetAllUsersAsync(users, cancellationToken);
@@ -69,12 +73,26 @@ public sealed class UserManagementService(
         return await users.FindByNameAsync(userName);
     }
 
-    public Task<IdentityUser> CreateUserAsync(
+    public async Task<IdentityUser> CreateUserAsync(
         string userName,
         string password,
         string? role = null,
-        CancellationToken cancellationToken = default) =>
-        CreateUserAsync(users, roles, userName, password, role, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        var user = await CreateUserAsync(
+            users,
+            roles,
+            userName,
+            password,
+            role,
+            cancellationToken,
+            dbContextFactory);
+        if (workflowService is not null)
+            await workflowService.EnsureDefaultWorkflowAsync(user.Id, cancellationToken);
+        else if (dbContextFactory is not null)
+            await WorkflowService.EnsureDefaultWorkflowAsync(dbContextFactory, user.Id, cancellationToken);
+        return user;
+    }
 
     public static async Task<IdentityUser> CreateUserAsync(
         UserManager<IdentityUser> users,
@@ -82,7 +100,8 @@ public sealed class UserManagementService(
         string userName,
         string password,
         string? role = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IDbContextFactory<SymphonyDbContext>? dbContextFactory = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(userName))
@@ -105,6 +124,9 @@ public sealed class UserManagementService(
             throw IdentityFailure(added);
         }
 
+        if (dbContextFactory is not null)
+            await WorkflowService.EnsureDefaultWorkflowAsync(dbContextFactory, user.Id, cancellationToken);
+
         return user;
     }
 
@@ -117,32 +139,34 @@ public sealed class UserManagementService(
     public Task<(IdentityUser User, string Password)> CreateMemberAsync(
         string userName,
         CancellationToken cancellationToken = default) =>
-        CreateMemberAsync(users, roles, userName, cancellationToken);
+        CreateMemberAsync(users, roles, userName, cancellationToken, dbContextFactory);
 
     public static async Task<(IdentityUser User, string Password)> CreateMemberAsync(
         UserManager<IdentityUser> users,
         RoleManager<IdentityRole> roles,
         string userName,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IDbContextFactory<SymphonyDbContext>? dbContextFactory = null)
     {
         var password = GeneratePassword(users.Options.Password);
-        var user = await CreateUserAsync(users, roles, userName, password, AdminSeeder.UserRole, cancellationToken);
+        var user = await CreateUserAsync(users, roles, userName, password, AdminSeeder.UserRole, cancellationToken, dbContextFactory);
         return (user, password);
     }
 
     public Task<(IdentityUser User, string Password)> CreateAdminAsync(
         string userName,
         CancellationToken cancellationToken = default) =>
-        CreateAdminAsync(users, roles, userName, cancellationToken);
+        CreateAdminAsync(users, roles, userName, cancellationToken, dbContextFactory);
 
     public static async Task<(IdentityUser User, string Password)> CreateAdminAsync(
         UserManager<IdentityUser> users,
         RoleManager<IdentityRole> roles,
         string userName,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IDbContextFactory<SymphonyDbContext>? dbContextFactory = null)
     {
         var password = GeneratePassword(users.Options.Password);
-        var user = await CreateUserAsync(users, roles, userName, password, AdminSeeder.AdminRole, cancellationToken);
+        var user = await CreateUserAsync(users, roles, userName, password, AdminSeeder.AdminRole, cancellationToken, dbContextFactory);
         return (user, password);
     }
 

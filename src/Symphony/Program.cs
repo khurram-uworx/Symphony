@@ -20,7 +20,13 @@ builder.Services.AddSymphonyDatabase(builder.Configuration, builder.Environment.
 builder.Services.AddSymphonyDataProtection(builder.Configuration, builder.Environment.ContentRootPath);
 builder.Services.AddSymphonySecretProtection(builder.Configuration, builder.Environment.ContentRootPath);
 builder.Services.AddSymphonyIdentity(builder.Configuration, builder.Environment);
-builder.Services.AddScoped<UserManagementService>();
+builder.Services.AddScoped<UserManagementService>(serviceProvider =>
+    new UserManagementService(
+        serviceProvider.GetRequiredService<UserManager<IdentityUser>>(),
+        serviceProvider.GetRequiredService<RoleManager<IdentityRole>>(),
+        serviceProvider.GetService<SignInManager<IdentityUser>>(),
+        serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),
+        serviceProvider.GetService<WorkflowService>()));
 builder.Services.AddScoped<ConfigurationService>(serviceProvider =>
     new ConfigurationService(
         serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),

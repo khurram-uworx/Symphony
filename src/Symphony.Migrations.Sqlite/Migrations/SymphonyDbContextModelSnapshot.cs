@@ -209,6 +209,21 @@ namespace Symphony.Migrations.Sqlite.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Symphony.Data.AppSetting", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("AppSettings");
+                });
+
             modelBuilder.Entity("Symphony.Data.UserConfiguration", b =>
                 {
                     b.Property<string>("Id")

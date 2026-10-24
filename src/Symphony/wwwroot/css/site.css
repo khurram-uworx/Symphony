@@ -410,24 +410,6 @@ tbody tr:last-child td {
         grid-template-columns: 1fr;
     }
 
-@media (max-width: 720px) {
-    .topbar {
-        padding: 14px 18px;
-    }
-
-    main {
-        width: calc(100% - 24px);
-        margin: 24px auto 48px;
-    }
-
-    .panel {
-        padding: 24px 20px;
-    }
-
-    .details {
-        grid-template-columns: 1fr;
-    }
-
     .shortcuts li {
         flex-direction: column;
         align-items: flex-start;
@@ -436,7 +418,12 @@ tbody tr:last-child td {
 
 .workflows-shell {
     display: grid;
-    gap: 24px;
+    gap: 16px;
+}
+
+main:has(.workflows-shell) {
+    width: min(100%, calc(100vw - 32px));
+    max-width: none;
 }
 
 .workflows-header {
@@ -482,7 +469,7 @@ button.danger-button,
 .panel button.danger-button {
     border: 0;
     border-radius: 10px;
-    padding: 10px 14px;
+    padding: 10px 16px;
     background: linear-gradient(135deg, #ff7b86, #e05a66);
     color: #fff6f7;
     font: inherit;
@@ -509,6 +496,36 @@ button.danger-button:active,
     transform: translateY(1px);
 }
 
+button.primary-button,
+.panel button.primary-button {
+    border: 0;
+    border-radius: 10px;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+    color: #fff;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+button.primary-button:hover,
+.panel button.primary-button:hover {
+    filter: brightness(1.08);
+}
+
+a.primary-button {
+    display: inline-flex;
+    align-items: center;
+    border: 0;
+    border-radius: 10px;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+    color: #fff;
+    font-weight: 700;
+    text-decoration: none;
+}
+
 .workflow-status {
     min-height: 1.4em;
     color: var(--muted);
@@ -523,10 +540,32 @@ button.danger-button:active,
     color: var(--success);
 }
 
+.workflow-help {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 0.84rem;
+}
+
+.workflow-help summary {
+    cursor: pointer;
+    color: var(--text);
+    font-weight: 600;
+}
+
+.workflow-help p,
+.workflow-help ul {
+    margin: 8px 0 0;
+    padding-left: 18px;
+}
+
+.workflow-help li {
+    margin: 4px 0;
+}
+
 .workflow-grid {
     display: grid;
-    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
-    gap: 24px;
+    grid-template-columns: minmax(230px, 280px) minmax(0, 1fr);
+    gap: 18px;
     align-items: start;
 }
 
@@ -638,6 +677,149 @@ button.danger-button:active,
     border-color: rgba(124, 108, 255, 0.5);
 }
 
+.workflow-list__entry {
+    margin: 0;
+}
+
+.workflow-list__row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.workflow-list__meta {
+    display: block;
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 500;
+}
+
+.table-panel {
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.workflow-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.workflow-table th,
+.workflow-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+}
+
+.workflow-table th {
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.workflow-table tbody tr:hover {
+    background: rgba(124, 108, 255, 0.08);
+}
+
+.workflow-link {
+    color: var(--text);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.workflow-link:hover {
+    color: #b9b0ff;
+}
+
+.workflows-shell--editor {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: calc(100dvh - 108px);
+    min-height: 440px;
+}
+
+main:has(.workflows-shell--editor) {
+    width: min(100%, calc(100vw - 32px));
+    max-width: none;
+    margin: 18px auto;
+}
+
+.workflow-status:empty {
+    display: none;
+}
+
+.workflow-editor {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    padding: 16px 18px 18px;
+}
+
+.workflow-edit__topbar {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 12px 10px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface-strong);
+}
+
+.workflow-edit__title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.workflow-edit__title h1 {
+    margin: 0;
+    font-size: 1.02rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+}
+
+.workflow-edit__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+}
+
+.workflow-edit__actions .danger-button {
+    margin-left: 4px;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 0.86rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.back-link:hover {
+    border-color: var(--line-strong);
+    color: var(--text);
+}
+
 .workflow-empty {
     padding: 16px;
     border: 1px dashed var(--line);
@@ -648,67 +830,74 @@ button.danger-button:active,
 }
 
 .workflow-name-field {
-    flex: 1 1 240px;
-    min-width: 0;
-}
-
-.workflow-default-toggle {
-    display: inline-flex;
+    display: flex;
+    flex: 0 0 auto;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     color: var(--muted);
-    font-size: 0.84rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    white-space: nowrap;
-    padding-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
 }
 
-.workflow-default-toggle input {
-    width: auto;
-    margin: 0;
-    accent-color: var(--accent);
+.workflow-name-field input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--inset);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: normal;
+    text-transform: none;
 }
 
-.workflow-meta {
-    margin: 14px 0 10px;
-    color: var(--muted);
-    font-size: 0.82rem;
+.workflow-name-field input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(124, 108, 255, 0.16);
 }
 
 #workflow-content {
+    flex: 1 1 auto;
     width: 100%;
-    min-height: 480px;
-    resize: vertical;
+    min-height: 0;
+    height: auto;
+    resize: none;
     font-family: "Cascadia Code", "Consolas", "SFMono-Regular", monospace;
-    font-size: 0.88rem;
-    line-height: 1.5;
+    font-size: 0.9rem;
+    line-height: 1.6;
     tab-size: 4;
     white-space: pre;
     overflow-wrap: normal;
-    overflow-x: auto;
+    overflow: auto;
+    padding: 16px;
+    border-radius: 12px;
+    background: #0a0e16;
+    border: 1px solid var(--line-strong);
+    color: var(--text);
+}
+
+#workflow-content:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(124, 108, 255, 0.16);
 }
 
 .workflow-editor__footer {
-    justify-content: space-between;
-    margin-top: 14px;
-}
-
-.workflow-hint {
-    color: var(--muted);
-    font-size: 0.78rem;
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 12px;
 }
 
 @media (max-width: 980px) {
-    .workflow-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .workflow-editor__header {
-        align-items: stretch;
-    }
-
-    #workflow-content {
-        min-height: 380px;
+    main:has(.workflows-shell) {
+        width: min(100%, calc(100vw - 32px));
     }
 }
 
@@ -725,8 +914,16 @@ button.danger-button:active,
         flex: 1 1 0;
     }
 
+    .workflow-edit__actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .workflows-shell--editor {
+        height: auto;
+    }
+
     #workflow-content {
-        min-height: 320px;
+        min-height: 420px;
     }
 }
-EOF

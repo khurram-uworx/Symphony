@@ -106,6 +106,15 @@ public sealed class WorkflowService(IDbContextFactory<SymphonyDbContext> factory
             throw new WorkflowConflictException("duplicate_name", "A workflow with that name already exists.");
         }
 
+        if (isDefault)
+        {
+            var existingWorkflows = await db.Workflows
+                .Where(workflow => workflow.OwnerUserId == userId)
+                .ToListAsync(cancellationToken);
+            foreach (var existingWorkflow in existingWorkflows)
+                existingWorkflow.IsDefault = false;
+        }
+
         var now = DateTimeOffset.UtcNow;
         var entity = new Workflow
         {
@@ -176,7 +185,14 @@ public sealed class WorkflowService(IDbContextFactory<SymphonyDbContext> factory
 
         entity.Content = content;
         if (isDefault.HasValue)
+        {
             entity.IsDefault = isDefault.Value;
+            if (isDefault.Value)
+            {
+                foreach (var other in items.Where(item => item.Id != entity.Id))
+                    other.IsDefault = false;
+            }
+        }
         entity.UpdatedAt = DateTimeOffset.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
@@ -225,6 +241,11 @@ public sealed class WorkflowService(IDbContextFactory<SymphonyDbContext> factory
         entity.Name = requestedName;
         entity.Content = workflow.Content;
         entity.IsDefault = workflow.IsDefault;
+        if (workflow.IsDefault)
+        {
+            foreach (var other in items.Where(item => item.Id != entity.Id))
+                other.IsDefault = false;
+        }
         entity.UpdatedAt = DateTimeOffset.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
@@ -293,6 +314,9 @@ public sealed class WorkflowService(IDbContextFactory<SymphonyDbContext> factory
 
         if (entity is null)
             return false;
+
+        if (entity.IsDefault)
+            throw new WorkflowConflictException("default_workflow", "Cannot delete the default workflow.");
 
         if (items.Count <= 1)
             throw new WorkflowConflictException("last_workflow", "Cannot delete the last remaining workflow.");

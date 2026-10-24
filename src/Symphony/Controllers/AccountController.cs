@@ -183,6 +183,27 @@ public sealed class AccountController(
     }
 
     [HttpGet]
+    [Route("Account/Workflows/Edit")]
+    [Authorize]
+    public Task<IActionResult> WorkflowEdit(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var template = string.Empty;
+        var environment = WebHostEnvironment;
+        if (environment is not null)
+        {
+            var path = Path.Combine(environment.ContentRootPath, "WORKFLOW.md");
+            if (System.IO.File.Exists(path))
+                template = System.IO.File.ReadAllText(path, System.Text.Encoding.UTF8);
+        }
+
+        ViewData["Title"] = "Workflow editor";
+        ViewData["WorkflowTemplate"] = template;
+        return Task.FromResult<IActionResult>(View("WorkflowEdit"));
+    }
+
+    [HttpGet]
     [Authorize]
     public async Task<IActionResult> Run(CancellationToken cancellationToken = default)
     {

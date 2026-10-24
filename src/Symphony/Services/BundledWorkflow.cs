@@ -5,7 +5,7 @@ namespace Symphony.Services;
 
 public static class BundledWorkflow
 {
-    public const string DefaultName = "WORKFLOW";
+    public const string DefaultName = "Workflow";
 
     static string? cachedContent;
 

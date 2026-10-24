@@ -220,6 +220,21 @@ namespace Symphony.Migrations.SqlServer.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Symphony.Data.AppSetting", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("AppSettings");
+                });
+
             modelBuilder.Entity("Symphony.Data.UserConfiguration", b =>
                 {
                     b.Property<string>("Id")

@@ -34,7 +34,7 @@ dotnet run -c Release --project tests/Symphony.PerformanceTests
 
 Local web host (deterministic port): `dotnet run --project src/Symphony` listens on `http://localhost:5080` by default via `src/Symphony/Properties/launchSettings.json`. Override with `ASPNETCORE_URLS=http://localhost:<port>` (or `https://...`) when needed.
 
-Smoke checks: delete `src/Symphony/App_Data/symphony.db` to force a fresh database and seed credentials, launch the host, then use the configured Playwright MCP against `http://localhost:5080`. Read the seeded admin username/password from host stdout. Keep these checks out of `Symphony.Tests`.
+Smoke checks: delete `src/Symphony/App_Data/symphony.db` to force a fresh database and seed credentials, launch the host, then use the configured Playwright MCP against `http://localhost:5080`. Under `dotnet run` the seeded admin is `testadmin` with the password from `SeedAdmin:Password` in `appsettings.Development.json` (`Symphony!dev1`), so the login is deterministic. Keep these checks out of `Symphony.Tests`.
 
 Release publishing is `.github/workflows/cd.yml`: it builds and pushes `ghcr.io/${{ github.repository_owner }}/symphony` (version tag + `latest`) on a `v*` tag or manual dispatch. `.github/workflows/docker.yml` is the manual publish entry point. `cd.yml` is the publish workflow, not a build-only check.
 

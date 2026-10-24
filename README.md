@@ -115,6 +115,7 @@ docs/
 - **LINEAR_API_KEY**: Linear or Jira personal API token (used by the legacy tracker clients; not required to start the web host)
 - **SYMPHONY_WORKSPACE_ROOT**: Override default workspace root directory
 - **SeedAdmin__UserName**: First administrator username (default `testadmin`)
+- **SeedAdmin__Password**: First administrator password. Empty generates a strong password and prints it once; a configured value is used verbatim, is not policy-validated, and is never printed.
 
 ## Development
 

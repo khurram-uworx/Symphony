@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Symphony.Services;
 
 namespace Symphony.Data;
 
@@ -132,6 +133,8 @@ public static class AdminSeeder
         var added = await users.AddToRoleAsync(user, AdminRole);
         if (!added.Succeeded)
             throw identityFailure(added);
+
+        await WorkflowService.EnsureDefaultWorkflowAsync(db, user.Id, cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
         await output.WriteLineAsync(CredentialHeader);

@@ -227,6 +227,7 @@ public sealed class JobProcessor : BackgroundService
         var snapshot = TryParseSnapshot(job, secretProtector);
         var workItems = ReadWorkItems(snapshot);
         var issues = new List<Issue>();
+        var failedTicketCount = 0;
 
         if (hasTickets)
         {
@@ -240,7 +241,6 @@ public sealed class JobProcessor : BackgroundService
                 processorLogger.LogWarning(ex, "Failed to resolve ticket IDs.");
             }
 
-            var foundIds = new HashSet<string>(fetched.Select(item => item.Id), StringComparer.OrdinalIgnoreCase);
             foreach (var ticketId in ticketIds)
             {
                 var issue = fetched.FirstOrDefault(item =>
@@ -253,6 +253,7 @@ public sealed class JobProcessor : BackgroundService
                 else
                 {
                     await jobService.CreateFailedIssueRowAsync(job.Id, ticketId, ticketId, "Ticket not found.", cancellationToken);
+                    failedTicketCount++;
                 }
             }
         }
@@ -270,8 +271,8 @@ public sealed class JobProcessor : BackgroundService
 
         await jobService.AppendEventAsync(job.Id, null, "job.started", "Job started.", null, cancellationToken);
 
-        var allSuccess = true;
-        var anyFailure = false;
+        var allSuccess = failedTicketCount == 0;
+        var anyFailure = failedTicketCount > 0;
         var baseRoot = config.Workspace.Root;
         var scopedConfig = config with { Workspace = new WorkspaceConfig(Path.Combine(baseRoot, job.OwnerUserId)) };
         var configProvider = new StaticServiceConfigProvider(scopedConfig);
@@ -310,7 +311,7 @@ public sealed class JobProcessor : BackgroundService
 
         string finalState;
         string? summary;
-        if (issues.Count == 0)
+        if (issues.Count == 0 && failedTicketCount == 0)
         {
             finalState = "Completed";
             summary = "No issues.";
@@ -320,12 +321,12 @@ public sealed class JobProcessor : BackgroundService
             finalState = "Cancelled";
             summary = "Cancelled.";
         }
-        else if (allSuccess)
+        else if (allSuccess && failedTicketCount == 0)
         {
             finalState = "Completed";
             summary = $"Completed {issues.Count} issue(s).";
         }
-        else if (anyFailure)
+        else if (anyFailure || failedTicketCount > 0)
         {
             finalState = "CompletedWithFailures";
             summary = "Completed with failures.";
@@ -339,6 +340,7 @@ public sealed class JobProcessor : BackgroundService
         await jobService.MarkJobStateAsync(job.Id, finalState, null, null, JsonSerializer.Serialize(new
         {
             issueCount = issues.Count,
+            failedIssueCount = failedTicketCount,
             summary
         }), cancellationToken);
         await jobService.AppendEventAsync(job.Id, null, "job.completed", summary ?? finalState, null, cancellationToken);

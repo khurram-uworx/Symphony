@@ -1,0 +1,184 @@
+@using Symphony.Dto
+@model ConfigurationDto
+@{
+    ViewData["Title"] = "Configuration";
+}
+<section class="panel">
+    <h1>Configuration</h1>
+    <p class="muted">Personal work tool and agent setup.</p>
+
+    @if (TempData["Message"] is string message)
+    {
+        <p class="muted">@message</p>
+    }
+
+    <form asp-action="Configuration" method="post">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="All" class="validation" role="alert"></div>
+
+        <h2>Tracker</h2>
+        <label>
+            Tracker kind
+            <select asp-for="TrackerKind">
+                <option value="">(select)</option>
+                <option value="linear">Linear</option>
+                <option value="jira">Jira</option>
+            </select>
+        </label>
+        <span asp-validation-for="TrackerKind" class="field-error"></span>
+
+        <label>
+            Tracker endpoint
+            <input asp-for="TrackerEndpoint" autocomplete="off" />
+        </label>
+        <span asp-validation-for="TrackerEndpoint" class="field-error"></span>
+
+        <label>
+            Tracker API key
+            <input asp-for="TrackerApiKey" type="password" autocomplete="off" placeholder="Leave blank to keep" />
+        </label>
+        <span asp-validation-for="TrackerApiKey" class="field-error"></span>
+
+        <label>
+            Project slug
+            <input asp-for="TrackerProjectSlug" autocomplete="off" />
+        </label>
+        <span asp-validation-for="TrackerProjectSlug" class="field-error"></span>
+
+        <label>
+            Active states (comma separated)
+            <input asp-for="TrackerActiveStates" autocomplete="off" />
+        </label>
+        <span asp-validation-for="TrackerActiveStates" class="field-error"></span>
+
+        <label>
+            Terminal states (comma separated)
+            <input asp-for="TrackerTerminalStates" autocomplete="off" />
+        </label>
+        <span asp-validation-for="TrackerTerminalStates" class="field-error"></span>
+
+        <h2>Workspace</h2>
+        <label>
+            Workspace root
+            <input asp-for="WorkspaceRoot" autocomplete="off" />
+        </label>
+        <span asp-validation-for="WorkspaceRoot" class="field-error"></span>
+
+        <h2>Hooks</h2>
+        <label>
+            After create
+            <textarea asp-for="HookAfterCreate" rows="3"></textarea>
+        </label>
+        <label>
+            Before run
+            <textarea asp-for="HookBeforeRun" rows="3"></textarea>
+        </label>
+        <label>
+            After run
+            <textarea asp-for="HookAfterRun" rows="3"></textarea>
+        </label>
+        <label>
+            Before remove
+            <textarea asp-for="HookBeforeRemove" rows="3"></textarea>
+        </label>
+        <label>
+            Hook timeout (ms)
+            <input asp-for="HookTimeoutMs" type="number" />
+        </label>
+        <span asp-validation-for="HookTimeoutMs" class="field-error"></span>
+
+        <h2>Agent</h2>
+        <label>
+            Max concurrent agents
+            <input asp-for="MaxConcurrentAgents" type="number" />
+        </label>
+        <span asp-validation-for="MaxConcurrentAgents" class="field-error"></span>
+
+        <label>
+            Max retry backoff (ms)
+            <input asp-for="MaxRetryBackoffMs" type="number" />
+        </label>
+        <span asp-validation-for="MaxRetryBackoffMs" class="field-error"></span>
+
+        <label>
+            Max turns
+            <input asp-for="MaxTurns" type="number" />
+        </label>
+        <span asp-validation-for="MaxTurns" class="field-error"></span>
+
+        <label>
+            Max concurrent agents by state
+            <input asp-for="MaxConcurrentAgentsByState" autocomplete="off" />
+        </label>
+        <span asp-validation-for="MaxConcurrentAgentsByState" class="field-error"></span>
+
+        <h2>Copilot BYOM</h2>
+        <label>
+            Provider
+            <select asp-for="CopilotProvider" id="copilot-provider">
+                <option value="">(none)</option>
+                <option value="openai">OpenAI</option>
+                <option value="azure">Azure</option>
+                <option value="anthropic">Anthropic</option>
+            </select>
+        </label>
+        <span asp-validation-for="CopilotProvider" class="field-error"></span>
+
+        <div data-copilot-provider="openai azure anthropic">
+            <label>
+                Base URL
+                <input asp-for="CopilotBaseUrl" autocomplete="off" />
+            </label>
+            <span asp-validation-for="CopilotBaseUrl" class="field-error"></span>
+
+            <label>
+                Model ID
+                <input asp-for="CopilotModelId" autocomplete="off" />
+            </label>
+            <span asp-validation-for="CopilotModelId" class="field-error"></span>
+
+            <label>
+                API key
+                <input asp-for="CopilotApiKey" type="password" autocomplete="off" placeholder="Leave blank to keep" />
+            </label>
+            <span asp-validation-for="CopilotApiKey" class="field-error"></span>
+        </div>
+
+        <div data-copilot-provider="openai" id="openai-wire-api">
+            <label>
+                Wire API
+                <select asp-for="CopilotWireApi">
+                    <option value="">(default)</option>
+                    <option value="completions">completions</option>
+                    <option value="responses">responses</option>
+                </select>
+            </label>
+            <span asp-validation-for="CopilotWireApi" class="field-error"></span>
+        </div>
+
+        <h2>Workflow</h2>
+        <label>
+            Default workflow name
+            <input asp-for="DefaultWorkflowName" autocomplete="off" />
+        </label>
+        <span asp-validation-for="DefaultWorkflowName" class="field-error"></span>
+
+        <button type="submit">Save configuration</button>
+    </form>
+</section>
+
+<script>
+    (function () {
+        var provider = document.getElementById('copilot-provider');
+        if (!provider) return;
+        function update() {
+            var value = (provider.value || '').toLowerCase();
+            document.querySelectorAll('[data-copilot-provider]').forEach(function (el) {
+                var providers = (el.getAttribute('data-copilot-provider') || '').split(/\s+/);
+                el.hidden = value !== '' && providers.indexOf(value) === -1;
+            });
+        }
+        provider.addEventListener('change', update);
+        update();
+    })();
+</script>

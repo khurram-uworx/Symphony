@@ -216,6 +216,44 @@ public sealed class SymphonyDbContext(DbContextOptions<SymphonyDbContext> option
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
+        modelBuilder.Entity<ApiKey>(entity =>
+        {
+            entity.HasKey(key => key.Id);
+
+            entity.Property(key => key.Id)
+                .HasMaxLength(128)
+                .ValueGeneratedOnAdd();
+
+            entity.Property(key => key.OwnerUserId)
+                .IsRequired()
+                .HasMaxLength(450);
+
+            entity.HasOne(key => key.Owner)
+                .WithMany()
+                .HasForeignKey(key => key.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(key => key.Name)
+                .HasMaxLength(256);
+
+            entity.Property(key => key.KeyPrefix)
+                .IsRequired()
+                .HasMaxLength(64);
+
+            entity.Property(key => key.KeyHash)
+                .IsRequired()
+                .HasMaxLength(512);
+
+            entity.Property(key => key.IsEnabled)
+                .IsRequired();
+
+            entity.Property(key => key.CreatedAt)
+                .IsRequired();
+
+            entity.HasIndex(key => key.OwnerUserId);
+            entity.HasIndex(key => key.KeyPrefix);
+        });
+
         modelBuilder.Entity<AppSetting>(entity =>
         {
             entity.HasKey(setting => setting.Key);

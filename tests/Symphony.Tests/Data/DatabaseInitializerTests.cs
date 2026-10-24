@@ -40,7 +40,7 @@ class DatabaseInitializerTests
         await using var db = await factory.CreateDbContextAsync();
         Assert.That(await db.Users.CountAsync(), Is.Zero);
         Assert.That(await db.Roles.CountAsync(), Is.Zero);
-        Assert.That(await historyIds(db), Is.EqualTo(new[] { "InitialIdentity", "AddUserConfiguration" }));
+        Assert.That(await historyIds(db), Is.EqualTo(new[] { "InitialIdentity", "AddUserConfiguration", "AddWorkflow" }));
     }
 
     [Test]
@@ -53,7 +53,7 @@ class DatabaseInitializerTests
         await DatabaseInitializer.InitializeAsync(factory);
 
         await using var db = await factory.CreateDbContextAsync();
-        Assert.That(await historyIds(db), Is.EqualTo(new[] { "InitialIdentity", "AddUserConfiguration" }));
+        Assert.That(await historyIds(db), Is.EqualTo(new[] { "InitialIdentity", "AddUserConfiguration", "AddWorkflow" }));
         Assert.That(await db.Users.CountAsync(), Is.Zero);
         Assert.That(await db.Roles.CountAsync(), Is.Zero);
     }

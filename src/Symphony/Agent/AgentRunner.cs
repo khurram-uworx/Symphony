@@ -8,7 +8,7 @@ using Symphony.Workspaces;
 
 namespace Symphony.Agent;
 
-record AgentRunResult(bool Success, string? Reason, Exception? Exception, int TurnCount = 0)
+public record AgentRunResult(bool Success, string? Reason, Exception? Exception, int TurnCount = 0)
 {
     public static AgentRunResult CreateSuccess(int turnCount = 0) => new(true, null, null, turnCount);
     public static AgentRunResult Fail(string reason, Exception? ex = null, int turnCount = 0) => new(false, reason, ex, turnCount);

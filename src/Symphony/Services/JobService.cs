@@ -1,7 +1,11 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Symphony.Workspaces;
 using Symphony.Data;
 using Symphony.Dto;
+using Symphony.Agent;
+using Symphony.Domain;
 using Symphony.Processing;
 using Symphony.Security;
 
@@ -31,11 +35,13 @@ public sealed class JobService
     public JobService(
         IDbContextFactory<SymphonyDbContext> factory,
         ISecretProtector? secretProtector,
-        JobQueue? jobQueue)
+        JobQueue? jobQueue,
+        ILogger<JobService>? logger = null)
     {
         this.factory = factory ?? throw new ArgumentNullException(nameof(factory));
         this.secretProtector = secretProtector ?? new SecretProtector();
         this.jobQueue = jobQueue;
+        this.logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<JobService>.Instance;
     }
 
     IDbContextFactory<SymphonyDbContext> Factory => factory;
@@ -145,4 +151,188 @@ public sealed class JobService
 
         return job;
     }
+
+    public async Task<Guid> CreateIssueRowAsync(
+        Guid jobId,
+        Issue issue,
+        string workspaceRoot,
+        CancellationToken cancellationToken = default) =>
+        await CreateJobIssueAsync(jobId, issue, workspaceRoot, cancellationToken);
+
+    public async Task<Guid> CreateJobIssueAsync(
+        Guid jobId,
+        Issue issue,
+        string workspaceRoot,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var row = new JobIssue
+        {
+            JobId = jobId,
+            IssueId = issue.Id,
+            Identifier = issue.Identifier,
+            Title = issue.Title,
+            State = issue.State,
+            Success = false,
+            Reason = null,
+            TurnCount = 0,
+            StartedAt = DateTimeOffset.UtcNow,
+            WorkspacePath = Path.Combine(workspaceRoot, WorkspaceManager.SanitizeKey(issue.Identifier))
+        };
+        db.JobIssues.Add(row);
+        await db.SaveChangesAsync(cancellationToken);
+        return row.Id;
+    }
+
+    public Task<Guid> CreateIssueAsync(Guid jobId, Issue issue, string workspaceRoot, CancellationToken cancellationToken = default) =>
+        CreateJobIssueAsync(jobId, issue, workspaceRoot, cancellationToken);
+
+    public Task<Guid> AddIssueAsync(Guid jobId, Issue issue, string workspaceRoot, CancellationToken cancellationToken = default) =>
+        CreateJobIssueAsync(jobId, issue, workspaceRoot, cancellationToken);
+
+    public async Task CreateFailedIssueRowAsync(
+        Guid jobId,
+        string issueId,
+        string identifier,
+        string reason,
+        CancellationToken cancellationToken = default) =>
+        await CreateFailedJobIssueAsync(jobId, issueId, identifier, reason, cancellationToken);
+
+    public async Task CreateFailedJobIssueAsync(
+        Guid jobId,
+        string issueId,
+        string identifier,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        db.JobIssues.Add(new JobIssue
+        {
+            JobId = jobId,
+            IssueId = issueId,
+            Identifier = identifier,
+            Title = identifier,
+            State = "Failed",
+            Success = false,
+            Reason = reason,
+            TurnCount = 0,
+            CompletedAt = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task CreateFailedIssueAsync(Guid jobId, string issueId, string identifier, string reason, CancellationToken cancellationToken = default) =>
+        CreateFailedJobIssueAsync(jobId, issueId, identifier, reason, cancellationToken);
+
+    public Task AddFailedIssueAsync(Guid jobId, string issueId, string identifier, string reason, CancellationToken cancellationToken = default) =>
+        CreateFailedJobIssueAsync(jobId, issueId, identifier, reason, cancellationToken);
+
+    public async Task UpdateIssueRowAsync(
+        Guid issueRowId,
+        Issue issue,
+        AgentRunResult result,
+        string workspaceRoot,
+        CancellationToken cancellationToken = default) =>
+        await UpdateJobIssueAsync(issueRowId, issue, result, workspaceRoot, cancellationToken);
+
+    public async Task UpdateJobIssueAsync(
+        Guid issueRowId,
+        Issue issue,
+        AgentRunResult result,
+        string workspaceRoot,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var row = await db.JobIssues.FirstOrDefaultAsync(item => item.Id == issueRowId, cancellationToken);
+        if (row is null)
+            return;
+
+        row.State = result.Success ? "Completed" : "Failed";
+        row.Success = result.Success;
+        row.Reason = result.Reason;
+        row.TurnCount = result.TurnCount;
+        row.CompletedAt = DateTimeOffset.UtcNow;
+        row.WorkspacePath = Path.Combine(workspaceRoot, WorkspaceManager.SanitizeKey(issue.Identifier));
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task UpdateIssueAsync(Guid issueRowId, Issue issue, AgentRunResult result, string workspaceRoot, CancellationToken cancellationToken = default) =>
+        UpdateJobIssueAsync(issueRowId, issue, result, workspaceRoot, cancellationToken);
+
+    public async Task MarkJobStateAsync(
+        Guid jobId,
+        string state,
+        string? errorCode,
+        string? errorMessage,
+        string? summaryJson,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await using var db = await factory.CreateDbContextAsync(cancellationToken == CancellationToken.None ? CancellationToken.None : cancellationToken);
+        var job = await db.Jobs.FirstOrDefaultAsync(item => item.Id == jobId, cancellationToken);
+        if (job is null)
+            return;
+
+        job.State = state;
+        job.ErrorCode = errorCode;
+        job.ErrorMessage = errorMessage;
+        if (summaryJson is not null)
+            job.SummaryJson = summaryJson;
+        if (state is "Completed" or "CompletedWithFailures" or "Failed" or "Cancelled")
+            job.CompletedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task UpdateJobStateAsync(Guid jobId, string state, string? errorCode, string? errorMessage, string? summaryJson, CancellationToken cancellationToken = default) =>
+        MarkJobStateAsync(jobId, state, errorCode, errorMessage, summaryJson, cancellationToken);
+
+    public Task SetJobStateAsync(Guid jobId, string state, string? errorCode, string? errorMessage, string? summaryJson, CancellationToken cancellationToken = default) =>
+        MarkJobStateAsync(jobId, state, errorCode, errorMessage, summaryJson, cancellationToken);
+
+    public async Task AppendEventAsync(
+        Guid jobId,
+        Guid? jobIssueId,
+        string eventName,
+        string? summary,
+        object? payload,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await using var db = await factory.CreateDbContextAsync(cancellationToken);
+            db.JobEvents.Add(new JobEvent
+            {
+                JobId = jobId,
+                JobIssueId = jobIssueId,
+                Timestamp = DateTimeOffset.UtcNow,
+                EventName = eventName,
+                Summary = summary,
+                PayloadJson = payload is null ? null : JsonSerializer.Serialize(Redaction.RedactObject(payload))
+            });
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "Failed to append event {EventName} for job {JobId}.", eventName, jobId);
+        }
+    }
+
+    public Task AppendJobEventAsync(Guid jobId, Guid? jobIssueId, string eventName, string? summary, object? payload, CancellationToken cancellationToken = default) =>
+        AppendEventAsync(jobId, jobIssueId, eventName, summary, payload, cancellationToken);
+
+    public Task AddEventAsync(Guid jobId, Guid? jobIssueId, string eventName, string? summary, object? payload, CancellationToken cancellationToken = default) =>
+        AppendEventAsync(jobId, jobIssueId, eventName, summary, payload, cancellationToken);
+
+    public Task RecordEventAsync(Guid jobId, Guid? jobIssueId, string eventName, string? summary, object? payload, CancellationToken cancellationToken = default) =>
+        AppendEventAsync(jobId, jobIssueId, eventName, summary, payload, cancellationToken);
+
+    readonly ILogger<JobService> logger;
+}
+
+public static class JobServiceExtensions
+{
+    // placeholder for future static helpers
 }

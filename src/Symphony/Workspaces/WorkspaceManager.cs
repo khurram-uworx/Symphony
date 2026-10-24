@@ -29,6 +29,8 @@ class WorkspaceManager
         this.logger = logger;
     }
 
+    public Dictionary<string, string>? GitHubEnvironment { get; set; }
+
     public async Task<Workspace> CreateForIssueAsync(string identifier, CancellationToken cancellationToken)
     {
         var config = configProvider.GetConfig();
@@ -55,7 +57,7 @@ class WorkspaceManager
 
         if (createdNow && !string.IsNullOrWhiteSpace(config.Hooks.AfterCreate))
         {
-            var result = await shell.RunAsync(config.Hooks.AfterCreate, fullPath, config.Hooks.TimeoutMs, cancellationToken);
+            var result = await shell.RunAsync(config.Hooks.AfterCreate, fullPath, config.Hooks.TimeoutMs, GitHubEnvironment, cancellationToken);
 
             if (!result.Success)
                 throw new InvalidOperationException("after_create hook failed.");
@@ -69,7 +71,7 @@ class WorkspaceManager
         if (string.IsNullOrWhiteSpace(hook))
             return true;
 
-        var result = await shell.RunAsync(hook, workspacePath, timeoutMs, cancellationToken);
+        var result = await shell.RunAsync(hook, workspacePath, timeoutMs, GitHubEnvironment, cancellationToken);
         return result.Success;
     }
 
@@ -78,7 +80,7 @@ class WorkspaceManager
         if (string.IsNullOrWhiteSpace(hook))
             return;
 
-        var result = await shell.RunAsync(hook, workspacePath, timeoutMs, cancellationToken);
+        var result = await shell.RunAsync(hook, workspacePath, timeoutMs, GitHubEnvironment, cancellationToken);
 
         if (!result.Success)
             logger.LogWarning("Hook failed (ignored): {Hook}", hook);

@@ -183,6 +183,19 @@ public sealed class AccountController(
     }
 
     [HttpGet]
+    [Authorize]
+    public async Task<IActionResult> Run(CancellationToken cancellationToken = default)
+    {
+        var userId = await GetUserIdAsync();
+        var configuration = await ConfigurationService.GetAsync(userId, cancellationToken)
+            ?? new UserConfiguration { UserId = userId };
+
+        ViewData["Title"] = "Run launcher";
+        ViewData["DefaultWorkflowName"] = configuration.DefaultWorkflowName ?? string.Empty;
+        return View("Run");
+    }
+
+    [HttpGet]
     [AllowAnonymous]
     public IActionResult AccessDenied() => View();
 }

@@ -207,9 +207,8 @@ public sealed class JobProcessor : BackgroundService
         var processorLogger = sp.GetRequiredService<ILogger<JobProcessor>>();
 
         await WorkflowService.EnsureDefaultWorkflowAsync(dbFactory, job.OwnerUserId, cancellationToken);
-        var userConfig = await configurationService.GetAsync(job.OwnerUserId, cancellationToken);
-        if (userConfig is null)
-            throw new InvalidOperationException("Owner configuration not found.");
+        var userConfig = await configurationService.GetAsync(job.OwnerUserId, cancellationToken)
+            ?? new UserConfiguration();
 
         var workflow = await workflowService.GetAsync(job.OwnerUserId, job.WorkflowName, cancellationToken)
             ?? await workflowService.GetAsync(job.OwnerUserId, WorkflowService.DefaultWorkflowName, cancellationToken);

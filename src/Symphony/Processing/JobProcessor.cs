@@ -26,6 +26,7 @@ public sealed class JobProcessor : BackgroundService
     readonly ILogger<JobProcessor> logger;
     const int GlobalConcurrency = 4;
     readonly ConcurrentDictionary<Guid, CancellationTokenSource> running = new();
+    readonly ConcurrentDictionary<string, int> runningByOwner = new(StringComparer.Ordinal);
 
     public JobProcessor(
         IServiceScopeFactory scopeFactory,
@@ -126,8 +127,12 @@ public sealed class JobProcessor : BackgroundService
 
     async Task ProcessAvailableQueuedJobsAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested && running.Count < GlobalConcurrency)
+        while (!stoppingToken.IsCancellationRequested)
         {
+            var global = await ConcurrencyLimits.GetGlobalConcurrencyAsync(dbFactory, stoppingToken);
+            if (running.Count >= global)
+                return;
+
             var claimed = await TryClaimQueuedJobAsync(stoppingToken);
             if (claimed is null)
                 return;
@@ -138,6 +143,7 @@ public sealed class JobProcessor : BackgroundService
                 jobCts.Dispose();
                 return;
             }
+            runningByOwner.AddOrUpdate(claimed.OwnerUserId, 1, (_, count) => count + 1);
 
             _ = Task.Run(async () =>
             {
@@ -148,6 +154,7 @@ public sealed class JobProcessor : BackgroundService
                 finally
                 {
                     running.TryRemove(claimed.Id, out _);
+                    runningByOwner.AddOrUpdate(claimed.OwnerUserId, 0, (_, count) => count <= 1 ? 0 : count - 1);
                     jobCts.Dispose();
                 }
             }, stoppingToken);
@@ -161,11 +168,18 @@ public sealed class JobProcessor : BackgroundService
             .Where(candidate => candidate.State == "Queued")
             .ToListAsync(cancellationToken);
 
+        var global = await ConcurrencyLimits.GetGlobalConcurrencyAsync(dbFactory, cancellationToken);
+        if (running.Count >= global)
+            return null;
+
         var job = queued
             .OrderBy(candidate => candidate.QueuedAt)
             .FirstOrDefault();
 
         if (job is null)
+            return null;
+
+        if (runningByOwner.TryGetValue(job.OwnerUserId, out var ownerRunning) && ownerRunning >= 10)
             return null;
 
         job.State = "Running";

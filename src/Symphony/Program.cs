@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Symphony.Api;
 using Symphony.Data;
 using Symphony.Security;
 using Symphony.Services;
@@ -20,7 +21,10 @@ builder.Services.AddSymphonyDataProtection(builder.Configuration, builder.Enviro
 builder.Services.AddSymphonySecretProtection(builder.Configuration, builder.Environment.ContentRootPath);
 builder.Services.AddSymphonyIdentity(builder.Configuration, builder.Environment);
 builder.Services.AddScoped<UserManagementService>();
-builder.Services.AddScoped<ConfigurationService>();
+builder.Services.AddScoped<ConfigurationService>(serviceProvider =>
+    new ConfigurationService(
+        serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),
+        serviceProvider.GetRequiredService<ISecretProtector>()));
 
 var app = builder.Build();
 
@@ -37,6 +41,7 @@ app.MapStaticAssets();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+app.MapConfigurationEndpoints();
 
 await DatabaseInitializer.InitializeAsync(
     app.Services.GetRequiredService<IDbContextFactory<SymphonyDbContext>>());

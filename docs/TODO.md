@@ -1,102 +1,173 @@
-# Make the work tracker optional and remove candidate polling
+# Milestone 5 — GitHub repository and PAT handling
 
 ## Problem
 
-Symphony is now a push-based web product: work arrives through `POST /api/work`, is persisted as a `Job`, and is executed by `JobProcessor`. The old polling model still shapes the code even though it is not shipped:
+M5 of `docs/plans/SYMPHONY-WEB-PLAN.md` (T35–T38) is the point where Symphony stops
+being a Jira/Linear-only host and becomes a GitHub-repository worker. The current code
+stores the requested repository and PAT but never uses them:
 
-- `Orchestration/OrchestratorService` is never registered as a hosted service, but its `ValidateForDispatch` path is the only place that hard-requires `tracker.kind`, `tracker.api_key`, and `tracker.project_slug`.
-- `IssueTrackerFactory.Create` maps an empty tracker kind to `NullIssueTracker`, and `NullIssueTracker.FetchIssueStatesByIdsAsync` fabricates an `Issue` ("Inline work item", state `In Progress`) for any unknown ID. A submission with `ticketIds` and no tracker therefore *looks* resolved and runs against fake work.
-- `AgentRunner` uses tracker state as its continuation signal. With a null tracker, inline work effectively runs one turn by accident, not by design.
-- The configuration UI presents the tracker as the headline setting with no "none" option, and the docs still describe tracker values as required.
-- `IIssueTracker` still exposes `FetchCandidateIssuesAsync` and `FetchTerminalIssuesAsync`, which only the deleted polling path used.
+- `Job.Repository` is written in `JobService.CreateCoreAsync` and never read. Nothing
+  carries the requested repository or PAT from the encrypted snapshot to the workspace
+  clone or the coding agent.
+- The only clone mechanism is the `after_create` hook in the bundled `WORKFLOW.md`, which
+  hardcodes `https://github.com/khurram-uworx/symphony` and has no token. `ShellCommandRunner`
+  has no environment injection and logs the raw command on failure.
+- `CopilotAgent` hardcodes the Linear MCP server and builds `CopilotClient` with default
+  options, so a GitHub-repository job would still talk to Linear.
+- `JobProcessor` enforces a hardcoded `GlobalConcurrency = 4`. `AgentConfig.MaxConcurrentAgents`
+  and `MaxConcurrentByState` are parsed and never used, and the seeded `GlobalConcurrency`
+  app setting is dead.
+- Repository validation is "non-empty" only; BYOM validation only checks the provider name.
+- `JobProcessor.TryCreateCodingAgent` silently falls back to `NoOpCodingAgent`, so a job can
+  reach a terminal state having done nothing.
+- `WorkspaceManager` containment uses a bare `StartsWith`, so `/data/user1` accepts
+  `/data/user10`, and relative workspace roots are silently resolved against the process CWD.
 
-The tracker should become an optional context source: inline `workItems` need no tracker; `ticketIds` require one.
+## Scope
 
-## Decisions (confirmed with the human)
+T35 (GitHub repository + PAT), T36 (Copilot BYOM), T37 (user-scoped workspaces and
+concurrency), T38 (Symphony repository end-to-end) from
+`docs/plans/SYMPHONY-WEB-PLAN.md`.
 
-1. No tracker configured, inline work loops up to `Agent.MaxTurns` without a state refresh. Default `MaxTurns` is 1.
-2. A submission with **only** ticket IDs and no tracker is rejected with `400`. A mixed submission queues, runs its inline items, and records failed `JobIssue` rows for the ticket IDs.
-3. `FetchCandidateIssuesAsync` and `FetchTerminalIssuesAsync` are removed from `IIssueTracker` and its implementations.
-4. GitHub remains a repo/code host only in this change. GitHub repo/PAT requirements are Milestone 5 of `docs/plans/SYMPHONY-WEB.md`.
-5. Keep the "tracker" naming (`TrackerKind`, `TrackerConfig`, stored columns). Only UI copy and docs reframe it as optional.
+Decisions carried into the plan (previously discussed and approved as recommended):
+
+- **D1** Repository input is canonicalised to `owner/name`. Accepted inputs: `owner/name`,
+  `https://github.com/owner/name[.git]`, `git@github.com:owner/name[.git]`. Everything else
+  (enterprise hosts, extra path segments, query strings, fragments) is rejected.
+- **D2** The PAT reaches the runtime through the hook process environment
+  (`GH_TOKEN`, `GITHUB_TOKEN`, `GITHUB_REPOSITORY`, and `GIT_CONFIG_*` extraheader
+  authentication). The token never appears in a clone URL, a command line, `<repo>/.git/config`,
+  an event payload, or a log line. The bundled workflow keeps cloning through its
+  `after_create` hook and uses `$GITHUB_REPOSITORY` / `%GITHUB_REPOSITORY%` — the bundled
+  seed is OS-aware so it works under both cmd.exe and bash.
+- **D3** T35's retry criterion is satisfied by a `JobService.CreateRetryAsync` primitive that
+  copies the encrypted snapshot to a new job with `RetryOfJobId` set, plus graceful failure
+  when a snapshot has no PAT. Retry policy/UI/scheduling remains T44 (M7).
+- **D4** "Per-user concurrency" means simultaneously *running jobs* per owner. Per-state limits
+  apply only to states that are known at claim time (work-item states); ticket-backed jobs are
+  governed by the per-user and global limits. `GlobalConcurrency` comes from the seeded
+  `AppSetting` with a safe fallback.
+- **D5** T38's first end-to-end run uses inline work items (no tracker). "Ticket state refresh"
+  moves to M6/M7 because no GitHub Issues tracker exists yet.
+- **D6** Workspace roots must be absolute after `~`/environment expansion. Containment checks
+  are separator-aware.
 
 ## Proposed changes
 
-### 1. Remove the polling path and dead tracker surface
+### 1. Workspace path safety (T37 first slice)
 
-- Delete `src/Symphony/Orchestration/OrchestratorService.cs`.
-- Move `LiveSession` from `src/Symphony/Orchestration/Models.cs` to `src/Symphony/Agent/LiveSession.cs` (namespace `Symphony.Agent`), then delete `RunningEntry`, `RetryEntry`, `OrchestratorState`, `CodexTotals`, and `CodexRateLimits`.
-- Update `using` directives in `Agent/AgentRunner.cs`, `Agent/ICodingAgent.cs`, `Agent/CopilotAgent.cs`, `Agent/Codex/*`, and `Processing/JobProcessor.cs`.
-- Delete `src/Symphony/Workflows/WorkflowManager.cs` and `src/Symphony/WorkflowPathResolver.cs`.
-- In `src/Symphony/Config/ServiceConfigProvider.cs`, delete `ServiceConfigProvider`, `ConfigValidationResult`, and `PollingConfig`. Keep `ServiceConfig`, `TrackerConfig`, `WorkspaceConfig`, `HooksConfig`, `AgentConfig`, `CodexConfig`, and `ConfigReader`. Rename the file to `ServiceConfig.cs`.
-- `src/Symphony/IssueTracker/IIssueTracker.cs`: keep only `FetchIssueStatesByIdsAsync`.
-- Remove candidate/terminal implementations from `LinearClient`, `JiraClient`, and `NullIssueTracker`.
-- `src/Symphony/IssueTracker/IssueTrackerFactory.cs`: collapse to `Create(ServiceConfig)`; delete the `submissionContext` overload, `IsInlineOnly`, and the reflection helpers.
-- Update `tests/Symphony.Tests/NullIssueTrackerTests.cs` to drop the candidate/terminal tests.
+- `Workspaces/WorkspacePath.cs` (new): `RequireAbsoluteRoot`, `EnsureContainedBy(root, path)`,
+  separator-aware comparison, rejects roots that are filesystem/drive roots.
+- `WorkspaceManager` uses it for create and cleanup; `JobProcessor` uses it for the
+  `baseRoot/{ownerUserId}` scope and rejects owner IDs containing separators.
+- `ConfigReader.ExpandPath` documents that callers must validate; `WorkspaceConfig.From` throws
+  for a relative root before expansion.
 
-### 2. Make "none" a first-class tracker kind
+### 2. Repository canonicalisation and redaction (T35)
 
-- `src/Symphony/Config/ServiceConfig.cs` (`TrackerConfig`): add `public const string None = "none"` and `IsNone`, which is true for empty, `none`, `inline`, and `null`.
-- `TrackerConfig.From` and `ServiceConfigFactory.BuildTracker`: normalize a blank kind to `none`.
-- `IssueTrackerFactory.Create`: `none`/`inline`/`null`/empty → `NullIssueTracker`; `linear` → `LinearClient`; `jira` → `JiraClient`; anything else throws listing the supported values.
-- `src/Symphony/Dto/ConfigurationDtos.cs`: validate `TrackerKind` as empty/none/inline/null/linear/jira. Keep the existing masked-secret preservation in `AccountController.Configuration`.
-- Tests: `tests/Symphony.Tests/Config/TrackerConfigTests.cs`, `ServiceConfigFactoryTests.cs`, `ConfigurationDtoTests.cs`.
+- `GitHub/GitHubRepository.cs` (new): `TryParse` for the accepted forms, `Slug`, `CloneUrl`,
+  `Matches`.
+- `GitHub/GitHubEnvironment.cs` (new): builds the child-process environment for a
+  repository/token pair, including a base64 `AUTHORIZATION: basic` extraheader via
+  `GIT_CONFIG_COUNT`/`GIT_CONFIG_KEY_0`/`GIT_CONFIG_VALUE_0`. No token in any URL.
+- `WorkRequest.IsValid` validates and canonicalises the repository.
+- `JobService.CreateCoreAsync` stores the canonical slug.
+- `Security/Redaction.cs`: `RedactSecrets(text, knownSecrets)` for log lines that may echo
+  a hook's own output.
 
-### 3. Stop fabricating issues for unresolved ticket IDs
+### 3. Runtime wiring (T35)
 
-- `src/Symphony/IssueTracker/NullIssueTracker.cs`: return only seeded issues that match; omit unknown IDs. Collapse the overload set to the single `IReadOnlyList<string>` method.
-- `src/Symphony/Processing/JobProcessor.cs`: when `ticketIds` are present and `config.Tracker.IsNone`, do not call the tracker. Write a failed `JobIssue` per ticket with the reason "No tracker configured; submit work items or configure a tracker." Inline items still run.
-- Tests: unknown IDs omitted, seeded IDs returned unchanged in `NullIssueTrackerTests`.
+- `JobProcessor.ProcessJobAsync` reads `github.repository` and `github.personalAccessToken`
+  from the decrypted snapshot, validates them, and fails the job gracefully with
+  `github_credentials_missing` when the snapshot has no PAT.
+- `AgentRunner`/`WorkspaceManager` accept an optional GitHub runtime context and pass it as
+  environment to `after_create`/`before_run`/`after_run`/`before_remove`.
+- `ShellCommandRunner.RunAsync` accepts an environment dictionary and redacts known secrets
+  from the failure log line.
+- `CopilotAgent` receives the same context and injects it into `CopilotClientOptions.Environment`
+  so agent-run `git`/`gh` commands authenticate.
 
-### 4. Reject ticket-only work without a tracker
+### 4. Retry primitive (T35, D3)
 
-- `src/Symphony/Services/JobService.cs`: in `CreateCoreAsync`, after request validation, load the owner's `UserConfiguration`. If `TicketIds.Count > 0`, `WorkItems.Count == 0`, and the configured kind is none/blank, throw `ArgumentException` with a clear message so `WorkEndpoints` returns `400`.
-- Mixed submissions are not rejected.
-- Tests: `tests/Symphony.Tests/Data/JobServicePersistenceTests.cs` gains ticket-only rejection and mixed-acceptance coverage using the existing SQLite fixture.
+- `JobService.CreateRetryAsync(jobId, userId, isAdmin)` creates a new `Queued` job with
+  `RetryOfJobId`, the same repository/workflow, and a copy of the encrypted snapshot.
+  Refuses completed-with-no-snapshot jobs and jobs the caller does not own.
 
-### 5. Decouple the inline turn loop from tracker state
+### 5. Copilot BYOM (T36)
 
-- `src/Symphony/Agent/AgentRunner.cs`: when `config.Tracker.IsNone`, skip `FetchIssueStatesByIdsAsync` and continue while `turn < MaxTurns`. Tracker-backed runs keep the existing refresh-and-continue behavior.
-- No dedicated test: this is exercised through job execution; the rule is documented in the code path and covered indirectly by the manual smoke run.
+- `CopilotConfig.IsValid` requires `model_id`, `api_key`, and `base_url` when a provider is
+  configured, and validates `wire_api` (`completions`/`responses`, optional).
+- `CodingAgentFactory` validates through the same path and stops swallowing configuration errors.
+- `CopilotAgent`:
+  - builds `CopilotClientOptions` with `WorkingDirectory` and the GitHub environment,
+  - adds the Linear MCP server only when `Tracker.Kind == "linear"`,
+  - emits an `agent.initialized` event carrying provider/model (never the key) through the
+    existing `onEvent` callback,
+  - keeps BYOK provider/model wiring as-is (verified against SDK 1.0.26 by `ByomProbe`).
+- `JobProcessor` forwards agent events into persisted `agent.event` job events (metadata only).
+- `TryCreateCodingAgent` no longer silently degrades: a job with no usable agent fails with
+  `agent_unavailable` and an explanatory event instead of "completing" against a no-op agent.
+  `NoOpCodingAgent` is retained only for explicitly disabled agents (no Copilot config at all
+  and no repository-contacting work) — see the red-flag note below.
 
-### 6. UI: work source with a none option
+### 6. Concurrency (T37)
 
-- `src/Symphony/Views/Account/Configuration.cshtml`: retitle the section "Work source"; add `None (inline work only)`, keep `Linear` and `Jira`; hide endpoint/key/slug/state fields when none using the existing provider-toggle JS pattern; add copy explaining the tracker is optional.
-- `src/Symphony/Views/Account/Run.cshtml`: add a hint that ticket IDs require a configured tracker.
+- `Processing/ConcurrencyLimits.cs` (new): reads `GlobalConcurrency` from `AppSetting`
+  (fallback 4), exposes `MaxRunningJobs`, `RunningForOwner`, `RunningForState`.
+- `JobProcessor` claims candidates only while total running < global, owner running <
+  owner's `MaxConcurrentAgents`, and (for work-item jobs) state running < per-state limit.
+- Seeded `AppSetting` value is honoured instead of the constant.
 
-### 7. Documentation
+### 7. Docs and bundled workflow (T38)
 
-- `docs/CONFIG.md`: reframe around workflow front matter plus an optional tracker context source; remove polling and `ValidateForDispatch` "required" language.
-- `docs/ARCHITECTURE.md`: job processing is push-only; the tracker is an optional context/state source.
-- `docs/FEATURES.md`: trackers are optional context sources.
+- `src/Symphony/WORKFLOW.md`: `after_create` clones `$GITHUB_REPOSITORY`/`%GITHUB_REPOSITORY%`,
+  no hardcoded repo, tracker section stays optional.
+- `docs/CONFIG.md`: document the GitHub runtime contract, env names, BYOM requirements, and
+  concurrency settings; remove the stale Codex-selection text.
+- `docs/FEATURES.md`, `docs/ARCHITECTURE.md`, `README.md`: align with the implemented behavior.
+- `docs/plans/SYMPHONY-WEB-PLAN.md`: tick T35–T37 acceptance where met and leave T38's manual
+  run marked as requiring a human-supplied PAT.
 
 ## Blast radius
 
-- **Execution path:** `JobProcessor`, `AgentRunner`, `NullIssueTracker`, `IssueTrackerFactory`, `JobService`. Downstream: `WorkEndpoints`, `Run.cshtml`, job status DTOs.
-- **Deletion:** `OrchestratorService`, `WorkflowManager`, `WorkflowPathResolver`, `ServiceConfigProvider`, orchestrator state types. `LiveSession` is used by every coding agent, so it must move before the orchestrator folder is removed.
-- **Config model:** `TrackerConfig` is consumed by `ServiceConfigFactory`, `LinearClient`, `JiraClient`, `WorkspaceManager` (indirectly), and `AgentRunner`. Keep the record shape stable.
-- **Persistence:** no schema or migration change. Existing empty `TrackerKind` rows are read as `none`.
-- **Tests:** `NullIssueTrackerTests` changes exit criteria; new config/validation/job-service tests are additive.
-- **Not touched:** Identity, database providers, job migration history, GitHub request validation (Milestone 5), Codex runtime source (retained, unregistered).
+- Runtime job path: `JobProcessor`, `AgentRunner`, `WorkspaceManager`, `ShellCommandRunner`,
+  `CopilotAgent`, `CodingAgentFactory`, `JobService`, `WorkRequest` DTOs.
+- Config: `ServiceConfig`, `ServiceConfigFactory`, `CopilotConfig`, `WorkspaceConfig`,
+  `ConfigReader.ExpandPath` callers.
+- Data: no schema changes (snapshot retry reuses `RetryOfJobId`).
+- Docs/bundled workflow: `WORKFLOW.md`, `docs/CONFIG.md`, `docs/FEATURES.md`,
+  `docs/ARCHITECTURE.md`.
+- Tests: new `GitHubRepositoryTests`, `WorkspacePathSafetyTests`, `GitHubEnvironmentTests`,
+  `JobServiceRetryTests`, `CopilotConfigTests`, `JobConcurrencyTests`; existing
+  `JobServicePersistenceTests`, `JobPersistenceTests`, config/workflow tests must stay green.
+- Behaviour change: jobs with no Copilot provider now fail instead of no-op "succeeding".
 
 ## Verification
 
-1. `dotnet build Symphony.slnx` after each commit.
-2. `dotnet test tests/Symphony.Tests --filter "Category!=Integration&Category!=Smoke&Category!=ReleaseReadiness"` after human approval.
-3. Manual smoke: launch `dotnet run --project src/Symphony`, configure no tracker, submit inline work through `/account/run`, confirm the job queues without a tracker-related error; then submit only ticket IDs and confirm a `400`.
+- `dotnet build Symphony.slnx`
+- `dotnet test tests/Symphony.Tests --filter "Category!=Integration&Category!=Smoke&Category!=ReleaseReadiness"`
+- Manual: launch the host (`dotnet run --project src/Symphony`), log in as the seeded admin,
+  submit a job with a repository and PAT, confirm the workspace clones, hooks receive
+  `GH_TOKEN`, the agent initialises, the job reaches a terminal state, and no PAT appears in
+  events/status/log output.
+- Playwright MCP smoke of the run launcher, job detail, and configuration pages.
 
 ## Planned commits
 
-1. `docs: plan optional tracker in TODO.md`
-2. `Remove candidate polling and dead tracker fetches`
-3. `Make none a first-class tracker kind`
-4. `Stop fabricating issues for unresolved ticket IDs`
-5. `Reject ticket-only work when no tracker is configured`
-6. `Decouple inline turn loop from tracker state`
-7. `Add work source UI with a none option`
-8. `Document optional tracker configuration`
-9. `docs: remove TODO.md — plan executed`
+1. `docs: plan milestone 5 (GitHub repo + PAT) in TODO.md`
+2. `Reject unsafe workspace roots and path escapes`
+3. `Canonicalise GitHub repository input and add PAT redaction`
+4. `Pass request-scoped GitHub repository and PAT to the job runtime`
+5. `Add job retry from the encrypted request snapshot`
+6. `Validate Copilot BYOM settings and report agent metadata`
+7. `Enforce per-user, per-state, and global job concurrency`
+8. `Document the GitHub runtime contract and refresh M5 docs`
+9. `docs: remove TODO.md — plan executed` (after the G2 reviews)
 
 ## GitHub issues log
 
-- [ ] None yet. Create an issue immediately when deferred work or a concern is found during execution, and record it here.
+- [ ] none yet
+
+Reminder: as each task executes, create a GitHub issue immediately
+(`gh issue create --repo khurram-uworx/Symphony`) for any deferred work or concern and
+record its number here. Do not rely on memory — compaction can lose it.

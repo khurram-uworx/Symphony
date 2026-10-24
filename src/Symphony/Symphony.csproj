@@ -46,4 +46,7 @@
     <PackageReference Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Symphony.Tests" />
+  </ItemGroup>
 </Project>

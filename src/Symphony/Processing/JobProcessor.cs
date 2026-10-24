@@ -281,7 +281,7 @@ public sealed class JobProcessor : BackgroundService
         var allSuccess = failedTicketCount == 0;
         var anyFailure = failedTicketCount > 0;
         var baseRoot = config.Workspace.Root;
-        var scopedConfig = config with { Workspace = new WorkspaceConfig(Path.Combine(baseRoot, job.OwnerUserId)) };
+        var scopedConfig = config with { Workspace = new WorkspaceConfig(WorkspacePath.UserScopedRoot(baseRoot, job.OwnerUserId)) };
         var configProvider = new StaticServiceConfigProvider(scopedConfig);
         var workspaceManager = new WorkspaceManager(configProvider, shell, processorLogger is ILogger<WorkspaceManager> wmLogger ? wmLogger : Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkspaceManager>.Instance);
         var codingAgent = TryCreateCodingAgent(scopedConfig, processorLogger);

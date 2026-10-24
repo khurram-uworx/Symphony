@@ -36,12 +36,10 @@ class WorkspaceManager
         Directory.CreateDirectory(root);
 
         var workspaceKey = SanitizeKey(identifier);
-        var path = Path.Combine(root, workspaceKey);
-        var fullPath = Path.GetFullPath(path);
-        var rootFullPath = Path.GetFullPath(root);
+        if (workspaceKey.Length == 0 || workspaceKey is "." or "..")
+            throw new InvalidOperationException("Workspace identifier produced an invalid folder name.");
 
-        if (!fullPath.StartsWith(rootFullPath, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Workspace path escapes configured root.");
+        var fullPath = WorkspacePath.EnsureContainedBy(root, Path.Combine(root, workspaceKey));
 
         var createdNow = false;
         if (File.Exists(fullPath) && !Directory.Exists(fullPath))
@@ -91,7 +89,7 @@ class WorkspaceManager
         var config = configProvider.GetConfig();
         var root = config.Workspace.Root;
         var workspaceKey = SanitizeKey(identifier);
-        var path = Path.Combine(root, workspaceKey);
+        var path = WorkspacePath.EnsureContainedBy(root, Path.Combine(root, workspaceKey));
 
         if (!Directory.Exists(path))
             return;

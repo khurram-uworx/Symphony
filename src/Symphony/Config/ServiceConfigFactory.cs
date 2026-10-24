@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Symphony.Data;
 using Symphony.Workflows;
+using Symphony.Workspaces;
 using System.Text.Json;
 
 namespace Symphony.Config;
@@ -99,7 +100,7 @@ public class ServiceConfigFactory
         var rawRoot = string.IsNullOrWhiteSpace(user.WorkspaceRoot)
             ? Path.Combine(Path.GetTempPath(), "symphony_workspaces")
             : user.WorkspaceRoot!;
-        return new WorkspaceConfig(ConfigReader.ExpandPath(rawRoot));
+        return new WorkspaceConfig(WorkspacePath.RequireAbsoluteRoot(ConfigReader.ResolvePath(rawRoot)));
     }
 
     static HooksConfig BuildHooks(UserConfiguration user)
@@ -264,7 +265,7 @@ public class ServiceConfigFactory
         if (string.IsNullOrWhiteSpace(root))
             return workspace;
 
-        return new WorkspaceConfig(ConfigReader.ExpandPath(root!));
+        return new WorkspaceConfig(WorkspacePath.RequireAbsoluteRoot(ConfigReader.ResolvePath(root!)));
     }
 
     static HooksConfig ApplyHooksOverride(HooksConfig hooks, WorkflowDefinition workflow)

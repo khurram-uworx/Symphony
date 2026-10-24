@@ -32,6 +32,8 @@ dotnet run --project tests/Symphony.CodingAgentsProbe -- copilot "Say hello in o
 dotnet run -c Release --project tests/Symphony.PerformanceTests
 ```
 
+Local web host (deterministic port): `dotnet run --project src/Symphony` listens on `http://localhost:5080` by default via `src/Symphony/Properties/launchSettings.json`. Override with `ASPNETCORE_URLS=http://localhost:<port>` (or `https://...`) when needed.
+
 Release publishing is `.github/workflows/cd.yml`: it builds and pushes `ghcr.io/${{ github.repository_owner }}/symphony` (version tag + `latest`) on a `v*` tag or manual dispatch. `.github/workflows/docker.yml` is the manual publish entry point. `cd.yml` is the publish workflow, not a build-only check.
 
 ## Code Style

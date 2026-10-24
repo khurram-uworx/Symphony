@@ -1,0 +1,251 @@
+@{
+    ViewData["Title"] = "Run launcher";
+    var defaultWorkflowName = ViewData["DefaultWorkflowName"] as string ?? "";
+}
+<section class="panel">
+    <h1>Run launcher</h1>
+    <p class="muted">Submit work to the same API used by integrations.</p>
+
+    <div class="run-tabs" role="tablist">
+        <button type="button" class="run-tab is-active" data-tab="run" role="tab" aria-selected="true">Run</button>
+        <button type="button" class="run-tab" data-tab="api" role="tab" aria-selected="false">API</button>
+    </div>
+
+    <div id="run-tab-run" class="run-panel">
+        <div id="run-status" class="validation" role="status" aria-live="polite"></div>
+        <form id="run-form">
+            @Html.AntiForgeryToken()
+            <label>
+                External ID (optional)
+                <input id="run-external-id" autocomplete="off" />
+            </label>
+
+            <label>
+                Ticket IDs (comma or newline separated)
+                <textarea id="run-ticket-ids" rows="3" placeholder="ENG-1, ENG-2"></textarea>
+            </label>
+
+            <label>
+                Work items (optional JSON array)
+                <textarea id="run-work-items" rows="4" placeholder="[{&quot;id&quot;:&quot;123&quot;,&quot;title&quot;:&quot;Work item&quot;}]"></textarea>
+            </label>
+
+            <label>
+                GitHub repository
+                <input id="run-repository" autocomplete="off" placeholder="owner/repo" />
+            </label>
+
+            <label>
+                GitHub personal access token
+                <input id="run-pat" type="password" autocomplete="off" />
+            </label>
+
+            <label>
+                Workflow
+                <select id="run-workflow">
+                    <option value="">(loading...)</option>
+                </select>
+            </label>
+
+            <label>
+                Overrides (optional JSON object)
+                <textarea id="run-overrides" rows="3" placeholder="{}"></textarea>
+            </label>
+
+            <button type="submit" id="run-submit">Submit work</button>
+        </form>
+        <div id="run-result" hidden></div>
+    </div>
+
+    <div id="run-tab-api" class="run-panel" hidden>
+        <p class="muted">Replay the same request from a terminal. The token shown here is a placeholder only.</p>
+        <pre><code id="run-curl">curl -X POST "http://localhost:5080/api/work" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: &lt;YOUR_SESSION_COOKIE&gt;" \
+  --data '{"externalId":null,"ticketIds":["ENG-1"],"workItems":[],"github":{"repository":"owner/repo","personalAccessToken":"&lt;YOUR_GITHUB_TOKEN&gt;"},"workflowName":"WORKFLOW","overrides":{}}'</code></pre>
+        <p class="muted">
+            GitHub tokens and API keys are never embedded in this page. API-key authentication arrives in a later task;
+            until then you can obtain a session cookie by signing in. If you do not have a workflow yet, create one on the
+            Workflows page.
+        </p>
+    </div>
+</section>
+
+<script>
+    window.defaultWorkflowName = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(defaultWorkflowName));
+</script>
+<script>
+(function () {
+    const tabs = document.querySelectorAll('.run-tab');
+    const panels = {
+        run: document.getElementById('run-tab-run'),
+        api: document.getElementById('run-tab-api')
+    };
+
+    function activateTab(name) {
+        Object.keys(panels).forEach(function (key) {
+            panels[key].hidden = key !== name;
+        });
+        tabs.forEach(function (tab) {
+            const active = tab.getAttribute('data-tab') === name;
+            tab.classList.toggle('is-active', active);
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+    }
+
+    tabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            activateTab(tab.getAttribute('data-tab'));
+        });
+    });
+
+    function setStatus(message, isError) {
+        const status = document.getElementById('run-status');
+        status.textContent = message || '';
+        status.classList.toggle('is-error', !!isError);
+        status.classList.toggle('is-success', !isError && !!message);
+    }
+
+    function parseList(text) {
+        return text.split(/[\r\n,]+/).map(function (item) {
+            return item.trim();
+        }).filter(function (item) {
+            return item.length > 0;
+        });
+    }
+
+    const workflowSelect = document.getElementById('run-workflow');
+    async function loadWorkflows() {
+        workflowSelect.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '(select a workflow)';
+        workflowSelect.appendChild(placeholder);
+
+        try {
+            const response = await fetch('/api/workflows', { credentials: 'same-origin' });
+            if (!response.ok) {
+                setStatus('Unable to load workflows.', true);
+                return;
+            }
+
+            const workflows = await response.json();
+            workflows.sort(function (a, b) {
+                return String(a.name).localeCompare(String(b.name));
+            });
+
+            let selected = window.defaultWorkflowName || '';
+            workflows.forEach(function (item) {
+                const option = document.createElement('option');
+                option.value = item.name;
+                option.textContent = item.name + (item.isDefault ? ' (default)' : '');
+                if (item.isDefault && !selected) {
+                    selected = item.name;
+                }
+                workflowSelect.appendChild(option);
+            });
+
+            if (selected && Array.prototype.some.call(workflowSelect.options, function (option) { return option.value === selected; })) {
+                workflowSelect.value = selected;
+            } else if (workflowSelect.options.length > 1) {
+                workflowSelect.value = workflowSelect.options[1].value;
+            }
+        } catch (error) {
+            setStatus('Unable to load workflows.', true);
+        }
+    }
+
+    document.getElementById('run-form').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        setStatus('', false);
+
+        const result = document.getElementById('run-result');
+        result.hidden = true;
+        result.innerHTML = '';
+
+        const repository = document.getElementById('run-repository').value.trim();
+        const token = document.getElementById('run-pat').value;
+        const workflowName = workflowSelect.value.trim();
+        const ticketIds = parseList(document.getElementById('run-ticket-ids').value);
+        const externalId = document.getElementById('run-external-id').value.trim();
+
+        let workItems = [];
+        const workItemsText = document.getElementById('run-work-items').value.trim();
+        if (workItemsText) {
+            try {
+                const parsed = JSON.parse(workItemsText);
+                if (!Array.isArray(parsed)) {
+                    throw new Error('Work items must be a JSON array.');
+                }
+                workItems = parsed;
+            } catch (error) {
+                setStatus(error.message, true);
+                return;
+            }
+        }
+
+        let overrides = {};
+        const overridesText = document.getElementById('run-overrides').value.trim();
+        if (overridesText) {
+            try {
+                const parsed = JSON.parse(overridesText);
+                if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                    throw new Error('Overrides must be a JSON object.');
+                }
+                overrides = parsed;
+            } catch (error) {
+                setStatus(error.message, true);
+                return;
+            }
+        }
+
+        const payload = {
+            externalId: externalId || null,
+            ticketIds: ticketIds,
+            workItems: workItems,
+            github: {
+                repository: repository,
+                personalAccessToken: token
+            },
+            workflowName: workflowName,
+            overrides: overrides
+        };
+
+        const submitButton = document.getElementById('run-submit');
+        submitButton.disabled = true;
+        try {
+            const response = await fetch('/api/work', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            let body = {};
+            try {
+                body = await response.json();
+            } catch (_) {
+                body = {};
+            }
+
+            if (!response.ok) {
+                setStatus((body && (body.error || body.message || body.title)) || ('Request failed: ' + response.status), true);
+                return;
+            }
+
+            result.hidden = false;
+            const jobId = body.jobId;
+            const statusUrl = body.statusUrl;
+            result.innerHTML = '<p class="muted">Job queued: <strong>' + jobId + '</strong></p>' +
+                '<p><a href="' + statusUrl + '">Open job status</a></p>';
+            setStatus('Work submitted successfully.', false);
+        } catch (error) {
+            setStatus(error.message, true);
+        } finally {
+            submitButton.disabled = false;
+        }
+    });
+
+    loadWorkflows();
+})();
+</script>

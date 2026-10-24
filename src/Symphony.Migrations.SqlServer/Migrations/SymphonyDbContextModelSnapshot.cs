@@ -220,6 +220,112 @@ namespace Symphony.Migrations.SqlServer.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Symphony.Data.UserConfiguration", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("CopilotApiKey")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CopilotBaseUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<string>("CopilotModelId")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("CopilotProvider")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("CopilotWireApi")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DefaultWorkflowName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("HookAfterCreate")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("HookAfterRun")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("HookBeforeRemove")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("HookBeforeRun")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("HookTimeoutMs")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MaxConcurrentAgents")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MaxConcurrentAgentsByState")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("MaxRetryBackoffMs")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MaxTurns")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TrackerActiveStates")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TrackerApiKey")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TrackerEndpoint")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<string>("TrackerKind")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("TrackerProjectSlug")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("TrackerTerminalStates")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("WorkspaceRoot")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserConfigurations");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -269,6 +375,17 @@ namespace Symphony.Migrations.SqlServer.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Symphony.Data.UserConfiguration", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "User")
+                        .WithOne()
+                        .HasForeignKey("Symphony.Data.UserConfiguration", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 #pragma warning restore 612, 618
         }

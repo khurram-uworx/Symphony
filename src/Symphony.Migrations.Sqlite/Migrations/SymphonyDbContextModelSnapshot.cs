@@ -209,6 +209,112 @@ namespace Symphony.Migrations.Sqlite.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Symphony.Data.UserConfiguration", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CopilotApiKey")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CopilotBaseUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CopilotModelId")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CopilotProvider")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CopilotWireApi")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DefaultWorkflowName")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HookAfterCreate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HookAfterRun")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HookBeforeRemove")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HookBeforeRun")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HookTimeoutMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MaxConcurrentAgents")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("MaxConcurrentAgentsByState")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("MaxRetryBackoffMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MaxTurns")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TrackerActiveStates")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TrackerApiKey")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TrackerEndpoint")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TrackerKind")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TrackerProjectSlug")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TrackerTerminalStates")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WorkspaceRoot")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserConfigurations");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -258,6 +364,17 @@ namespace Symphony.Migrations.Sqlite.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Symphony.Data.UserConfiguration", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "User")
+                        .WithOne()
+                        .HasForeignKey("Symphony.Data.UserConfiguration", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 #pragma warning restore 612, 618
         }

@@ -329,6 +329,287 @@ public sealed class JobService
     public Task RecordEventAsync(Guid jobId, Guid? jobIssueId, string eventName, string? summary, object? payload, CancellationToken cancellationToken = default) =>
         AppendEventAsync(jobId, jobIssueId, eventName, summary, payload, cancellationToken);
 
+    public async Task<Symphony.Data.Job?> GetJobAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        return await db.Jobs
+            .AsNoTracking()
+            .Include(job => job.Issues)
+            .Include(job => job.Events)
+            .FirstOrDefaultAsync(job => job.Id == jobId, cancellationToken);
+    }
+
+    public Task<Symphony.Data.Job?> GetJobAsync(
+        string userId,
+        Guid jobId,
+        bool isAdmin,
+        CancellationToken cancellationToken = default) =>
+        GetByKeyCoreAsync(userId, jobId, isAdmin, cancellationToken);
+
+    async Task<Symphony.Data.Job?> GetByKeyCoreAsync(
+        string userId,
+        Guid jobId,
+        bool isAdmin,
+        CancellationToken cancellationToken)
+    {
+        var job = await GetJobAsync(jobId, cancellationToken);
+        if (job is null)
+            return null;
+        if (!isAdmin && job.OwnerUserId != userId)
+            return null;
+        return job;
+    }
+
+    public Task<Symphony.Data.Job?> GetByIdAsync(Guid jobId, CancellationToken cancellationToken = default) =>
+        GetJobAsync(jobId, cancellationToken);
+
+    public Task<Symphony.Data.Job?> FindJobAsync(Guid jobId, CancellationToken cancellationToken = default) =>
+        GetJobAsync(jobId, cancellationToken);
+
+    public Task<Symphony.Data.Job?> LoadJobAsync(Guid jobId, CancellationToken cancellationToken = default) =>
+        GetJobAsync(jobId, cancellationToken);
+
+    public Task<Symphony.Data.Job?> GetAsync(Guid jobId, CancellationToken cancellationToken = default) =>
+        GetJobAsync(jobId, cancellationToken);
+
+    public Task<Symphony.Data.Job?> GetAsync(
+        string userId,
+        Guid jobId,
+        bool isAdmin,
+        CancellationToken cancellationToken = default) =>
+        GetJobAsync(userId, jobId, isAdmin, cancellationToken);
+
+    public Task<Symphony.Data.Job?> GetJobByIdAsync(Guid jobId, CancellationToken cancellationToken = default) =>
+        GetJobAsync(jobId, cancellationToken);
+
+    async Task<Symphony.Data.Job?> GetByKeyWithCheckAsync(
+        string userId,
+        Guid jobId,
+        bool isAdmin,
+        CancellationToken cancellationToken)
+    {
+        var job = await GetJobAsync(jobId, cancellationToken);
+        if (job is null)
+            return null;
+        if (!isAdmin && job.OwnerUserId != userId)
+            return null;
+        return job;
+    }
+
+    public Task<IReadOnlyList<Symphony.Data.Job>> ListAsync(
+        string userId,
+        CancellationToken cancellationToken = default) =>
+        ListByOwnerAsync(userId, cancellationToken);
+
+    async Task<IReadOnlyList<Symphony.Data.Job>> ListByOwnerAsync(
+        string userId,
+        CancellationToken cancellationToken)
+    {
+        ValidateUserId(userId);
+        cancellationToken.ThrowIfCancellationRequested();
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        return await db.Jobs
+            .AsNoTracking()
+            .Where(job => job.OwnerUserId == userId)
+            .OrderByDescending(job => job.QueuedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<IReadOnlyList<Symphony.Data.Job>> ListAsync(
+        CancellationToken cancellationToken = default) =>
+        ListAllAsync(cancellationToken);
+
+    async Task<IReadOnlyList<Symphony.Data.Job>> ListAllAsync(
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        return await db.Jobs
+            .AsNoTracking()
+            .OrderByDescending(job => job.QueuedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<IReadOnlyList<Symphony.Data.Job>> ListAllJobsAsync(
+        CancellationToken cancellationToken = default) =>
+        ListAllAsync(cancellationToken);
+
+    public Task<IReadOnlyList<Symphony.Data.Job>> ListJobsAsync(
+        CancellationToken cancellationToken = default) =>
+        ListAllAsync(cancellationToken);
+
+    public Task<IReadOnlyList<Symphony.Data.Job>> ListJobsAsync(
+        string userId,
+        CancellationToken cancellationToken = default) =>
+        ListByOwnerAsync(userId, cancellationToken);
+
+    public Task<IReadOnlyList<Symphony.Data.Job>> GetAllAsync(
+        CancellationToken cancellationToken = default) =>
+        ListAllAsync(cancellationToken);
+
+    public Task<IReadOnlyList<Symphony.Data.Job>> GetAllAsync(
+        string userId,
+        CancellationToken cancellationToken = default) =>
+        ListByOwnerAsync(userId, cancellationToken);
+
+    public Task<IReadOnlyList<Symphony.Data.Job>> GetAllJobsAsync(
+        CancellationToken cancellationToken = default) =>
+        ListAllAsync(cancellationToken);
+
+    public Task<IReadOnlyList<Symphony.Data.Job>> GetAllJobsAsync(
+        string userId,
+        CancellationToken cancellationToken = default) =>
+        ListByOwnerAsync(userId, cancellationToken);
+
+    public Task<IReadOnlyList<Symphony.Data.Job>> FindAsync(
+        string userId,
+        CancellationToken cancellationToken = default) =>
+        ListByOwnerAsync(userId, cancellationToken);
+
+    public Task<IReadOnlyList<Symphony.Data.Job>> QueryAsync(
+        CancellationToken cancellationToken = default) =>
+        ListAllAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Symphony.Data.Job>> QueryJobsAsync(
+        string? ownerUserId = null,
+        string? state = null,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null,
+        int? page = null,
+        int? pageSize = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var query = db.Jobs.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(ownerUserId))
+            query = query.Where(job => job.OwnerUserId == ownerUserId);
+        if (!string.IsNullOrWhiteSpace(state))
+            query = query.Where(job => job.State == state);
+        if (from.HasValue)
+            query = query.Where(job => job.QueuedAt >= from.Value);
+        if (to.HasValue)
+            query = query.Where(job => job.QueuedAt <= to.Value);
+        query = query.OrderByDescending(job => job.QueuedAt);
+        if (pageSize.HasValue && pageSize.Value > 0)
+        {
+            var normalizedPage = page.HasValue && page.Value > 0 ? page.Value : 1;
+            query = query.Skip((normalizedPage - 1) * pageSize.Value).Take(pageSize.Value);
+        }
+        return await query.ToListAsync(cancellationToken);
+    }
+
+    async Task<IReadOnlyList<Symphony.Data.Job>> QueryCoreAsync(
+        string? ownerUserId,
+        string? state,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        int? skip,
+        int? take,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var query = db.Jobs.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(ownerUserId))
+            query = query.Where(job => job.OwnerUserId == ownerUserId);
+        if (!string.IsNullOrWhiteSpace(state))
+            query = query.Where(job => job.State == state);
+        if (from.HasValue)
+            query = query.Where(job => job.QueuedAt >= from.Value);
+        if (to.HasValue)
+            query = query.Where(job => job.QueuedAt <= to.Value);
+        query = query.OrderByDescending(job => job.QueuedAt);
+        if (skip.HasValue && skip.Value > 0)
+            query = query.Skip(skip.Value);
+        if (take.HasValue && take.Value > 0)
+            query = query.Take(take.Value);
+        return await query.ToListAsync(cancellationToken);
+    }
+
+    public Task<int> CountJobsAsync(
+        string? ownerUserId = null,
+        string? state = null,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null,
+        CancellationToken cancellationToken = default) =>
+        CountCoreAsync(ownerUserId, state, from, to, cancellationToken);
+
+    async Task<int> CountCoreAsync(
+        string? ownerUserId,
+        string? state,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var query = db.Jobs.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(ownerUserId))
+            query = query.Where(job => job.OwnerUserId == ownerUserId);
+        if (!string.IsNullOrWhiteSpace(state))
+            query = query.Where(job => job.State == state);
+        if (from.HasValue)
+            query = query.Where(job => job.QueuedAt >= from.Value);
+        if (to.HasValue)
+            query = query.Where(job => job.QueuedAt <= to.Value);
+        return await query.CountAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Symphony.Data.JobIssue>> GetIssuesAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        return await db.JobIssues
+            .AsNoTracking()
+            .Where(issue => issue.JobId == jobId)
+            .OrderBy(issue => issue.StartedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Symphony.Data.JobEvent>> GetEventsAsync(
+        Guid jobId,
+        int take = 100,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var rows = await db.JobEvents
+            .AsNoTracking()
+            .Where(item => item.JobId == jobId)
+            .OrderByDescending(item => item.Timestamp)
+            .Take(take > 0 ? take : 100)
+            .ToListAsync(cancellationToken);
+        return rows;
+    }
+
+    public async Task<bool> CancelAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var job = await db.Jobs.FirstOrDefaultAsync(item => item.Id == jobId, cancellationToken);
+        if (job is null)
+            return false;
+        if (job.State is "Completed" or "CompletedWithFailures" or "Failed" or "Cancelled")
+            return false;
+        await MarkJobStateAsync(jobId, "Cancelled", null, "Job cancelled.", null, cancellationToken);
+        await AppendEventAsync(jobId, null, "job.cancelled", "Job cancelled.", null, cancellationToken);
+        return true;
+    }
+
+    public Task<bool> CancelJobAsync(Guid jobId, CancellationToken cancellationToken = default) =>
+        CancelAsync(jobId, cancellationToken);
+
+    public Task<bool> TryCancelAsync(Guid jobId, CancellationToken cancellationToken = default) =>
+        CancelAsync(jobId, cancellationToken);
+
     readonly ILogger<JobService> logger;
 }
 

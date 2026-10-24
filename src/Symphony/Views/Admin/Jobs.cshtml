@@ -1,0 +1,99 @@
+@using Symphony.Data
+@using Microsoft.AspNetCore.Identity
+@model IEnumerable<Job>
+@{
+    ViewData["Title"] = "Jobs";
+    var stateFilter = ViewBag.StateFilter as string;
+    var ownerFilter = ViewBag.OwnerFilter as string;
+    var page = (int)(ViewBag.Page ?? 1);
+    var pageSize = (int)(ViewBag.PageSize ?? 20);
+    var total = (int)(ViewBag.Total ?? 0);
+    var totalPages = (int)(ViewBag.TotalPages ?? 1);
+    var users = ViewBag.Users as IEnumerable<IdentityUser>;
+}
+<section class="panel">
+    <h1>Jobs</h1>
+    @if (TempData["Message"] is string message)
+    {
+        <p class="muted">@message</p>
+    }
+    @if (TempData["Error"] is string error)
+    {
+        <p class="validation">@error</p>
+    }
+
+    <form method="get" asp-action="Jobs">
+        <label>State
+            <select name="state">
+                <option value="">All</option>
+                @foreach (var candidate in new[] { "Queued", "Running", "Completed", "CompletedWithFailures", "Failed", "Cancelled" })
+                {
+                    <option value="@candidate" selected="@(string.Equals(stateFilter, candidate, StringComparison.Ordinal) ? "selected" : null)">@candidate</option>
+                }
+            </select>
+        </label>
+        <label>Owner
+            <select name="owner">
+                <option value="">All</option>
+                @if (users is not null)
+                {
+                    foreach (var user in users)
+                    {
+                        <option value="@user.Id" selected="@(string.Equals(ownerFilter, user.Id, StringComparison.Ordinal) ? "selected" : null)">@user.UserName</option>
+                    }
+                }
+            </select>
+        </label>
+        <label>From <input type="date" name="from" value="@(ViewBag.FromFilter is DateTimeOffset from ? from.ToString("yyyy-MM-dd") : "")" /></label>
+        <label>To <input type="date" name="to" value="@(ViewBag.ToFilter is DateTimeOffset to ? to.ToString("yyyy-MM-dd") : "")" /></label>
+        <label>Page size <input type="number" name="pageSize" value="@pageSize" min="1" max="100" /></label>
+        <button type="submit">Filter</button>
+    </form>
+
+    @if (!Model.Any())
+    {
+        <p class="muted">No jobs found.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>Owner</th>
+                    <th>Workflow</th>
+                    <th>State</th>
+                    <th>Queued</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var job in Model)
+            {
+                <tr>
+                    <td><a asp-action="JobDetail" asp-route-id="@job.Id">@job.Id</a></td>
+                    <td>@job.OwnerUserId</td>
+                    <td>@job.WorkflowName</td>
+                    <td>@job.State</td>
+                    <td>@job.QueuedAt</td>
+                    <td>
+                        <a asp-action="JobDetail" asp-route-id="@job.Id">View</a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+
+    <nav class="table-actions" aria-label="Pagination">
+        @if (page > 1)
+        {
+            <a asp-action="Jobs" asp-route-page="@(page - 1)" asp-route-pageSize="@pageSize" asp-route-state="@stateFilter" asp-route-owner="@ownerFilter">Previous</a>
+        }
+        <span>Page @(page) of @totalPages (@total total)</span>
+        @if (page < totalPages)
+        {
+            <a asp-action="Jobs" asp-route-page="@(page + 1)" asp-route-pageSize="@pageSize" asp-route-state="@stateFilter" asp-route-owner="@ownerFilter">Next</a>
+        }
+    </nav>
+</section>

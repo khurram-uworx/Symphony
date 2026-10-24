@@ -1,19 +1,128 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using Symphony.Data;
 using Symphony.Services;
 
 namespace Symphony.Controllers;
 
 [Authorize(Roles = AdminSeeder.AdminRole)]
-public sealed class AdminController(UserManagementService users) : Controller
+public sealed class AdminController(
+    UserManagementService users,
+    JobService? jobService = null,
+    UserManager<IdentityUser>? userManager = null) : Controller
 {
+    readonly UserManagementService users = users;
+    readonly JobService? configuredJobService = jobService;
+    readonly UserManager<IdentityUser>? configuredUserManager = userManager;
+
+    JobService JobService =>
+        configuredJobService
+        ?? HttpContext?.RequestServices?.GetService<JobService>()
+        ?? throw new InvalidOperationException("JobService is not available.");
+
+    UserManager<IdentityUser> UserManager =>
+        configuredUserManager
+        ?? HttpContext?.RequestServices?.GetRequiredService<UserManager<IdentityUser>>();
+
     public IActionResult Index() => View();
 
     public async Task<IActionResult> Users(CancellationToken cancellationToken)
     {
         var usersList = await users.GetUsersAsync(cancellationToken);
         return View(usersList);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Jobs(
+        string? state = null,
+        string? status = null,
+        string? owner = null,
+        string? ownerId = null,
+        string? ownerUserId = null,
+        DateTimeOffset? from = null,
+        DateTimeOffset? startDate = null,
+        DateTimeOffset? to = null,
+        DateTimeOffset? endDate = null,
+        int? page = null,
+        int? pageNumber = null,
+        int? pageSize = null,
+        int? size = null,
+        CancellationToken cancellationToken = default)
+    {
+        var resolvedState = FirstNonEmpty(state, status);
+        var resolvedOwner = FirstNonEmpty(owner, ownerId, ownerUserId);
+        var resolvedFrom = from ?? startDate;
+        var resolvedTo = to ?? endDate;
+        var resolvedPage = page ?? pageNumber ?? 1;
+        if (resolvedPage < 1)
+            resolvedPage = 1;
+        var resolvedPageSize = pageSize ?? size ?? 20;
+        if (resolvedPageSize < 1)
+            resolvedPageSize = 20;
+        if (resolvedPageSize > 100)
+            resolvedPageSize = 100;
+
+        var jobs = await JobService.QueryJobsAsync(
+            resolvedOwner,
+            resolvedState,
+            resolvedFrom,
+            resolvedTo,
+            resolvedPage,
+            resolvedPageSize,
+            cancellationToken);
+        var total = await JobService.CountJobsAsync(
+            resolvedOwner,
+            resolvedState,
+            resolvedFrom,
+            resolvedTo,
+            cancellationToken);
+
+        var userList = await users.GetUsersAsync(cancellationToken);
+        ViewBag.Users = userList;
+        ViewBag.StateFilter = resolvedState;
+        ViewBag.OwnerFilter = resolvedOwner;
+        ViewBag.FromFilter = resolvedFrom;
+        ViewBag.ToFilter = resolvedTo;
+        ViewBag.Page = resolvedPage;
+        ViewBag.PageSize = resolvedPageSize;
+        ViewBag.Total = total;
+        ViewBag.TotalPages = total == 0 ? 1 : (total + resolvedPageSize - 1) / resolvedPageSize;
+
+        return View("Jobs", jobs);
+    }
+
+    [HttpGet]
+    [Route("/admin/jobs/{id:guid}")]
+    public async Task<IActionResult> JobDetail(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var job = await JobService.GetJobAsync(id, cancellationToken);
+        if (job is null)
+            return NotFound();
+
+        var issues = await JobService.GetIssuesAsync(id, cancellationToken);
+        var events = await JobService.GetEventsAsync(id, 100, cancellationToken);
+
+        ViewData["Title"] = $"Job {job.Id}";
+        ViewBag.Issues = issues;
+        ViewBag.Events = events;
+
+        return View("JobDetail", job);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("/admin/jobs/{id:guid}/cancel")]
+    public async Task<IActionResult> CancelJob(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        await JobService.CancelAsync(id, cancellationToken);
+        TempData["Message"] = "Job cancelled.";
+        return RedirectToAction(nameof(JobDetail), new { id });
     }
 
     [HttpPost]
@@ -116,5 +225,15 @@ public sealed class AdminController(UserManagementService users) : Controller
         }
 
         return RedirectToAction(nameof(Users));
+    }
+
+    static string? FirstNonEmpty(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                return value;
+        }
+        return null;
     }
 }

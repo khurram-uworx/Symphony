@@ -175,7 +175,7 @@
             var value = (provider.value || '').toLowerCase();
             document.querySelectorAll('[data-copilot-provider]').forEach(function (el) {
                 var providers = (el.getAttribute('data-copilot-provider') || '').split(/\s+/);
-                el.hidden = value !== '' && providers.indexOf(value) === -1;
+                el.hidden = providers.indexOf(value) === -1;
             });
         }
         provider.addEventListener('change', update);

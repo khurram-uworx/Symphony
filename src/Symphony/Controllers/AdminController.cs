@@ -120,8 +120,8 @@ public sealed class AdminController(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        await JobService.CancelAsync(id, cancellationToken);
-        TempData["Message"] = "Job cancelled.";
+        var cancelled = await JobService.CancelAsync(id, cancellationToken);
+        TempData[cancelled ? "Message" : "Error"] = cancelled ? "Job cancelled." : "Job could not be cancelled.";
         return RedirectToAction(nameof(JobDetail), new { id });
     }
 

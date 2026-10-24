@@ -35,10 +35,13 @@
         }
     </dl>
 
-    <form asp-action="CancelJob" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Cancel this job?');">
-        @Html.AntiForgeryToken()
-        <button type="submit" class="danger">Cancel job</button>
-    </form>
+    @if (Model.State is not ("Completed" or "CompletedWithFailures" or "Failed" or "Cancelled"))
+    {
+        <form asp-action="CancelJob" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Cancel this job?');">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="danger">Cancel job</button>
+        </form>
+    }
 
     <h2>Issues</h2>
     @if (!issues.Any())

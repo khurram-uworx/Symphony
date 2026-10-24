@@ -117,6 +117,15 @@ public class WorkflowLoader
         var prompt = remaining.Trim();
         logger.LogDebug("Loaded workflow config with {KeyCount} keys", config.Count);
 
-        return new WorkflowDefinition(config, prompt);
+        var effectiveConfig = new Dictionary<string, object>(config, StringComparer.OrdinalIgnoreCase);
+        foreach (var key in effectiveConfig.Keys
+            .Where(key => key.Equals("codex", StringComparison.OrdinalIgnoreCase) ||
+                          key.StartsWith("codex", StringComparison.OrdinalIgnoreCase))
+            .ToList())
+        {
+            effectiveConfig.Remove(key);
+        }
+
+        return new WorkflowDefinition(effectiveConfig, prompt);
     }
 }

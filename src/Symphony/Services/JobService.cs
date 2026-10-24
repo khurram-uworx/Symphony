@@ -140,12 +140,6 @@ public sealed class JobService
         db.Jobs.Add(job);
         await db.SaveChangesAsync(cancellationToken);
 
-        try { JobQueue.NotifyNewJob(); }
-        catch { /* best-effort wake signal */ }
-
-        try { jobQueue?.NotifyInstance(); }
-        catch { /* best-effort wake signal */ }
-
         try { await (jobQueue?.SignalInstanceAsync(cancellationToken) ?? Task.CompletedTask); }
         catch { /* best-effort wake signal */ }
 

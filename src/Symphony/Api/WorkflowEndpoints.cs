@@ -14,10 +14,8 @@ public static class WorkflowEndpoints
         var group = endpoints.MapGroup("/api/workflows");
 
         group.MapGet("/", ListAsync);
-        group.MapGet("", ListAsync);
         group.MapGet("/{name}", GetAsync);
         group.MapPost("/", CreateAsync);
-        group.MapPost("", CreateAsync);
         group.MapPut("/{name}", UpdateAsync);
         group.MapDelete("/{name}", DeleteAsync);
 

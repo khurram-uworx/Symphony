@@ -15,11 +15,18 @@ builder.Logging.AddSimpleConsole(options =>
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddSymphonyDatabase(builder.Configuration, builder.Environment.ContentRootPath);
-builder.Services.AddSymphonyIdentity();
+builder.Services.AddSymphonyDataProtection(builder.Configuration, builder.Environment.ContentRootPath);
+builder.Services.AddSymphonyIdentity(builder.Configuration, builder.Environment);
 builder.Services.AddScoped<UserManagementService>();
 
 var app = builder.Build();
 
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 

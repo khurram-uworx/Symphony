@@ -110,7 +110,7 @@ public sealed class AccountController(
         var userId = await GetUserIdAsync();
         var configuration = await ConfigurationService.GetAsync(userId, cancellationToken)
             ?? new UserConfiguration { UserId = userId };
-        return View(ConfigurationDto.From(configuration));
+        return View("Configuration", ConfigurationDto.From(configuration));
     }
 
     [HttpPost]
@@ -127,7 +127,7 @@ public sealed class AccountController(
         {
             if (!string.IsNullOrWhiteSpace(validationError))
                 ModelState.AddModelError(string.Empty, validationError);
-            return View(model);
+            return View("Configuration", model);
         }
 
         var existing = await ConfigurationService.GetAsync(userId, cancellationToken);

@@ -41,8 +41,7 @@ public static class Redaction
             || normalized.Contains("privatekey")
             || normalized.Contains("clientsecret")
             || normalized.Equals("pat")
-            || normalized.EndsWith("pat")
-            || normalized.Contains("pat");
+            || normalized.EndsWith("pat");
     }
 
     public static T? RedactSecrets<T>(T? value)
@@ -62,26 +61,7 @@ public static class Redaction
                 if (key is not null && IsSecretName(key))
                     continue; // remove secret-like fields from dictionary payloads
 
-                if (entry.Value is null)
-                    target[entry.Key!] = null;
-                else if (entry.Value is string)
-                    target[entry.Key!] = RedactSecrets(entry.Value);
-                else
-                    target[entry.Key!] = entry.Value; // replaced during recursive pass below
-            }
-
-            foreach (DictionaryEntry entry in dictionary)
-            {
-                var key = entry.Key?.ToString();
-                if (key is not null && IsSecretName(key))
-                    continue;
-
-                target[entry.Key!] = SanitizeValue(entry.Value);
-            }
-
-            if (value is IDictionary<string, object?> typed && target is IDictionary<string, object?> typedTarget)
-            {
-                // ensure runtime type preserved for common case
+                target[entry.Key!] = SanitizeNonSecretValue(entry.Value);
             }
 
             return target is T typedResult ? typedResult : (T)(object)target;
@@ -137,18 +117,29 @@ public static class Redaction
 
     public static T? StripSecrets<T>(T? value) => RedactSecrets(value);
 
-    static object? SanitizeValue(object? value)
+    static object? SanitizeNonSecretValue(object? value)
     {
         if (value is null)
             return null;
 
-        if (value is string)
-            return RedactSecrets(value);
+        if (value is string || value.GetType().IsPrimitive || value is Enum || value is DateTime || value is DateTimeOffset || value is Guid || value is decimal)
+            return value;
 
-        if (value is IDictionary)
-            return RedactSecrets(value);
+        if (value is IDictionary dictionary)
+            return RedactSecrets(dictionary);
 
-        return value;
+        try
+        {
+            var json = JsonSerializer.Serialize(value, value.GetType());
+            var node = JsonNode.Parse(json);
+            SanitizeNode(node, propertyName: null);
+            var sanitizedJson = node?.ToJsonString() ?? json;
+            return JsonSerializer.Deserialize(sanitizedJson, value.GetType());
+        }
+        catch
+        {
+            return value;
+        }
     }
 
     static IDictionary CreateDictionary(IDictionary source)

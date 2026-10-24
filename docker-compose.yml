@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17
+    image: postgres:16
     environment:
       POSTGRES_USER: symphony
       POSTGRES_PASSWORD: symphony

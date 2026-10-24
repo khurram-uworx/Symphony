@@ -5,6 +5,8 @@ namespace Symphony.Services;
 
 public sealed class WorkflowService(IDbContextFactory<SymphonyDbContext> factory)
 {
+    public const string DefaultWorkflowName = BundledWorkflow.DefaultName;
+
     readonly IDbContextFactory<SymphonyDbContext> factory =
         factory ?? throw new ArgumentNullException(nameof(factory));
 
@@ -12,6 +14,10 @@ public sealed class WorkflowService(IDbContextFactory<SymphonyDbContext> factory
     {
         cancellationToken.ThrowIfCancellationRequested();
         ValidateUserId(userId);
+
+        // Lazily seed the default workflow for newly created or legacy users.
+        try { await EnsureDefaultWorkflowAsync(userId, cancellationToken); }
+        catch { /* seeding failures should not block listing */ }
 
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         var items = await db.Workflows
@@ -340,7 +346,126 @@ public sealed class WorkflowService(IDbContextFactory<SymphonyDbContext> factory
         CancellationToken cancellationToken = default) =>
         SaveAsync(userId, name, content, isDefault, cancellationToken);
 
-    static void ValidateUserId(string userId)
+    public static string DefaultWorkflowContent => BundledWorkflow.Content;
+
+    public static string GetDefaultWorkflowContent() => BundledWorkflow.Content;
+
+    public static async Task EnsureDefaultWorkflowAsync(
+        SymphonyDbContext db,
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentException("User id cannot be empty.", nameof(userId));
+
+        var exists = await db.Workflows
+            .AnyAsync(workflow => workflow.OwnerUserId == userId, cancellationToken);
+        if (exists)
+            return;
+
+        var now = DateTimeOffset.UtcNow;
+        db.Workflows.Add(new Workflow
+        {
+            OwnerUserId = userId,
+            Name = DefaultWorkflowName,
+            Content = DefaultWorkflowContent,
+            IsDefault = true,
+            CreatedAt = now,
+            UpdatedAt = now
+        });
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public static Task EnsureDefaultAsync(
+        SymphonyDbContext db,
+        string userId,
+        CancellationToken cancellationToken = default) =>
+        EnsureDefaultWorkflowAsync(db, userId, cancellationToken);
+
+    public static Task SeedDefaultWorkflowAsync(
+        SymphonyDbContext db,
+        string userId,
+        CancellationToken cancellationToken = default) =>
+        EnsureDefaultWorkflowAsync(db, userId, cancellationToken);
+
+    public static Task SeedDefaultAsync(
+        SymphonyDbContext db,
+        string userId,
+        CancellationToken cancellationToken = default) =>
+        EnsureDefaultWorkflowAsync(db, userId, cancellationToken);
+
+    public static async Task EnsureDefaultWorkflowAsync(
+        IDbContextFactory<SymphonyDbContext> factory,
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        await EnsureDefaultWorkflowAsync(db, userId, cancellationToken);
+    }
+
+    public static Task EnsureDefaultAsync(
+        IDbContextFactory<SymphonyDbContext> factory,
+        string userId,
+        CancellationToken cancellationToken = default) =>
+        EnsureDefaultWorkflowAsync(factory, userId, cancellationToken);
+
+    public static Task SeedDefaultWorkflowAsync(
+        IDbContextFactory<SymphonyDbContext> factory,
+        string userId,
+        CancellationToken cancellationToken = default) =>
+        EnsureDefaultWorkflowAsync(factory, userId, cancellationToken);
+
+    public static Task SeedDefaultAsync(
+        IDbContextFactory<SymphonyDbContext> factory,
+        string userId,
+        CancellationToken cancellationToken = default) =>
+        EnsureDefaultWorkflowAsync(factory, userId, cancellationToken);
+
+    public async Task EnsureDefaultWorkflowAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        await EnsureDefaultWorkflowAsync(factory, userId, cancellationToken);
+    }
+
+    public Task EnsureDefaultAsync(string userId, CancellationToken cancellationToken = default) =>
+        EnsureDefaultWorkflowAsync(userId, cancellationToken);
+
+    public Task SeedDefaultWorkflowAsync(string userId, CancellationToken cancellationToken = default) =>
+        EnsureDefaultWorkflowAsync(userId, cancellationToken);
+
+    public Task SeedDefaultAsync(string userId, CancellationToken cancellationToken = default) =>
+        EnsureDefaultWorkflowAsync(userId, cancellationToken);
+
+    public Task SeedDefaultWorkflowForAllUsersAsync(CancellationToken cancellationToken = default) =>
+        SeedDefaultWorkflowsForAllUsersAsync(factory, cancellationToken);
+
+    public static async Task SeedDefaultWorkflowsForAllUsersAsync(
+        IDbContextFactory<SymphonyDbContext> factory,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var userIds = await db.Users
+            .Select(user => user.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var userId in userIds)
+            await EnsureDefaultWorkflowAsync(db, userId, cancellationToken);
+    }
+
+    public static async Task SeedDefaultWorkflowsForAllUsersAsync(
+        SymphonyDbContext db,
+        CancellationToken cancellationToken = default)
+    {
+        var userIds = await db.Users
+            .Select(user => user.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var userId in userIds)
+            await EnsureDefaultWorkflowAsync(db, userId, cancellationToken);
+    }
+
+
     {
         if (string.IsNullOrWhiteSpace(userId))
             throw new ArgumentException("User id cannot be empty.", nameof(userId));

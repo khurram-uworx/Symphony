@@ -20,6 +20,23 @@ public static class Redaction
 
     public static string RedactSecrets(string? value) => Redact(value) ?? string.Empty;
 
+    public static string RedactSecrets(string? value, IEnumerable<string?> secrets)
+    {
+        var result = value ?? string.Empty;
+        if (result.Length == 0)
+            return result;
+
+        foreach (var secret in secrets)
+        {
+            if (string.IsNullOrWhiteSpace(secret) || secret.Length < 4)
+                continue;
+
+            result = result.Replace(secret, Redacted, StringComparison.Ordinal);
+        }
+
+        return result;
+    }
+
     public static bool IsSecretName(string? name)
     {
         if (string.IsNullOrWhiteSpace(name))

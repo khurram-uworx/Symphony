@@ -613,6 +613,58 @@ public sealed class JobService
     public Task<bool> TryCancelAsync(Guid jobId, CancellationToken cancellationToken = default) =>
         CancelAsync(jobId, cancellationToken);
 
+    public async Task<Symphony.Data.Job> CreateRetryAsync(
+        Guid jobId,
+        string userId,
+        bool isAdmin,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ValidateUserId(userId);
+
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var source = await db.Jobs.AsNoTracking().FirstOrDefaultAsync(item => item.Id == jobId, cancellationToken);
+        if (source is null)
+            throw new KeyNotFoundException("Job not found.");
+
+        if (!isAdmin && source.OwnerUserId != userId)
+            throw new UnauthorizedAccessException("Not authorized to retry this job.");
+
+        if (string.IsNullOrWhiteSpace(source.EncryptedRequestSnapshot))
+            throw new InvalidOperationException("This job cannot be retried because its request snapshot is missing.");
+
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(item => item.Id == userId, cancellationToken);
+        if (user is null && !isAdmin)
+            throw new KeyNotFoundException("User not found.");
+
+        var workflow = await db.Workflows.AsNoTracking().FirstOrDefaultAsync(
+            item => item.OwnerUserId == source.OwnerUserId && item.Name == source.WorkflowName,
+            cancellationToken);
+        if (workflow is null)
+            throw new ArgumentException("Workflow not found or not owned by requester.", nameof(source));
+
+        var retry = new Job
+        {
+            Id = Guid.NewGuid(),
+            OwnerUserId = source.OwnerUserId,
+            ExternalId = source.ExternalId,
+            WorkflowName = workflow.Name,
+            RetryOfJobId = source.Id,
+            Repository = source.Repository,
+            EncryptedRequestSnapshot = source.EncryptedRequestSnapshot,
+            State = "Queued",
+            QueuedAt = DateTimeOffset.UtcNow
+        };
+
+        db.Jobs.Add(retry);
+        await db.SaveChangesAsync(cancellationToken);
+
+        try { await (jobQueue?.SignalInstanceAsync(cancellationToken) ?? Task.CompletedTask); }
+        catch { /* best-effort */ }
+
+        return retry;
+    }
+
     readonly ILogger<JobService> logger;
 }
 

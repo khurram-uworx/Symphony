@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using Symphony.Security;
 
 namespace Symphony.Utils;
 
@@ -48,10 +49,26 @@ class ShellCommandRunner
         this.logger = logger;
     }
 
+    public async Task<CommandResult> RunAsync(string command, string workingDirectory, int timeoutMs) =>
+        await RunAsync(command, workingDirectory, timeoutMs, null, CancellationToken.None);
+
     public async Task<CommandResult> RunAsync(string command, string workingDirectory, int timeoutMs,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) =>
+        await RunAsync(command, workingDirectory, timeoutMs, null, cancellationToken);
+
+    public async Task<CommandResult> RunAsync(string command, string workingDirectory, int timeoutMs,
+        IReadOnlyDictionary<string, string>? environment, CancellationToken cancellationToken)
     {
         var startInfo = BuildShellStartInfo(command, workingDirectory);
+        if (environment is not null)
+        {
+            foreach (var pair in environment)
+            {
+                if (pair.Key is not null && pair.Value is not null)
+                    startInfo.Environment[pair.Key] = pair.Value;
+            }
+        }
+
         using var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
 
         var output = new StringBuilder();
@@ -92,11 +109,10 @@ class ShellCommandRunner
             return new CommandResult(false, -1, output.ToString(), "timeout or cancellation");
         }
 
-        var exitCode = process.ExitCode;
-        if (exitCode != 0)
-            logger.LogWarning("Command failed with exit {ExitCode}: {Command}", exitCode, command);
+        if (process.ExitCode != 0)
+            logger.LogWarning("Command failed with exit {ExitCode}: {Command}", process.ExitCode, Redaction.RedactSecrets(command));
 
-        return new CommandResult(exitCode == 0, exitCode, output.ToString(), error.ToString());
+        return new CommandResult(process.ExitCode == 0, process.ExitCode, output.ToString(), error.ToString());
     }
 
     public static ProcessStartInfo BuildShellStartInfo(string command, string workingDirectory)

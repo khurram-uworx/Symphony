@@ -14,6 +14,7 @@ using Symphony.Services;
 using Symphony.Workflows;
 using Symphony.Workspaces;
 using Symphony.Utils;
+using Symphony.Repositories;
 
 namespace Symphony.Processing;
 
@@ -25,6 +26,7 @@ public sealed class JobProcessor : BackgroundService
     readonly ILogger<JobProcessor> logger;
     const int GlobalConcurrency = 4;
     readonly ConcurrentDictionary<Guid, CancellationTokenSource> running = new();
+    readonly ConcurrentDictionary<string, int> runningByOwner = new(StringComparer.Ordinal);
 
     public JobProcessor(
         IServiceScopeFactory scopeFactory,
@@ -125,8 +127,12 @@ public sealed class JobProcessor : BackgroundService
 
     async Task ProcessAvailableQueuedJobsAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested && running.Count < GlobalConcurrency)
+        while (!stoppingToken.IsCancellationRequested)
         {
+            var global = await ConcurrencyLimits.GetGlobalConcurrencyAsync(dbFactory, stoppingToken);
+            if (running.Count >= global)
+                return;
+
             var claimed = await TryClaimQueuedJobAsync(stoppingToken);
             if (claimed is null)
                 return;
@@ -137,6 +143,7 @@ public sealed class JobProcessor : BackgroundService
                 jobCts.Dispose();
                 return;
             }
+            runningByOwner.AddOrUpdate(claimed.OwnerUserId, 1, (_, count) => count + 1);
 
             _ = Task.Run(async () =>
             {
@@ -147,6 +154,7 @@ public sealed class JobProcessor : BackgroundService
                 finally
                 {
                     running.TryRemove(claimed.Id, out _);
+                    runningByOwner.AddOrUpdate(claimed.OwnerUserId, 0, (_, count) => count <= 1 ? 0 : count - 1);
                     jobCts.Dispose();
                 }
             }, stoppingToken);
@@ -160,11 +168,18 @@ public sealed class JobProcessor : BackgroundService
             .Where(candidate => candidate.State == "Queued")
             .ToListAsync(cancellationToken);
 
+        var global = await ConcurrencyLimits.GetGlobalConcurrencyAsync(dbFactory, cancellationToken);
+        if (running.Count >= global)
+            return null;
+
         var job = queued
             .OrderBy(candidate => candidate.QueuedAt)
             .FirstOrDefault();
 
         if (job is null)
+            return null;
+
+        if (runningByOwner.TryGetValue(job.OwnerUserId, out var ownerRunning) && ownerRunning >= 10)
             return null;
 
         job.State = "Running";
@@ -221,6 +236,14 @@ public sealed class JobProcessor : BackgroundService
         var hasTickets = TryResolveTicketIds(job, secretProtector, out var ticketIds);
         var snapshot = TryParseSnapshot(job, secretProtector);
         var workItems = ReadWorkItems(snapshot);
+        var (githubRepo, githubToken) = ReadGitHubCredentials(snapshot);
+        if (workItems.Count > 0)
+        {
+            if (string.IsNullOrWhiteSpace(githubRepo))
+                throw new InvalidOperationException("github_credentials_missing: repository not found in job snapshot.");
+            if (string.IsNullOrWhiteSpace(githubToken))
+                throw new InvalidOperationException("github_credentials_missing: personal access token not found in job snapshot.");
+        }
         var issues = new List<Issue>();
         var failedTicketCount = 0;
 
@@ -281,10 +304,12 @@ public sealed class JobProcessor : BackgroundService
         var allSuccess = failedTicketCount == 0;
         var anyFailure = failedTicketCount > 0;
         var baseRoot = config.Workspace.Root;
-        var scopedConfig = config with { Workspace = new WorkspaceConfig(Path.Combine(baseRoot, job.OwnerUserId)) };
+        var scopedConfig = config with { Workspace = new WorkspaceConfig(WorkspacePath.UserScopedRoot(baseRoot, job.OwnerUserId)) };
         var configProvider = new StaticServiceConfigProvider(scopedConfig);
         var workspaceManager = new WorkspaceManager(configProvider, shell, processorLogger is ILogger<WorkspaceManager> wmLogger ? wmLogger : Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkspaceManager>.Instance);
-        var codingAgent = TryCreateCodingAgent(scopedConfig, processorLogger);
+        if (!string.IsNullOrWhiteSpace(githubRepo))
+            workspaceManager.GitHubEnvironment = GitHubEnvironment.Build(Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>().Where(e => e.Key is not null).ToDictionary(e => e.Key!.ToString()!, e => e.Value?.ToString() ?? string.Empty), githubRepo, githubToken);
+        var codingAgent = TryCreateCodingAgent(scopedConfig, processorLogger) ?? throw new InvalidOperationException("agent_unavailable: no coding agent configured.");
 
         foreach (var issue in issues)
         {
@@ -430,6 +455,26 @@ public sealed class JobProcessor : BackgroundService
         return result;
     }
 
+    static (string? Repository, string? Token) ReadGitHubCredentials(JsonElement? snapshot)
+    {
+        if (snapshot is null)
+            return (null, null);
+
+        if (!snapshot.Value.TryGetProperty("github", out var github) || github.ValueKind != JsonValueKind.Object)
+            return (null, null);
+
+        string? repository = null;
+        string? token = null;
+
+        if (github.TryGetProperty("repository", out var repoNode) && repoNode.ValueKind == JsonValueKind.String)
+            repository = repoNode.GetString();
+
+        if (github.TryGetProperty("personalAccessToken", out var tokenNode) && tokenNode.ValueKind == JsonValueKind.String)
+            token = tokenNode.GetString();
+
+        return (repository, token);
+    }
+
     static Issue CreateIssueFromWorkItem(JsonElement item)
     {
         if (item.ValueKind == JsonValueKind.String)
@@ -464,10 +509,12 @@ public sealed class JobProcessor : BackgroundService
         return new Issue(id, identifier, title, description, priority, state, null, null, [], [], DateTimeOffset.UtcNow, null);
     }
 
-    static ICodingAgent TryCreateCodingAgent(ServiceConfig config, ILogger logger)
+    static ICodingAgent? TryCreateCodingAgent(ServiceConfig config, ILogger logger)
     {
-        if (config.Copilot is null || string.IsNullOrWhiteSpace(config.Copilot.Provider))
+        if (config.Copilot is null)
             return new NoOpCodingAgent();
+        if (string.IsNullOrWhiteSpace(config.Copilot.Provider))
+            throw new InvalidOperationException("agent_unavailable: copilot provider is not configured.");
 
         try
         {
@@ -475,8 +522,8 @@ public sealed class JobProcessor : BackgroundService
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Falling back to no-op coding agent.");
-            return new NoOpCodingAgent();
+            logger.LogError(ex, "Failed to create coding agent.");
+            throw;
         }
     }
 

@@ -29,6 +29,8 @@ class WorkspaceManager
         this.logger = logger;
     }
 
+    public Dictionary<string, string>? GitHubEnvironment { get; set; }
+
     public async Task<Workspace> CreateForIssueAsync(string identifier, CancellationToken cancellationToken)
     {
         var config = configProvider.GetConfig();
@@ -36,12 +38,10 @@ class WorkspaceManager
         Directory.CreateDirectory(root);
 
         var workspaceKey = SanitizeKey(identifier);
-        var path = Path.Combine(root, workspaceKey);
-        var fullPath = Path.GetFullPath(path);
-        var rootFullPath = Path.GetFullPath(root);
+        if (workspaceKey.Length == 0 || workspaceKey is "." or "..")
+            throw new InvalidOperationException("Workspace identifier produced an invalid folder name.");
 
-        if (!fullPath.StartsWith(rootFullPath, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Workspace path escapes configured root.");
+        var fullPath = WorkspacePath.EnsureContainedBy(root, Path.Combine(root, workspaceKey));
 
         var createdNow = false;
         if (File.Exists(fullPath) && !Directory.Exists(fullPath))
@@ -57,7 +57,7 @@ class WorkspaceManager
 
         if (createdNow && !string.IsNullOrWhiteSpace(config.Hooks.AfterCreate))
         {
-            var result = await shell.RunAsync(config.Hooks.AfterCreate, fullPath, config.Hooks.TimeoutMs, cancellationToken);
+            var result = await shell.RunAsync(config.Hooks.AfterCreate, fullPath, config.Hooks.TimeoutMs, GitHubEnvironment, cancellationToken);
 
             if (!result.Success)
                 throw new InvalidOperationException("after_create hook failed.");
@@ -71,7 +71,7 @@ class WorkspaceManager
         if (string.IsNullOrWhiteSpace(hook))
             return true;
 
-        var result = await shell.RunAsync(hook, workspacePath, timeoutMs, cancellationToken);
+        var result = await shell.RunAsync(hook, workspacePath, timeoutMs, GitHubEnvironment, cancellationToken);
         return result.Success;
     }
 
@@ -80,7 +80,7 @@ class WorkspaceManager
         if (string.IsNullOrWhiteSpace(hook))
             return;
 
-        var result = await shell.RunAsync(hook, workspacePath, timeoutMs, cancellationToken);
+        var result = await shell.RunAsync(hook, workspacePath, timeoutMs, GitHubEnvironment, cancellationToken);
 
         if (!result.Success)
             logger.LogWarning("Hook failed (ignored): {Hook}", hook);
@@ -91,7 +91,7 @@ class WorkspaceManager
         var config = configProvider.GetConfig();
         var root = config.Workspace.Root;
         var workspaceKey = SanitizeKey(identifier);
-        var path = Path.Combine(root, workspaceKey);
+        var path = WorkspacePath.EnsureContainedBy(root, Path.Combine(root, workspaceKey));
 
         if (!Directory.Exists(path))
             return;

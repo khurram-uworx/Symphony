@@ -1,4 +1,5 @@
 using Symphony.Workflows;
+using Symphony.Workspaces;
 
 namespace Symphony.Config;
 
@@ -83,8 +84,7 @@ public record WorkspaceConfig(string Root)
     {
         var workspace = ConfigReader.ReadMap(root, "workspace");
         var rawRoot = ConfigReader.ReadString(workspace, "root") ?? Path.Combine(Path.GetTempPath(), "symphony_workspaces");
-        var expanded = ConfigReader.ExpandPath(rawRoot);
-        return new WorkspaceConfig(expanded);
+        return new WorkspaceConfig(WorkspacePath.RequireAbsoluteRoot(ConfigReader.ResolvePath(rawRoot)));
     }
 }
 
@@ -260,15 +260,18 @@ public static class ConfigReader
         return raw;
     }
 
-    public static string ExpandPath(string raw)
+    public static string ResolvePath(string raw)
     {
         var resolved = ResolveEnvValue(raw);
-        if (resolved.StartsWith("~"))
+        if (resolved.StartsWith("~", StringComparison.Ordinal))
         {
             var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             resolved = Path.Combine(home, resolved.Substring(1).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
         }
 
-        return Path.GetFullPath(resolved);
+        return resolved;
     }
+
+    public static string ExpandPath(string raw) =>
+        Path.GetFullPath(ResolvePath(raw));
 }

@@ -411,11 +411,11 @@ public sealed class JobService
         ValidateUserId(userId);
         cancellationToken.ThrowIfCancellationRequested();
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
-        return await db.Jobs
+        var rows = await db.Jobs
             .AsNoTracking()
             .Where(job => job.OwnerUserId == userId)
-            .OrderByDescending(job => job.QueuedAt)
             .ToListAsync(cancellationToken);
+        return rows.OrderByDescending(job => job.QueuedAt).ToList();
     }
 
     public Task<IReadOnlyList<Symphony.Data.Job>> ListAsync(
@@ -427,10 +427,10 @@ public sealed class JobService
     {
         cancellationToken.ThrowIfCancellationRequested();
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
-        return await db.Jobs
+        var rows = await db.Jobs
             .AsNoTracking()
-            .OrderByDescending(job => job.QueuedAt)
             .ToListAsync(cancellationToken);
+        return rows.OrderByDescending(job => job.QueuedAt).ToList();
     }
 
     public Task<IReadOnlyList<Symphony.Data.Job>> ListAllJobsAsync(
@@ -484,22 +484,19 @@ public sealed class JobService
     {
         cancellationToken.ThrowIfCancellationRequested();
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
-        var query = db.Jobs.AsNoTracking().AsQueryable();
-        if (!string.IsNullOrWhiteSpace(ownerUserId))
-            query = query.Where(job => job.OwnerUserId == ownerUserId);
-        if (!string.IsNullOrWhiteSpace(state))
-            query = query.Where(job => job.State == state);
-        if (from.HasValue)
-            query = query.Where(job => job.QueuedAt >= from.Value);
-        if (to.HasValue)
-            query = query.Where(job => job.QueuedAt <= to.Value);
-        query = query.OrderByDescending(job => job.QueuedAt);
+        var rows = await db.Jobs.AsNoTracking().ToListAsync(cancellationToken);
+        var filtered = rows.Where(job =>
+            (string.IsNullOrWhiteSpace(ownerUserId) || job.OwnerUserId == ownerUserId) &&
+            (string.IsNullOrWhiteSpace(state) || job.State == state) &&
+            (!from.HasValue || job.QueuedAt >= from.Value) &&
+            (!to.HasValue || job.QueuedAt <= to.Value));
+        var ordered = filtered.OrderByDescending(job => job.QueuedAt).ToList();
         if (pageSize.HasValue && pageSize.Value > 0)
         {
             var normalizedPage = page.HasValue && page.Value > 0 ? page.Value : 1;
-            query = query.Skip((normalizedPage - 1) * pageSize.Value).Take(pageSize.Value);
+            ordered = ordered.Skip((normalizedPage - 1) * pageSize.Value).Take(pageSize.Value).ToList();
         }
-        return await query.ToListAsync(cancellationToken);
+        return ordered;
     }
 
     async Task<IReadOnlyList<Symphony.Data.Job>> QueryCoreAsync(
@@ -513,21 +510,19 @@ public sealed class JobService
     {
         cancellationToken.ThrowIfCancellationRequested();
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
-        var query = db.Jobs.AsNoTracking().AsQueryable();
-        if (!string.IsNullOrWhiteSpace(ownerUserId))
-            query = query.Where(job => job.OwnerUserId == ownerUserId);
-        if (!string.IsNullOrWhiteSpace(state))
-            query = query.Where(job => job.State == state);
-        if (from.HasValue)
-            query = query.Where(job => job.QueuedAt >= from.Value);
-        if (to.HasValue)
-            query = query.Where(job => job.QueuedAt <= to.Value);
-        query = query.OrderByDescending(job => job.QueuedAt);
+        var rows = await db.Jobs.AsNoTracking().ToListAsync(cancellationToken);
+        var filtered = rows.Where(job =>
+            (string.IsNullOrWhiteSpace(ownerUserId) || job.OwnerUserId == ownerUserId) &&
+            (string.IsNullOrWhiteSpace(state) || job.State == state) &&
+            (!from.HasValue || job.QueuedAt >= from.Value) &&
+            (!to.HasValue || job.QueuedAt <= to.Value))
+            .OrderByDescending(job => job.QueuedAt)
+            .ToList();
         if (skip.HasValue && skip.Value > 0)
-            query = query.Skip(skip.Value);
+            filtered = filtered.Skip(skip.Value).ToList();
         if (take.HasValue && take.Value > 0)
-            query = query.Take(take.Value);
-        return await query.ToListAsync(cancellationToken);
+            filtered = filtered.Take(take.Value).ToList();
+        return filtered;
     }
 
     public Task<int> CountJobsAsync(
@@ -547,16 +542,12 @@ public sealed class JobService
     {
         cancellationToken.ThrowIfCancellationRequested();
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
-        var query = db.Jobs.AsNoTracking().AsQueryable();
-        if (!string.IsNullOrWhiteSpace(ownerUserId))
-            query = query.Where(job => job.OwnerUserId == ownerUserId);
-        if (!string.IsNullOrWhiteSpace(state))
-            query = query.Where(job => job.State == state);
-        if (from.HasValue)
-            query = query.Where(job => job.QueuedAt >= from.Value);
-        if (to.HasValue)
-            query = query.Where(job => job.QueuedAt <= to.Value);
-        return await query.CountAsync(cancellationToken);
+        var rows = await db.Jobs.AsNoTracking().ToListAsync(cancellationToken);
+        return rows.Count(job =>
+            (string.IsNullOrWhiteSpace(ownerUserId) || job.OwnerUserId == ownerUserId) &&
+            (string.IsNullOrWhiteSpace(state) || job.State == state) &&
+            (!from.HasValue || job.QueuedAt >= from.Value) &&
+            (!to.HasValue || job.QueuedAt <= to.Value));
     }
 
     public async Task<IReadOnlyList<Symphony.Data.JobIssue>> GetIssuesAsync(
@@ -565,11 +556,11 @@ public sealed class JobService
     {
         cancellationToken.ThrowIfCancellationRequested();
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
-        return await db.JobIssues
+        var rows = await db.JobIssues
             .AsNoTracking()
             .Where(issue => issue.JobId == jobId)
-            .OrderBy(issue => issue.StartedAt)
             .ToListAsync(cancellationToken);
+        return rows.OrderBy(issue => issue.StartedAt ?? DateTimeOffset.MaxValue).ToList();
     }
 
     public async Task<IReadOnlyList<Symphony.Data.JobEvent>> GetEventsAsync(
@@ -582,10 +573,11 @@ public sealed class JobService
         var rows = await db.JobEvents
             .AsNoTracking()
             .Where(item => item.JobId == jobId)
+            .ToListAsync(cancellationToken);
+        return rows
             .OrderByDescending(item => item.Timestamp)
             .Take(take > 0 ? take : 100)
-            .ToListAsync(cancellationToken);
-        return rows;
+            .ToList();
     }
 
     public async Task<bool> CancelAsync(

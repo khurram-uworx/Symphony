@@ -1,0 +1,219 @@
+@{
+    ViewData["Title"] = "Workflow editor";
+    var templateJson = System.Text.Json.JsonSerializer.Serialize(ViewData["WorkflowTemplate"] as string ?? "");
+}
+<script>
+    const workflowTemplate = @Html.Raw(templateJson);
+</script>
+
+<section class="workflows-shell workflows-shell--editor">
+    <div class="workflow-edit__topbar">
+        <div class="workflow-edit__title">
+            <a class="back-link" href="/Account/Workflows">&#8592; Back</a>
+            <h1>Workflow editor</h1>
+            <span id="workflow-default-badge" class="workflow-badge is-default" hidden>Default</span>
+        </div>
+        <div class="workflow-edit__actions">
+            <button type="button" id="make-default" class="ghost-button">Make default</button>
+            <button type="button" id="save-workflow" class="primary-button">Save</button>
+            <button type="button" id="delete-workflow" class="danger-button" disabled>Delete</button>
+        </div>
+    </div>
+
+    <div id="workflows-status" class="workflow-status" role="status" aria-live="polite"></div>
+
+    <div class="panel workflow-editor">
+        <label class="workflow-name-field">
+            <span>Name</span>
+            <input id="workflow-name" type="text" autocomplete="off" spellcheck="false" placeholder="Workflow name" />
+        </label>
+
+        <textarea id="workflow-content" spellcheck="false" wrap="off" placeholder="---&#10;tracker:&#10;  kind: linear&#10;---&#10;&#10;You are working on..."></textarea>
+
+        <div class="workflow-editor__footer">
+            <button type="button" id="save-workflow-bottom" class="primary-button">Save</button>
+        </div>
+    </div>
+</section>
+
+<script>
+(function () {
+    const api = '/api/workflows';
+    const params = new URLSearchParams(window.location.search);
+    const requestedName = params.get('name');
+
+    const nameInput = document.getElementById('workflow-name');
+    const contentInput = document.getElementById('workflow-content');
+    const saveButton = document.getElementById('save-workflow');
+    const saveButtonBottom = document.getElementById('save-workflow-bottom');
+    const makeDefaultButton = document.getElementById('make-default');
+    const deleteButton = document.getElementById('delete-workflow');
+    const defaultBadge = document.getElementById('workflow-default-badge');
+    const backLink = document.querySelector('.back-link');
+    const status = document.getElementById('workflows-status');
+
+    let selectedName = requestedName;
+    let isDefault = false;
+    let canDelete = false;
+    let savedState = { name: '', content: '' };
+
+    async function parseError(response) {
+        try {
+            const body = await response.json();
+            return body && (body.error || body.title || body.message) || response.statusText;
+        } catch {
+            return response.statusText;
+        }
+    }
+
+    function setStatus(message, isError) {
+        status.textContent = message || '';
+        status.classList.toggle('is-error', !!isError);
+        status.classList.toggle('is-success', !isError && !!message);
+    }
+
+    function isDirty() {
+        return nameInput.value.trim() !== savedState.name || contentInput.value !== savedState.content;
+    }
+
+    function refreshDefaultControls() {
+        defaultBadge.hidden = !isDefault;
+        makeDefaultButton.hidden = isDefault;
+        deleteButton.disabled = isDefault || !canDelete;
+    }
+
+    async function loadWorkflow(name) {
+        const response = await fetch(api + '/' + encodeURIComponent(name), { credentials: 'same-origin' });
+        if (!response.ok) {
+            setStatus(await parseError(response), true);
+            return;
+        }
+
+        const item = await response.json();
+        selectedName = item.name;
+        nameInput.value = item.name;
+        contentInput.value = item.content || '';
+        isDefault = !!item.isDefault;
+        savedState = { name: item.name, content: contentInput.value };
+
+        const listResponse = await fetch(api, { credentials: 'same-origin' });
+        const workflows = listResponse.ok ? await listResponse.json() : [];
+        canDelete = workflows.length > 1;
+
+        refreshDefaultControls();
+        setStatus('');
+    }
+
+    async function saveWorkflow(options) {
+        const payload = {
+            name: nameInput.value.trim(),
+            content: contentInput.value,
+            isDefault: options && options.makeDefault ? true : isDefault
+        };
+
+        if (!payload.name) {
+            setStatus('Workflow name cannot be empty.', true);
+            return false;
+        }
+        if (!payload.content.trim()) {
+            setStatus('Workflow content cannot be empty.', true);
+            return false;
+        }
+
+        saveButton.disabled = true;
+        saveButtonBottom.disabled = true;
+
+        let response;
+        if (selectedName) {
+            response = await fetch(api + '/' + encodeURIComponent(selectedName), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            });
+        } else {
+            response = await fetch(api, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            });
+        }
+
+        saveButton.disabled = false;
+        saveButtonBottom.disabled = false;
+
+        if (!response.ok) {
+            setStatus(await parseError(response), true);
+            return false;
+        }
+
+        const saved = await response.json();
+        selectedName = saved.name;
+        nameInput.value = saved.name;
+        contentInput.value = saved.content || '';
+        isDefault = !!saved.isDefault;
+        savedState = { name: saved.name, content: saved.content || '' };
+
+        const listResponse = await fetch(api, { credentials: 'same-origin' });
+        const workflows = listResponse.ok ? await listResponse.json() : [];
+        canDelete = workflows.length > 1;
+
+        history.replaceState(null, '', '/Account/Workflows/Edit?name=' + encodeURIComponent(saved.name));
+        refreshDefaultControls();
+        setStatus('Saved ' + saved.name);
+        return true;
+    }
+
+    async function deleteWorkflow() {
+        if (!selectedName || deleteButton.disabled) return;
+        if (!window.confirm('Delete workflow "' + selectedName + '"?')) return;
+
+        const response = await fetch(api + '/' + encodeURIComponent(selectedName), {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+
+        if (!response.ok) {
+            setStatus(await parseError(response), true);
+            return;
+        }
+
+        window.location.href = '/Account/Workflows';
+    }
+
+    saveButton.addEventListener('click', function () { saveWorkflow(); });
+    saveButtonBottom.addEventListener('click', function () { saveWorkflow(); });
+    makeDefaultButton.addEventListener('click', function () { saveWorkflow({ makeDefault: true }); });
+    deleteButton.addEventListener('click', deleteWorkflow);
+
+    backLink.addEventListener('click', function (event) {
+        if (isDirty() && !window.confirm('Discard unsaved changes?')) {
+            event.preventDefault();
+        }
+    });
+
+    window.addEventListener('beforeunload', function (event) {
+        if (isDirty()) {
+            event.preventDefault();
+            event.returnValue = '';
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+            event.preventDefault();
+            saveWorkflow();
+        }
+    });
+
+    if (selectedName) {
+        loadWorkflow(selectedName);
+    } else {
+        nameInput.value = 'New workflow';
+        contentInput.value = workflowTemplate;
+        savedState = { name: 'New workflow', content: workflowTemplate };
+        refreshDefaultControls();
+    }
+})();
+</script>

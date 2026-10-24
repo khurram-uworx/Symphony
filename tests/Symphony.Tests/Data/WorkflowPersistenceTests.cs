@@ -99,6 +99,48 @@ class WorkflowPersistenceTests
     }
 
     [Test]
+    public async Task UpdateAsync_MarkingDefault_ClearsOtherDefaults()
+    {
+        await using var provider = createProvider();
+        var factory = provider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>();
+        await DatabaseInitializer.InitializeAsync(factory);
+        await ensureUserAsync(provider, "user-1");
+
+        var service = new WorkflowService(factory);
+        await service.CreateAsync("user-1", "First", "content-1");
+        await service.CreateAsync("user-1", "Second", "content-2");
+
+        await service.UpdateAsync("user-1", "Second", new Workflow
+        {
+            Name = "Second",
+            Content = "content-2",
+            IsDefault = true
+        });
+
+        var list = await service.ListAsync("user-1");
+        Assert.That(list.Single(workflow => workflow.Name == "Second").IsDefault, Is.True);
+        Assert.That(list.Single(workflow => workflow.Name == "First").IsDefault, Is.False);
+    }
+
+    [Test]
+    public async Task DeleteAsync_DefaultWorkflow_Throws()
+    {
+        await using var provider = createProvider();
+        var factory = provider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>();
+        await DatabaseInitializer.InitializeAsync(factory);
+        await ensureUserAsync(provider, "user-1");
+
+        var service = new WorkflowService(factory);
+        await service.CreateAsync("user-1", "Default", "content-1", isDefault: true);
+        await service.CreateAsync("user-1", "Other", "content-2");
+
+        var exception = await Assert.ThrowsAsync<WorkflowConflictException>(async () =>
+            await service.DeleteAsync("user-1", "Default"));
+
+        Assert.That(exception!.Code, Is.EqualTo("default_workflow"));
+    }
+
+    [Test]
     public async Task DeleteAsync_DeletesNonLastWorkflow()
     {
         await using var provider = createProvider();

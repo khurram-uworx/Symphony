@@ -197,6 +197,65 @@ class AdminSeederTests
         Assert.That(await roles.RoleExistsAsync(AdminSeeder.UserRole), Is.False);
     }
 
+    [Test]
+    public async Task SeedAsync_ConfiguredPassword_CreatesAdminWithThatPassword()
+    {
+        await using var provider = await createInitializedProvider();
+        var output = new StringWriter();
+        const string configuredPassword = "Symphony!dev1";
+
+        await seed(provider, output, configuredUserName: null, configuredPassword);
+
+        await using var scope = provider.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+        var admin = await users.FindByNameAsync(AdminSeeder.DefaultUserName);
+
+        Assert.That(admin, Is.Not.Null);
+        Assert.That(await users.IsInRoleAsync(admin!, AdminSeeder.AdminRole), Is.True);
+        Assert.That(await users.CheckPasswordAsync(admin!, configuredPassword), Is.True);
+        Assert.That(output.ToString(), Does.Contain("Password: (configured via SeedAdmin:Password)"));
+        Assert.That(output.ToString(), Does.Not.Contain(configuredPassword));
+        Assert.That(output.ToString().Split("Password:").Length - 1, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task SeedAsync_ConfiguredPassword_IsTrustedWithoutPasswordPolicy()
+    {
+        await using var provider = await createInitializedProvider();
+        var output = new StringWriter();
+        const string weakPassword = "weak";
+
+        await seed(provider, output, configuredUserName: null, weakPassword);
+
+        await using var scope = provider.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+        var admin = await users.FindByNameAsync(AdminSeeder.DefaultUserName);
+
+        Assert.That(admin, Is.Not.Null);
+        Assert.That(await users.CheckPasswordAsync(admin!, weakPassword), Is.True);
+        Assert.That(output.ToString(), Does.Contain("Password: (configured via SeedAdmin:Password)"));
+        Assert.That(output.ToString(), Does.Not.Contain(weakPassword));
+    }
+
+    [Test]
+    public async Task SeedAsync_BlankConfiguredPassword_FallsBackToGenerated()
+    {
+        await using var provider = await createInitializedProvider();
+        var output = new StringWriter();
+
+        await seed(provider, output, configuredUserName: null, "   ");
+
+        await using var scope = provider.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+        var admin = await users.FindByNameAsync(AdminSeeder.DefaultUserName);
+        var password = passwordFrom(output.ToString());
+
+        Assert.That(admin, Is.Not.Null);
+        Assert.That(await users.CheckPasswordAsync(admin!, password), Is.True);
+        Assert.That(output.ToString(), Does.Contain("Password: " + password));
+        Assert.That(output.ToString(), Does.Not.Contain("(configured"));
+    }
+
     async Task<ServiceProvider> createInitializedProvider()
     {
         var database = Path.Combine(directory, "symphony.db");
@@ -218,7 +277,7 @@ class AdminSeederTests
         return provider;
     }
 
-    static async Task seed(ServiceProvider provider, TextWriter output, string? configuredUserName)
+    static async Task seed(ServiceProvider provider, TextWriter output, string? configuredUserName, string? configuredPassword = null)
     {
         await using var scope = provider.CreateAsyncScope();
         var services = scope.ServiceProvider;
@@ -227,7 +286,8 @@ class AdminSeederTests
             services.GetRequiredService<UserManager<IdentityUser>>(),
             services.GetRequiredService<RoleManager<IdentityRole>>(),
             configuredUserName,
-            output);
+            output,
+            configuredPassword);
     }
 
     static string passwordFrom(string output)

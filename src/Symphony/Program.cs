@@ -84,7 +84,8 @@ await using (var scope = app.Services.CreateAsyncScope())
         services.GetRequiredService<UserManager<IdentityUser>>(),
         services.GetRequiredService<RoleManager<IdentityRole>>(),
         app.Configuration["SeedAdmin:UserName"],
-        Console.Out);
+        Console.Out,
+        app.Configuration["SeedAdmin:Password"]);
 }
 
 app.Run();

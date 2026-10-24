@@ -1,5 +1,5 @@
 @{
-    ViewData["Title"] = "Workflows";
+    ViewData["Title"] = "Configured Workflows";
     var templateJson = System.Text.Json.JsonSerializer.Serialize(ViewData["WorkflowTemplate"] as string ?? "");
 }
 <script>
@@ -9,82 +9,37 @@
 <section class="workflows-shell">
     <header class="workflows-header">
         <div>
-            <h1>Workflows</h1>
-            <p class="muted">Edit the WORKFLOW.md content used to run Symphony workflows.</p>
+            <h1>Configured Workflows</h1>
         </div>
         <div class="workflow-toolbar" role="group" aria-label="Workflow actions">
-            <button type="button" id="new-workflow" class="ghost-button">New blank</button>
-            <button type="button" id="copy-workflow-template" class="ghost-button">Copy from WORKFLOW</button>
+            <button type="button" id="new-workflow" class="primary-button">New</button>
         </div>
     </header>
 
     <div id="workflows-status" class="workflow-status" role="status" aria-live="polite"></div>
 
-    <div class="workflow-grid">
-        <aside class="panel workflow-sidebar">
-            <div class="workflow-sidebar__header">
-                <h2>Workflows</h2>
-                <span id="workflow-count" class="workflow-count">0</span>
-            </div>
-            <div id="workflow-loading" class="workflow-empty">Loading workflows…</div>
-            <ul id="workflow-list" class="workflow-list" hidden></ul>
-            <div id="workflow-empty" class="workflow-empty" hidden>No workflows yet. Create one from blank or copy from WORKFLOW.</div>
-        </aside>
+    <div id="workflow-empty" class="workflow-empty" hidden>No workflows yet. Click New to create one from the template.</div>
 
-        <section class="panel workflow-editor">
-            <div class="workflow-editor__header">
-                <label class="workflow-name-field">
-                    Name
-                    <input id="workflow-name" type="text" autocomplete="off" spellcheck="false" />
-                </label>
-                <label class="workflow-default-toggle">
-                    <input id="workflow-default" type="checkbox" />
-                    Default
-                </label>
-                <button type="button" id="save-workflow">Save</button>
-            </div>
-
-            <div class="workflow-meta" id="workflow-meta">Select a workflow to begin editing.</div>
-
-            <textarea id="workflow-content" spellcheck="false" wrap="off" placeholder="---&#10;tracker:&#10;  kind: linear&#10;---&#10;&#10;You are working on..."></textarea>
-
-            <div class="workflow-editor__footer">
-                <button type="button" id="delete-workflow" class="danger-button" disabled>Delete</button>
-                <span id="workflow-roundtrip" class="workflow-hint">Content is transmitted exactly as entered.</span>
-            </div>
-        </section>
+    <div class="table-panel">
+        <table class="workflow-table" aria-label="Configured workflows">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Created</th>
+                    <th>Updated</th>
+                </tr>
+            </thead>
+            <tbody id="workflow-table-body"></tbody>
+        </table>
     </div>
 </section>
 
 <script>
 (function () {
     const api = '/api/workflows';
-    const list = document.getElementById('workflow-list');
-    const loading = document.getElementById('workflow-loading');
-    const empty = document.getElementById('workflow-empty');
-    const count = document.getElementById('workflow-count');
-    const nameInput = document.getElementById('workflow-name');
-    const contentInput = document.getElementById('workflow-content');
-    const defaultInput = document.getElementById('workflow-default');
-    const saveButton = document.getElementById('save-workflow');
-    const deleteButton = document.getElementById('delete-workflow');
     const status = document.getElementById('workflows-status');
-    const meta = document.getElementById('workflow-meta');
-
-    let workflows = [];
-    let selectedName = null;
-    let loadedContent = '';
-    let loadedDefault = false;
-    let isNew = false;
-
-    function setStatus(message, kind) {
-        status.textContent = message || '';
-        status.classList.remove('is-error', 'is-success');
-        if (kind === 'error') status.classList.add('is-error');
-        if (kind === 'success') status.classList.add('is-success');
-    }
-
-    function setDirtyHint() { }
+    const empty = document.getElementById('workflow-empty');
+    const tbody = document.getElementById('workflow-table-body');
 
     async function parseError(response) {
         try {
@@ -95,202 +50,88 @@
         }
     }
 
-    async function loadWorkflows(preferredName) {
-        loading.hidden = false;
-        empty.hidden = true;
-        list.hidden = true;
+    function relativeTime(value) {
+        if (!value) return 'unknown';
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return String(value);
+        const seconds = Math.round((Date.now() - date.getTime()) / 1000);
+        const abs = Math.abs(seconds);
+        if (abs < 60) return 'just now';
+        if (abs < 3600) return Math.floor(abs / 60) + 'm ago';
+        if (abs < 86400) return Math.floor(abs / 3600) + 'h ago';
+        if (abs < 2592000) return Math.floor(abs / 86400) + 'd ago';
+        if (abs < 31536000) return Math.floor(abs / 2592000) + 'mo ago';
+        return Math.floor(abs / 31536000) + 'y ago';
+    }
 
+    async function loadWorkflows() {
         const response = await fetch(api, { credentials: 'same-origin' });
         if (!response.ok) {
-            loading.hidden = true;
-            setStatus(await parseError(response), 'error');
+            status.textContent = await parseError(response);
+            status.classList.add('is-error');
             return;
         }
 
-        workflows = await response.json();
-        workflows.sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' }));
+        const workflows = (await response.json())
+            .sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' }));
 
-        loading.hidden = true;
-        count.textContent = String(workflows.length);
-        renderList();
-
-        const targetName = preferredName !== undefined ? preferredName : (selectedName && workflows.some(item => item.name === selectedName) ? selectedName : (workflows.length ? workflows[0].name : null));
-        if (targetName) {
-            await loadWorkflow(targetName);
-        } else if (workflows.length === 0) {
-            createBlank();
-        }
-
-        deleteButton.disabled = workflows.length <= 1 || isNew || !selectedName;
-    }
-
-    function renderList() {
-        list.innerHTML = '';
+        tbody.innerHTML = '';
         if (!workflows.length) {
-            list.hidden = true;
             empty.hidden = false;
             return;
         }
 
         empty.hidden = true;
-        list.hidden = false;
-
         workflows.forEach(item => {
-            const listItem = document.createElement('li');
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'workflow-list__item' + (item.name === selectedName ? ' is-active' : '');
-            button.addEventListener('click', () => loadWorkflow(item.name));
+            const row = document.createElement('tr');
 
-            const name = document.createElement('span');
-            name.className = 'workflow-list__name';
-            name.textContent = item.name;
+            const nameCell = document.createElement('td');
+            const link = document.createElement('a');
+            link.href = '/Account/Workflows/Edit?name=' + encodeURIComponent(item.name);
+            link.textContent = item.name + (item.isDefault ? ' (Default)' : '');
+            link.className = 'workflow-link';
+            nameCell.appendChild(link);
 
-            const badge = document.createElement('span');
-            badge.className = 'workflow-badge' + (item.isDefault ? ' is-default' : '');
-            badge.textContent = item.isDefault ? 'Default' : '';
+            const createdCell = document.createElement('td');
+            createdCell.textContent = relativeTime(item.createdAt);
 
-            button.appendChild(name);
-            button.appendChild(badge);
-            listItem.appendChild(button);
-            list.appendChild(listItem);
+            const updatedCell = document.createElement('td');
+            updatedCell.textContent = relativeTime(item.updatedAt);
+
+            row.appendChild(nameCell);
+            row.appendChild(createdCell);
+            row.appendChild(updatedCell);
+            tbody.appendChild(row);
         });
     }
 
-    async function loadWorkflow(name) {
-        const response = await fetch(api + '/' + encodeURIComponent(name), { credentials: 'same-origin' });
-        if (!response.ok) {
-            setStatus(await parseError(response), 'error');
-            return;
+    document.getElementById('new-workflow').addEventListener('click', async function () {
+        const response = await fetch(api, { credentials: 'same-origin' });
+        const existing = response.ok ? await response.json() : [];
+        const names = new Set(existing.map(item => String(item.name).toLowerCase()));
+
+        let name = 'New workflow';
+        let suffix = 2;
+        while (names.has(name.toLowerCase())) {
+            name = 'New workflow ' + suffix;
+            suffix += 1;
         }
 
-        const item = await response.json();
-        selectedName = item.name;
-        isNew = false;
-        nameInput.value = item.name;
-        contentInput.value = item.content || '';
-        defaultInput.checked = !!item.isDefault;
-        loadedContent = contentInput.value;
-        loadedDefault = defaultInput.checked;
-
-        meta.textContent = 'Created ' + formatTime(item.createdAt) + ' · Updated ' + formatTime(item.updatedAt);
-        setStatus('Loaded ' + item.name, 'success');
-        renderList();
-        deleteButton.disabled = workflows.length <= 1;
-    }
-
-    function formatTime(value) {
-        if (!value) return 'unknown';
-        const date = new Date(value);
-        return isNaN(date.getTime()) ? String(value) : date.toLocaleString();
-    }
-
-    function createBlank() {
-        selectedName = null;
-        isNew = true;
-        nameInput.value = 'New workflow';
-        contentInput.value = '';
-        defaultInput.checked = false;
-        loadedContent = '';
-        loadedDefault = false;
-        meta.textContent = 'New workflow. Save to create it.';
-        setStatus('', '');
-        renderList();
-        deleteButton.disabled = true;
-    }
-
-    function copyFromTemplate() {
-        createBlank();
-        nameInput.value = 'WORKFLOW';
-        contentInput.value = workflowTemplate;
-        loadedContent = workflowTemplate;
-        meta.textContent = 'Copied from bundled WORKFLOW.md. Save to store it.';
-        setStatus('Template loaded into the editor.', 'success');
-    }
-
-    function currentPayload() {
-        return {
-            name: nameInput.value.trim(),
-            content: contentInput.value,
-            isDefault: defaultInput.checked
-        };
-    }
-
-    async function saveWorkflow() {
-        const payload = currentPayload();
-        if (!payload.name) {
-            setStatus('Workflow name cannot be empty.', 'error');
-            return;
-        }
-        if (!payload.content.trim()) {
-            setStatus('Workflow content cannot be empty.', 'error');
-            return;
-        }
-
-        saveButton.disabled = true;
-        let response;
-        if (selectedName) {
-            response = await fetch(api + '/' + encodeURIComponent(selectedName), {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body: JSON.stringify(payload)
-            });
-        } else {
-            response = await fetch(api, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body: JSON.stringify(payload)
-            });
-        }
-
-        saveButton.disabled = false;
-
-        if (!response.ok) {
-            setStatus(await parseError(response), 'error');
-            return;
-        }
-
-        const saved = await response.json();
-        selectedName = saved.name;
-        isNew = false;
-        loadedContent = saved.content || '';
-        loadedDefault = !!saved.isDefault;
-        setStatus('Saved ' + saved.name, 'success');
-        await loadWorkflows(saved.name);
-    }
-
-    async function deleteWorkflow() {
-        if (!selectedName || workflows.length <= 1) return;
-        if (!window.confirm('Delete workflow "' + selectedName + '"?')) return;
-
-        const response = await fetch(api + '/' + encodeURIComponent(selectedName), {
-            method: 'DELETE',
-            credentials: 'same-origin'
+        const createResponse = await fetch(api, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ name: name, content: workflowTemplate, isDefault: false })
         });
 
-        if (!response.ok) {
-            setStatus(await parseError(response), 'error');
+        if (!createResponse.ok) {
+            status.textContent = await parseError(createResponse);
+            status.classList.add('is-error');
             return;
         }
 
-        setStatus('Deleted ' + selectedName, 'success');
-        selectedName = null;
-        isNew = false;
-        await loadWorkflows(null);
-    }
-
-    document.getElementById('new-workflow').addEventListener('click', createBlank);
-    document.getElementById('copy-workflow-template').addEventListener('click', copyFromTemplate);
-    saveButton.addEventListener('click', saveWorkflow);
-    deleteButton.addEventListener('click', deleteWorkflow);
-
-    document.addEventListener('keydown', function (event) {
-        if ((event.ctrlKey || event.metaKey) && event.key === 's') {
-            event.preventDefault();
-            saveWorkflow();
-        }
+        const created = await createResponse.json();
+        window.location.href = '/Account/Workflows/Edit?name=' + encodeURIComponent(created.name);
     });
 
     loadWorkflows();

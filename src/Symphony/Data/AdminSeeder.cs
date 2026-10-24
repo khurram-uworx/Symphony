@@ -95,6 +95,7 @@ public static class AdminSeeder
         RoleManager<IdentityRole> roles,
         string? configuredUserName,
         TextWriter output,
+        string? configuredPassword = null,
         CancellationToken cancellationToken = default)
     {
         var userName = string.IsNullOrWhiteSpace(configuredUserName)
@@ -114,9 +115,21 @@ public static class AdminSeeder
         if (await users.FindByNameAsync(userName) is not null)
             throw usernameTaken(userName);
 
-        var password = generatePassword(users.Options.Password);
+        var configured = string.IsNullOrWhiteSpace(configuredPassword) ? null : configuredPassword;
         var user = new IdentityUser { UserName = userName };
-        var created = await users.CreateAsync(user, password);
+        string? generatedPassword = null;
+        IdentityResult created;
+        if (configured is null)
+        {
+            generatedPassword = generatePassword(users.Options.Password);
+            created = await users.CreateAsync(user, generatedPassword);
+        }
+        else
+        {
+            user.PasswordHash = users.PasswordHasher.HashPassword(user, configured);
+            created = await users.CreateAsync(user);
+        }
+
         if (!created.Succeeded)
         {
             if (isDuplicateUserName(created))
@@ -139,6 +152,8 @@ public static class AdminSeeder
         await transaction.CommitAsync(cancellationToken);
         await output.WriteLineAsync(CredentialHeader);
         await output.WriteLineAsync($"Username: {userName}");
-        await output.WriteLineAsync($"Password: {password}");
+        await output.WriteLineAsync(configured is null
+            ? $"Password: {generatedPassword}"
+            : "Password: (configured via SeedAdmin:Password)");
     }
 }

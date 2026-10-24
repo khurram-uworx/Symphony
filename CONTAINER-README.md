@@ -29,6 +29,8 @@ Username: testadmin
 Password: <generated>
 ```
 
+When `SeedAdmin__Password` is set, the password line becomes `Password: (configured via SeedAdmin:Password)` and the value is never written to the logs.
+
 Then open `http://localhost:8080`, sign in, and you should see `Hello, <user>`.
 
 ## Sample environment
@@ -45,6 +47,7 @@ Then open `http://localhost:8080`, sign in, and you should see `Hello, <user>`.
 | `ConnectionStrings__PostgreSQL` | postgresql | yes | Preferred key. |
 | `ConnectionStrings__Npgsql` | postgresql | fallback | Used only when `PostgreSQL` is not set. |
 | `SeedAdmin__UserName` | all | no | First admin username. Defaults to `testadmin`. |
+| `SeedAdmin__Password` | all | no | First admin password. Empty generates and prints one once; a configured value is used verbatim without policy validation and is never printed. |
 | `ASPNETCORE_ENVIRONMENT` | all | no | Use `Production` in containers. |
 | `ASPNETCORE_URLS` | all | no | Image sets `http://+:8080`. |
 

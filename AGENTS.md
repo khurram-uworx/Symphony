@@ -34,7 +34,7 @@ dotnet run -c Release --project tests/Symphony.PerformanceTests
 
 Local web host (deterministic port): `dotnet run --project src/Symphony` listens on `http://localhost:5080` by default via `src/Symphony/Properties/launchSettings.json`. Override with `ASPNETCORE_URLS=http://localhost:<port>` (or `https://...`) when needed.
 
-Smoke checks: delete `src/Symphony/App_Data/symphony.db` to force a fresh database and seed credentials, launch the host, then use the configured Playwright MCP against `http://localhost:5080`. Read the seeded admin username/password from host stdout. Keep these checks out of `Symphony.Tests`.
+Smoke checks: delete `src/Symphony/App_Data/symphony.db` to force a fresh database and seed credentials, launch the host, then use the configured Playwright MCP against `http://localhost:5080`. Under `dotnet run` the seeded admin is `testadmin` with the password from `SeedAdmin:Password` in `appsettings.Development.json` (`Symphony!dev1`), so the login is deterministic. Keep these checks out of `Symphony.Tests`.
 
 Release publishing is `.github/workflows/cd.yml`: it builds and pushes `ghcr.io/${{ github.repository_owner }}/symphony` (version tag + `latest`) on a `v*` tag or manual dispatch. `.github/workflows/docker.yml` is the manual publish entry point. `cd.yml` is the publish workflow, not a build-only check.
 
@@ -50,6 +50,13 @@ Release publishing is `.github/workflows/cd.yml`: it builds and pushes `ghcr.io/
 - **Omit braces** from single-line `if`/`else` bodies when the body fits one line and is on the same line as the condition.
 - **No comments** in generated code unless explaining a non-obvious design decision.
 - **No Hungarian notation** — no prefixes encoding scope or mutability.
+
+## UI Design
+
+- Look at the existing pages, CSS components, spacing, typography, and component conventions before adding or changing UI. Keep new work visually consistent with the surrounding product rather than inventing one-off styles.
+- Designs should be sleek and modern: consistent spacing, alignment, color tokens, affordances, and interactions. Avoid bare-bone 90s-style HTML inputs/buttons/forms, loose alignment, ambiguous actions, or ad hoc styling.
+- Prefer shared design patterns and existing CSS classes/variables over inline styles or isolated component markup. When adding a new visual element, place it within the established layout and visual hierarchy instead of appending it awkwardly.
+- Destructive actions should be clearly identifiable as dangerous and should not be visually inconsistent with primary/secondary actions.
 
 ## Testing Conventions
 

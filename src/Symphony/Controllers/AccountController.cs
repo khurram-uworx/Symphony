@@ -219,4 +219,58 @@ public sealed class AccountController(
     [HttpGet]
     [AllowAnonymous]
     public IActionResult AccessDenied() => View();
+
+    [HttpGet]
+    public async Task<IActionResult> ApiKeys([FromServices] ApiKeyService service)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        var keys = await service.ListAsync(userId);
+        ViewBag.Keys = keys;
+        return View();
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateApiKey(string? name, [FromServices] ApiKeyService service)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        var (rawKey, metadata) = await service.CreateAsync(userId, name);
+        TempData["NewApiKey"] = rawKey;
+        TempData["NewApiKeyId"] = metadata.Id;
+        return RedirectToAction(nameof(ApiKeys));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RotateApiKey(string id, [FromServices] ApiKeyService service)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        var result = await service.RotateAsync(userId, id);
+        if (result is not null)
+        {
+            var (rawKey, metadata) = result.Value;
+            TempData["NewApiKey"] = rawKey;
+            TempData["NewApiKeyId"] = metadata.Id;
+        }
+        return RedirectToAction(nameof(ApiKeys));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleApiKey(string id, bool enabled, [FromServices] ApiKeyService service)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        await service.SetEnabledAsync(userId, id, enabled);
+        return RedirectToAction(nameof(ApiKeys));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RevokeApiKey(string id, [FromServices] ApiKeyService service)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        await service.RevokeAsync(userId, id);
+        return RedirectToAction(nameof(ApiKeys));
+    }
+
 }

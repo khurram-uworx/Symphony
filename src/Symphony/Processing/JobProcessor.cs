@@ -104,22 +104,24 @@ public sealed class JobProcessor : BackgroundService
             .Where(job => job.State == "Running")
             .ToListAsync(cancellationToken);
 
+        var jobService = new JobService(dbFactory);
         foreach (var job in staleJobs)
         {
-            job.State = "Failed";
-            job.ErrorCode = "interrupted";
-            job.ErrorMessage = "Job was interrupted by a restart.";
-            job.CompletedAt = DateTimeOffset.UtcNow;
-            db.JobEvents.Add(new JobEvent
-            {
-                JobId = job.Id,
-                Timestamp = DateTimeOffset.UtcNow,
-                EventName = "job.interrupted",
-                Summary = "Job was interrupted by a restart."
-            });
+            await jobService.MarkJobStateAsync(
+                job.Id,
+                "Failed",
+                "interrupted",
+                "Job was interrupted by a restart.",
+                null,
+                cancellationToken);
+            await jobService.AppendEventAsync(
+                job.Id,
+                null,
+                "job.interrupted",
+                "Job was interrupted by a restart.",
+                null,
+                cancellationToken);
         }
-
-        await db.SaveChangesAsync(cancellationToken);
     }
 
     async Task ProcessAvailableQueuedJobsAsync(CancellationToken stoppingToken)
@@ -185,14 +187,14 @@ public sealed class JobProcessor : BackgroundService
         }
         catch (OperationCanceledException) when (jobCts.IsCancellationRequested)
         {
-            await MarkJobStateAsync(job.Id, "Cancelled", null, "Job cancelled.", null);
-            await AppendEventAsync(job.Id, null, "job.cancelled", "Job cancelled.", null, CancellationToken.None);
+            await new JobService(dbFactory).MarkJobStateAsync(job.Id, "Cancelled", null, "Job cancelled.", null, CancellationToken.None);
+            await new JobService(dbFactory).AppendEventAsync(job.Id, null, "job.cancelled", "Job cancelled.", null, CancellationToken.None);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Job {JobId} failed.", job.Id);
-            await MarkJobStateAsync(job.Id, "Failed", "job_error", Trim(ex.Message), null);
-            await AppendEventAsync(job.Id, null, "job.failed", Trim(ex.Message), null, CancellationToken.None);
+            await new JobService(dbFactory).MarkJobStateAsync(job.Id, "Failed", "job_error", Trim(ex.Message), null, CancellationToken.None);
+            await new JobService(dbFactory).AppendEventAsync(job.Id, null, "job.failed", Trim(ex.Message), null, CancellationToken.None);
         }
     }
 
@@ -201,6 +203,7 @@ public sealed class JobProcessor : BackgroundService
         using var scope = scopeFactory.CreateScope();
         var sp = scope.ServiceProvider;
         var secretProtector = sp.GetRequiredService<ISecretProtector>();
+        var jobService = sp.GetRequiredService<JobService>();
         var configurationService = sp.GetRequiredService<ConfigurationService>();
         var workflowService = sp.GetRequiredService<WorkflowService>();
         var shell = sp.GetService<ShellCommandRunner>() ?? new ShellCommandRunner(sp.GetRequiredService<ILogger<ShellCommandRunner>>());
@@ -249,7 +252,7 @@ public sealed class JobProcessor : BackgroundService
                 }
                 else
                 {
-                    await CreateFailedIssueRowAsync(job.Id, ticketId, ticketId, "Ticket not found.", cancellationToken);
+                    await jobService.CreateFailedIssueRowAsync(job.Id, ticketId, ticketId, "Ticket not found.", cancellationToken);
                 }
             }
         }
@@ -265,7 +268,7 @@ public sealed class JobProcessor : BackgroundService
             .ThenBy(issue => issue.CreatedAt ?? DateTimeOffset.MaxValue)
             .ToList();
 
-        await AppendEventAsync(job.Id, null, "job.started", "Job started.", null, cancellationToken);
+        await jobService.AppendEventAsync(job.Id, null, "job.started", "Job started.", null, cancellationToken);
 
         var allSuccess = true;
         var anyFailure = false;
@@ -280,8 +283,8 @@ public sealed class JobProcessor : BackgroundService
             if (cancellationToken.IsCancellationRequested)
                 throw new OperationCanceledException(cancellationToken);
 
-            await AppendEventAsync(job.Id, null, "issue.started", $"Started {issue.Identifier}.", null, cancellationToken);
-            var issueRowId = await CreateIssueRowAsync(job.Id, issue, scopedConfig.Workspace.Root, cancellationToken);
+            await jobService.AppendEventAsync(job.Id, null, "issue.started", $"Started {issue.Identifier}.", null, cancellationToken);
+            var issueRowId = await jobService.CreateIssueRowAsync(job.Id, issue, scopedConfig.Workspace.Root, cancellationToken);
             var runner = new AgentRunner(
                 configProvider,
                 workspaceManager,
@@ -301,8 +304,8 @@ public sealed class JobProcessor : BackgroundService
                 anyFailure = true;
             }
 
-            await UpdateIssueRowAsync(issueRowId, issue, runResult, scopedConfig.Workspace.Root, cancellationToken);
-            await AppendEventAsync(job.Id, issueRowId, success ? "issue.completed" : "issue.failed", runResult.Reason ?? (success ? "Completed." : "Failed."), null, cancellationToken);
+            await jobService.UpdateIssueRowAsync(issueRowId, issue, runResult, scopedConfig.Workspace.Root, cancellationToken);
+            await jobService.AppendEventAsync(job.Id, issueRowId, success ? "issue.completed" : "issue.failed", runResult.Reason ?? (success ? "Completed." : "Failed."), null, cancellationToken);
         }
 
         string finalState;
@@ -333,12 +336,12 @@ public sealed class JobProcessor : BackgroundService
             summary = $"Completed {issues.Count} issue(s).";
         }
 
-        await MarkJobStateAsync(job.Id, finalState, null, null, JsonSerializer.Serialize(new
+        await jobService.MarkJobStateAsync(job.Id, finalState, null, null, JsonSerializer.Serialize(new
         {
             issueCount = issues.Count,
             summary
-        }));
-        await AppendEventAsync(job.Id, null, "job.completed", summary ?? finalState, null, cancellationToken);
+        }), cancellationToken);
+        await jobService.AppendEventAsync(job.Id, null, "job.completed", summary ?? finalState, null, cancellationToken);
     }
 
     static async Task<AgentRunResult> RunIssueWithRetryAsync(AgentRunner runner, Issue issue, ServiceConfig config, int maxBackoffMs, CancellationToken cancellationToken)
@@ -449,98 +452,6 @@ public sealed class JobProcessor : BackgroundService
         }
 
         return new Issue(id, identifier, title, description, priority, state, null, null, [], [], DateTimeOffset.UtcNow, null);
-    }
-
-    async Task<Guid> CreateIssueRowAsync(Guid jobId, Issue issue, string workspaceRoot, CancellationToken cancellationToken)
-    {
-        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
-        var row = new JobIssue
-        {
-            JobId = jobId,
-            IssueId = issue.Id,
-            Identifier = issue.Identifier,
-            Title = issue.Title,
-            State = issue.State,
-            Success = false,
-            Reason = null,
-            TurnCount = 0,
-            StartedAt = DateTimeOffset.UtcNow,
-            WorkspacePath = Path.Combine(workspaceRoot, WorkspaceManager.SanitizeKey(issue.Identifier))
-        };
-        db.JobIssues.Add(row);
-        await db.SaveChangesAsync(cancellationToken);
-        return row.Id;
-    }
-
-    async Task CreateFailedIssueRowAsync(Guid jobId, string issueId, string identifier, string reason, CancellationToken cancellationToken)
-    {
-        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
-        db.JobIssues.Add(new JobIssue
-        {
-            JobId = jobId,
-            IssueId = issueId,
-            Identifier = identifier,
-            Title = identifier,
-            State = "Failed",
-            Success = false,
-            Reason = reason,
-            CompletedAt = DateTimeOffset.UtcNow
-        });
-        await db.SaveChangesAsync(cancellationToken);
-    }
-
-    async Task UpdateIssueRowAsync(Guid issueRowId, Issue issue, AgentRunResult result, string workspaceRoot, CancellationToken cancellationToken)
-    {
-        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
-        var row = await db.JobIssues.FirstOrDefaultAsync(item => item.Id == issueRowId, cancellationToken);
-        if (row is null)
-            return;
-
-        row.State = result.Success ? "Completed" : "Failed";
-        row.Success = result.Success;
-        row.Reason = result.Reason;
-        row.CompletedAt = DateTimeOffset.UtcNow;
-        row.WorkspacePath = Path.Combine(workspaceRoot, WorkspaceManager.SanitizeKey(issue.Identifier));
-        await db.SaveChangesAsync(cancellationToken);
-    }
-
-    async Task MarkJobStateAsync(Guid jobId, string state, string? errorCode, string? errorMessage, string? summaryJson)
-    {
-        await using var db = await dbFactory.CreateDbContextAsync(CancellationToken.None);
-        var job = await db.Jobs.FirstOrDefaultAsync(item => item.Id == jobId);
-        if (job is null)
-            return;
-
-        job.State = state;
-        job.ErrorCode = errorCode;
-        job.ErrorMessage = errorMessage;
-        if (summaryJson is not null)
-            job.SummaryJson = summaryJson;
-        if (state is "Completed" or "CompletedWithFailures" or "Failed" or "Cancelled")
-            job.CompletedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(CancellationToken.None);
-    }
-
-    async Task AppendEventAsync(Guid jobId, Guid? jobIssueId, string eventName, string? summary, object? payload, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
-            db.JobEvents.Add(new JobEvent
-            {
-                JobId = jobId,
-                JobIssueId = jobIssueId,
-                Timestamp = DateTimeOffset.UtcNow,
-                EventName = eventName,
-                Summary = summary,
-                PayloadJson = payload is null ? null : JsonSerializer.Serialize(Redaction.RedactObject(payload))
-            });
-            await db.SaveChangesAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to append event {EventName} for job {JobId}.", eventName, jobId);
-        }
     }
 
     static ICodingAgent TryCreateCodingAgent(ServiceConfig config, ILogger logger)

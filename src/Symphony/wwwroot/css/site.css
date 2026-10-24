@@ -741,7 +741,7 @@ a.primary-button {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    height: calc(100dvh - 108px);
+    height: calc(100dvh - 122px);
     min-height: 440px;
 }
 

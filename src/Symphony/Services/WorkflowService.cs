@@ -273,6 +273,44 @@ public sealed class WorkflowService(IDbContextFactory<SymphonyDbContext> factory
     public Task<bool> RemoveAsync(string userId, string name, CancellationToken cancellationToken = default) =>
         DeleteAsync(userId, name, cancellationToken);
 
+    public Task<Workflow?> GetWorkflowAsync(string userId, string name, CancellationToken cancellationToken = default) =>
+        GetAsync(userId, name, cancellationToken);
+
+    public Task<Workflow> CreateAsync(string userId, Workflow workflow, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(workflow);
+        return CreateAsync(userId, workflow.Name, workflow.Content, workflow.IsDefault, cancellationToken);
+    }
+
+    public Task<Workflow?> UpdateAsync(string userId, Workflow workflow, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(workflow);
+        return UpdateAsync(userId, workflow.Name, workflow.Content, workflow.IsDefault, cancellationToken);
+    }
+
+    public async Task<Workflow> SaveAsync(
+        string userId,
+        string name,
+        string content,
+        bool isDefault = false,
+        CancellationToken cancellationToken = default)
+    {
+        var existing = await GetAsync(userId, name, cancellationToken);
+        if (existing is null)
+            return await CreateAsync(userId, name, content, isDefault, cancellationToken);
+
+        var updated = await UpdateAsync(userId, name, content, isDefault, cancellationToken);
+        return updated ?? existing;
+    }
+
+    public Task<Workflow> UpsertAsync(
+        string userId,
+        string name,
+        string content,
+        bool isDefault = false,
+        CancellationToken cancellationToken = default) =>
+        SaveAsync(userId, name, content, isDefault, cancellationToken);
+
     static void ValidateUserId(string userId)
     {
         if (string.IsNullOrWhiteSpace(userId))

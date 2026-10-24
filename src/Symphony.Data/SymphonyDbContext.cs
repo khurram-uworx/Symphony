@@ -10,6 +10,8 @@ public sealed class SymphonyDbContext(DbContextOptions<SymphonyDbContext> option
 {
     public DbSet<UserConfiguration> UserConfigurations { get; set; } = default!;
 
+    public DbSet<Workflow> Workflows { get; set; } = default!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -49,6 +51,43 @@ public sealed class SymphonyDbContext(DbContextOptions<SymphonyDbContext> option
                 .IsRequired();
 
             entity.Property(configuration => configuration.UpdatedAt)
+                .IsRequired();
+        });
+
+        modelBuilder.Entity<Workflow>(entity =>
+        {
+            entity.HasKey(workflow => workflow.Id);
+
+            entity.Property(workflow => workflow.Id)
+                .HasMaxLength(128)
+                .ValueGeneratedOnAdd();
+
+            entity.HasIndex(workflow => new { workflow.OwnerUserId, workflow.Name })
+                .IsUnique();
+
+            entity.Property(workflow => workflow.OwnerUserId)
+                .IsRequired()
+                .HasMaxLength(450);
+
+            entity.HasOne(workflow => workflow.Owner)
+                .WithMany()
+                .HasForeignKey(workflow => workflow.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(workflow => workflow.Name)
+                .IsRequired()
+                .HasMaxLength(256);
+
+            entity.Property(workflow => workflow.Content)
+                .IsRequired();
+
+            entity.Property(workflow => workflow.IsDefault)
+                .IsRequired();
+
+            entity.Property(workflow => workflow.CreatedAt)
+                .IsRequired();
+
+            entity.Property(workflow => workflow.UpdatedAt)
                 .IsRequired();
         });
     }

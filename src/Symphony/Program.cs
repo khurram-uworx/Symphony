@@ -43,7 +43,8 @@ builder.Services.AddScoped<JobService>(serviceProvider =>
     new JobService(
         serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),
         serviceProvider.GetRequiredService<ISecretProtector>(),
-        serviceProvider.GetService<JobQueue>()));
+        serviceProvider.GetService<JobQueue>(),
+        serviceProvider.GetRequiredService<ILogger<JobService>>()));
 
 builder.Services.AddHostedService<JobProcessor>();
 var app = builder.Build();

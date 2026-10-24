@@ -5,12 +5,12 @@ record Workspace(
     string WorkspaceKey,
     bool CreatedNow);
 
-record BlockerRef(
+public record BlockerRef(
     string? Id,
     string? Identifier,
     string? State);
 
-record Issue(
+public record Issue(
     string Id,
     string Identifier,
     string Title,

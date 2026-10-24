@@ -121,19 +121,17 @@ public static class WorkflowEndpoints
         if (string.IsNullOrWhiteSpace(request.Content))
             return Results.BadRequest(new { error = "Workflow content cannot be empty." });
 
-        if (!string.IsNullOrWhiteSpace(request.Name) &&
-            !string.Equals(request.Name.Trim(), name, StringComparison.OrdinalIgnoreCase))
-        {
-            return Results.BadRequest(new { error = "Renaming workflows is not supported in the first cut." });
-        }
-
         try
         {
             var updated = await workflowService.UpdateAsync(
                 userId,
                 name,
-                request.Content,
-                request.IsDefault,
+                new Symphony.Data.Workflow
+                {
+                    Name = string.IsNullOrWhiteSpace(request.Name) ? name : request.Name,
+                    Content = request.Content,
+                    IsDefault = request.IsDefault
+                },
                 cancellationToken);
 
             if (updated is null)

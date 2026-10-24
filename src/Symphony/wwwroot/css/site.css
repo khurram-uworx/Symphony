@@ -410,9 +410,323 @@ tbody tr:last-child td {
         grid-template-columns: 1fr;
     }
 
+@media (max-width: 720px) {
+    .topbar {
+        padding: 14px 18px;
+    }
+
+    main {
+        width: calc(100% - 24px);
+        margin: 24px auto 48px;
+    }
+
+    .panel {
+        padding: 24px 20px;
+    }
+
+    .details {
+        grid-template-columns: 1fr;
+    }
+
     .shortcuts li {
         flex-direction: column;
         align-items: flex-start;
+    }
+}
+
+.workflows-shell {
+    display: grid;
+    gap: 24px;
+}
+
+.workflows-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.workflows-header h1 {
+    margin-bottom: 4px;
+}
+
+.workflow-toolbar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+button.ghost-button,
+.panel button.ghost-button {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 14px;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+button.ghost-button:hover,
+.panel button.ghost-button:hover {
+    border-color: var(--accent);
+    background: rgba(124, 108, 255, 0.08);
+    color: var(--text);
+}
+
+button.danger-button,
+.panel button.danger-button {
+    border: 0;
+    border-radius: 10px;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, #ff7b86, #e05a66);
+    color: #fff6f7;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.15s ease, transform 0.05s ease, opacity 0.15s ease;
+}
+
+button.danger-button:hover,
+.panel button.danger-button:hover {
+    filter: brightness(1.08);
+}
+
+button.danger-button:disabled,
+.panel button.danger-button:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+    filter: none;
+}
+
+button.danger-button:active,
+.panel button.danger-button:active {
+    transform: translateY(1px);
+}
+
+.workflow-status {
+    min-height: 1.4em;
+    color: var(--muted);
+    font-size: 0.88rem;
+}
+
+.workflow-status.is-error {
+    color: var(--danger);
+}
+
+.workflow-status.is-success {
+    color: var(--success);
+}
+
+.workflow-grid {
+    display: grid;
+    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+}
+
+.workflow-sidebar,
+.workflow-editor {
+    margin: 0;
+}
+
+.workflow-sidebar__header,
+.workflow-editor__header,
+.workflow-editor__footer {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.workflow-sidebar__header {
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.workflow-sidebar__header h2 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.workflow-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 24px;
+    padding: 0 8px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--inset);
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.workflow-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 10px;
+}
+
+.workflow-list__item {
+    margin: 0;
+}
+
+.workflow-list button.workflow-list__item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--inset);
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.05s ease;
+}
+
+.workflow-list button.workflow-list__item:hover {
+    border-color: var(--line-strong);
+    background: var(--surface-strong);
+}
+
+.workflow-list button.workflow-list__item.is-active {
+    border-color: var(--accent);
+    background: rgba(124, 108, 255, 0.14);
+    box-shadow: 0 0 0 1px rgba(124, 108, 255, 0.24);
+}
+
+.workflow-list__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.workflow-badge {
+    flex: 0 0 auto;
+    min-width: 58px;
+    text-align: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    color: transparent;
+    background: transparent;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.workflow-badge.is-default {
+    color: var(--accent-ink);
+    background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+    border-color: rgba(124, 108, 255, 0.5);
+}
+
+.workflow-empty {
+    padding: 16px;
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+    color: var(--muted);
+    font-size: 0.88rem;
+    text-align: center;
+}
+
+.workflow-name-field {
+    flex: 1 1 240px;
+    min-width: 0;
+}
+
+.workflow-default-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 0.84rem;
+    font-weight: 600;
+    white-space: nowrap;
+    padding-bottom: 4px;
+}
+
+.workflow-default-toggle input {
+    width: auto;
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+.workflow-meta {
+    margin: 14px 0 10px;
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+
+#workflow-content {
+    width: 100%;
+    min-height: 480px;
+    resize: vertical;
+    font-family: "Cascadia Code", "Consolas", "SFMono-Regular", monospace;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    tab-size: 4;
+    white-space: pre;
+    overflow-wrap: normal;
+    overflow-x: auto;
+}
+
+.workflow-editor__footer {
+    justify-content: space-between;
+    margin-top: 14px;
+}
+
+.workflow-hint {
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+@media (max-width: 980px) {
+    .workflow-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .workflow-editor__header {
+        align-items: stretch;
+    }
+
+    #workflow-content {
+        min-height: 380px;
+    }
+}
+
+@media (max-width: 720px) {
+    .workflows-header {
+        align-items: flex-start;
+    }
+
+    .workflow-toolbar {
+        width: 100%;
+    }
+
+    .workflow-toolbar button {
+        flex: 1 1 0;
+    }
+
+    #workflow-content {
+        min-height: 320px;
     }
 }
 EOF

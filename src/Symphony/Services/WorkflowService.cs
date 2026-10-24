@@ -177,23 +177,52 @@ public sealed class WorkflowService(IDbContextFactory<SymphonyDbContext> factory
         return entity;
     }
 
-    public Task<Workflow?> UpdateAsync(
+    public async Task<Workflow?> UpdateAsync(
         string userId,
         string name,
         Workflow workflow,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(workflow);
+        cancellationToken.ThrowIfCancellationRequested();
+        ValidateUserId(userId);
 
-        if (!string.IsNullOrWhiteSpace(workflow.Name)
-            && !string.Equals(workflow.Name.Trim(), name, StringComparison.OrdinalIgnoreCase))
+        var oldName = NormalizeName(name);
+        var requestedName = string.IsNullOrWhiteSpace(workflow.Name)
+            ? oldName
+            : NormalizeName(workflow.Name);
+
+        if (string.IsNullOrWhiteSpace(workflow.Content))
+            throw new ArgumentException("Workflow content cannot be empty.", nameof(workflow));
+
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var items = await db.Workflows
+            .Where(stored => stored.OwnerUserId == userId)
+            .ToListAsync(cancellationToken);
+
+        var entity = items.FirstOrDefault(stored =>
+            string.Equals(stored.Name, oldName, StringComparison.OrdinalIgnoreCase));
+
+        if (entity is null)
+            return null;
+
+        if (!string.Equals(requestedName, oldName, StringComparison.OrdinalIgnoreCase) &&
+            items.Any(stored =>
+                !string.Equals(stored.Name, oldName, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(stored.Name, requestedName, StringComparison.OrdinalIgnoreCase)))
         {
-            throw new ArgumentException(
-                "Renaming workflows is not supported in the first cut.",
-                nameof(workflow));
+            throw new WorkflowConflictException(
+                "duplicate_name",
+                "A workflow with that name already exists.");
         }
 
-        return UpdateAsync(userId, name, workflow.Content, workflow.IsDefault, cancellationToken);
+        entity.Name = requestedName;
+        entity.Content = workflow.Content;
+        entity.IsDefault = workflow.IsDefault;
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return entity;
     }
 
     public Task<Workflow?> UpdateWorkflowAsync(

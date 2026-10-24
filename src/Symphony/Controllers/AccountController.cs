@@ -1,13 +1,28 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using Symphony.Data;
+using Symphony.Dto;
+using Symphony.Security;
+using Symphony.Services;
 
 namespace Symphony.Controllers;
 
 public sealed class AccountController(
     SignInManager<IdentityUser> signInManager,
-    UserManager<IdentityUser> userManager) : Controller
+    UserManager<IdentityUser> userManager,
+    ConfigurationService? configurationService = null) : Controller
 {
+    readonly SignInManager<IdentityUser> signInManager = signInManager;
+    readonly UserManager<IdentityUser> userManager = userManager;
+    readonly ConfigurationService? configuredConfigurationService = configurationService;
+
+    ConfigurationService ConfigurationService =>
+        configuredConfigurationService
+        ?? HttpContext?.RequestServices?.GetService<ConfigurationService>()
+        ?? throw new InvalidOperationException("ConfigurationService is not available.");
+
     static bool isLoginPath(string returnUrl)
     {
         var path = returnUrl.Split('?', 2)[0];
@@ -20,6 +35,16 @@ public sealed class AccountController(
             return LocalRedirect(returnUrl);
 
         return RedirectToAction(nameof(HomeController.Index), "Home");
+    }
+
+    async Task<string> GetUserIdAsync()
+    {
+        var user = await userManager.GetUserAsync(User);
+        return user?.Id
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub")
+            ?? User.Identity?.Name
+            ?? string.Empty;
     }
 
     [HttpGet]
@@ -76,6 +101,57 @@ public sealed class AccountController(
     {
         await signInManager.SignOutAsync();
         return RedirectToAction(nameof(Login));
+    }
+
+    [HttpGet]
+    [Authorize]
+    public async Task<IActionResult> Configuration(CancellationToken cancellationToken = default)
+    {
+        var userId = await GetUserIdAsync();
+        var configuration = await ConfigurationService.GetAsync(userId, cancellationToken)
+            ?? new UserConfiguration { UserId = userId };
+        return View(ConfigurationDto.From(configuration));
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Configuration(ConfigurationDto? model, CancellationToken cancellationToken = default)
+    {
+        model ??= new ConfigurationDto();
+
+        var userId = await GetUserIdAsync();
+
+        string? validationError = null;
+        if (!ModelState.IsValid || !model.IsValid(out validationError))
+        {
+            if (!string.IsNullOrWhiteSpace(validationError))
+                ModelState.AddModelError(string.Empty, validationError);
+            return View(model);
+        }
+
+        var existing = await ConfigurationService.GetAsync(userId, cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(model.TrackerApiKey) ||
+            string.Equals(model.TrackerApiKey, Redaction.Redacted, StringComparison.Ordinal))
+        {
+            model.TrackerApiKey = existing?.TrackerApiKey ?? string.Empty;
+        }
+
+        if (string.IsNullOrWhiteSpace(model.CopilotApiKey) ||
+            string.Equals(model.CopilotApiKey, Redaction.Redacted, StringComparison.Ordinal))
+        {
+            model.CopilotApiKey = existing?.CopilotApiKey;
+        }
+
+        model.UserId = userId;
+        var configuration = model.ToUserConfiguration();
+        configuration.UserId = userId;
+
+        await ConfigurationService.SaveAsync(userId, configuration, cancellationToken);
+
+        TempData["Message"] = "Configuration saved.";
+        return RedirectToAction(nameof(Configuration));
     }
 
     [HttpGet]

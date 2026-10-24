@@ -146,3 +146,27 @@ or (for backwards compatibility) rely on the implicit `LINEAR_API_KEY` environme
 - `LINEAR_API_KEY` — Linear (and fallback Jira-style) API token. Used when `tracker.api_key` is missing or referenced as `$LINEAR_API_KEY`.
 - `SYMPHONY_WORKSPACE_ROOT` — optional; to use it, set `workspace.root: $SYMPHONY_WORKSPACE_ROOT` in `WORKFLOW.md`. The application itself resolves workspace paths through `workspace.root`.
 - Standard environment variables used by the Codex/Copilot CLIs for their own authentication.
+
+## Allowed workflow front matter overrides
+
+When a `ServiceConfig` is built from saved user configuration plus workflow content,
+only the following front matter keys may override the user-level configuration:
+
+- `workspace.root`
+- `workspace_root`
+- `hooks.after_create`
+- `hooks.before_run`
+- `hooks.after_run`
+- `hooks.before_remove`
+- `hooks.timeout_ms`
+- `agent.max_turns`
+- `agent.max_concurrent_agents_by_state`
+- top-level `max_turns`
+- top-level `max_concurrent_agents_by_state`
+
+The tracker (`kind`, `endpoint`, `api_key`, `project_slug`, active/terminal states),
+polling, Codex, and Copilot settings are not replaced by workflow front matter.
+
+Malformed YAML front matter fails parsing and no overrides are applied.
+EOF
+

@@ -37,7 +37,8 @@ builder.Services.AddScoped<WorkflowService>(serviceProvider =>
     new WorkflowService(
         serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>()));
 
-builder.Services.AddSingleton<JobQueue>();
+builder.Services.AddSingleton(JobQueue.Default);
+builder.Services.AddSingleton<IJobQueue>(JobQueue.Default);
 builder.Services.AddScoped<JobService>(serviceProvider =>
     new JobService(
         serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),

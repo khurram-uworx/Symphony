@@ -13,6 +13,8 @@ public sealed class JobQueue : IJobQueue
 {
     static readonly JobQueue defaultInstance = new();
 
+    public static JobQueue Default => defaultInstance;
+
     readonly Channel<bool> channel = Channel.CreateBounded<bool>(
         new BoundedChannelOptions(1)
         {
@@ -40,6 +42,17 @@ public sealed class JobQueue : IJobQueue
     Task IJobQueue.SignalAsync(CancellationToken cancellationToken = default) =>
         SignalInstanceAsync(cancellationToken);
 
-    public async Task<bool> WaitForSignalInstanceAsync(CancellationToken cancellationToken = default) =>
-        await channel.Reader.ReadAsync(cancellationToken);
+    public async Task<bool> WaitForSignalInstanceAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        try
+        {
+            return await channel.Reader.ReadAsync(cancellationToken);
+        }
+        catch (TaskCanceledException exception)
+        {
+            throw new OperationCanceledException(exception.Message, exception, cancellationToken);
+        }
+    }
 }

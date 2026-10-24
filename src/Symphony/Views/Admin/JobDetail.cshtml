@@ -1,0 +1,111 @@
+@using Symphony.Data
+@model Job
+@{
+    ViewData["Title"] = "Job Detail";
+    var issues = ViewBag.Issues as IEnumerable<JobIssue> ?? Enumerable.Empty<JobIssue>();
+    var events = ViewBag.Events as IEnumerable<JobEvent> ?? Enumerable.Empty<JobEvent>();
+}
+<section class="panel">
+    <h1>Job Detail</h1>
+    @if (TempData["Message"] is string message)
+    {
+        <p class="muted">@message</p>
+    }
+    @if (TempData["Error"] is string error)
+    {
+        <p class="validation">@error</p>
+    }
+
+    <dl>
+        <dt>Id</dt><dd>@Model.Id</dd>
+        <dt>Owner</dt><dd>@Model.OwnerUserId</dd>
+        <dt>Workflow</dt><dd>@Model.WorkflowName</dd>
+        <dt>State</dt><dd>@Model.State</dd>
+        <dt>Queued</dt><dd>@Model.QueuedAt</dd>
+        <dt>Started</dt><dd>@Model.StartedAt</dd>
+        <dt>Completed</dt><dd>@Model.CompletedAt</dd>
+        <dt>Repository</dt><dd>@Model.Repository</dd>
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorCode) || !string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <dt>Error</dt><dd>@Model.ErrorCode @Model.ErrorMessage</dd>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model.SummaryJson))
+        {
+            <dt>Summary</dt><dd>@Model.SummaryJson</dd>
+        }
+    </dl>
+
+    @if (Model.State is not ("Completed" or "CompletedWithFailures" or "Failed" or "Cancelled"))
+    {
+        <form asp-action="CancelJob" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Cancel this job?');">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="danger">Cancel job</button>
+        </form>
+    }
+
+    <h2>Issues</h2>
+    @if (!issues.Any())
+    {
+        <p class="muted">No issues recorded.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Identifier</th>
+                    <th>Title</th>
+                    <th>State</th>
+                    <th>Success</th>
+                    <th>Turns</th>
+                    <th>Started</th>
+                    <th>Completed</th>
+                    <th>Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var issue in issues)
+            {
+                <tr>
+                    <td>@(issue.Identifier ?? issue.IssueId)</td>
+                    <td>@issue.Title</td>
+                    <td>@issue.State</td>
+                    <td>@issue.Success</td>
+                    <td>@issue.TurnCount</td>
+                    <td>@issue.StartedAt</td>
+                    <td>@issue.CompletedAt</td>
+                    <td>@issue.Reason</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+
+    <h2>Events</h2>
+    @if (!events.Any())
+    {
+        <p class="muted">No events recorded.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Event</th>
+                    <th>Summary</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var item in events)
+            {
+                <tr>
+                    <td>@item.Timestamp</td>
+                    <td>@item.EventName</td>
+                    <td>@item.Summary</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+</section>

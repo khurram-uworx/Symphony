@@ -46,7 +46,14 @@ builder.Services.AddScoped<JobService>(serviceProvider =>
         serviceProvider.GetService<JobQueue>(),
         serviceProvider.GetRequiredService<ILogger<JobService>>()));
 
-builder.Services.AddHostedService<JobProcessor>();
+builder.Services.AddSingleton<JobProcessor>(serviceProvider =>
+    new JobProcessor(
+        serviceProvider.GetRequiredService<IServiceScopeFactory>(),
+        serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),
+        serviceProvider.GetRequiredService<IJobQueue>(),
+        serviceProvider.GetRequiredService<ILogger<JobProcessor>>()));
+builder.Services.AddHostedService(serviceProvider =>
+    serviceProvider.GetRequiredService<JobProcessor>());
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -65,6 +72,7 @@ app.MapControllerRoute(
 app.MapConfigurationEndpoints();
 app.MapWorkflowEndpoints();
 app.MapWorkEndpoints();
+app.MapJobEndpoints();
 await DatabaseInitializer.InitializeAsync(
     app.Services.GetRequiredService<IDbContextFactory<SymphonyDbContext>>());
 

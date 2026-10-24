@@ -34,6 +34,8 @@ dotnet run -c Release --project tests/Symphony.PerformanceTests
 
 Local web host (deterministic port): `dotnet run --project src/Symphony` listens on `http://localhost:5080` by default via `src/Symphony/Properties/launchSettings.json`. Override with `ASPNETCORE_URLS=http://localhost:<port>` (or `https://...`) when needed.
 
+Smoke checks: delete `src/Symphony/App_Data/symphony.db` to force a fresh database and seed credentials, launch the host, then use the configured Playwright MCP against `http://localhost:5080`. Read the seeded admin username/password from host stdout. Keep these checks out of `Symphony.Tests`.
+
 Release publishing is `.github/workflows/cd.yml`: it builds and pushes `ghcr.io/${{ github.repository_owner }}/symphony` (version tag + `latest`) on a `v*` tag or manual dispatch. `.github/workflows/docker.yml` is the manual publish entry point. `cd.yml` is the publish workflow, not a build-only check.
 
 ## Code Style
@@ -59,3 +61,4 @@ Release publishing is `.github/workflows/cd.yml`: it builds and pushes `ghcr.io/
 - **Scope:** `tests/Symphony.Tests` is unit tests. Integration tests there are an emergency only, and must stay in-process. No browser, Docker, or external network. See [ADR-0002](docs/adr/0002-test-boundaries-and-playwright.md).
 - **Playwright:** always through the Playwright MCP, against a host launched with `dotnet run`. Do not add Playwright or web smoke tests to `Symphony.Tests`. Later browser scripts, if needed, are JavaScript or TypeScript under `tests/`, not in `Symphony.Tests`.
 - **Default run:** the CI category filter above. Never run Integration tests to "see if the suite is green."
+- **Coverage style:** keep `Symphony.Tests` lean and fast. Prefer one focused test that asserts multiple related behaviors over several redundant tests, and test acceptance criteria rather than private helpers. Do not add tests whose only value is coverage.

@@ -18,11 +18,11 @@ class WorkspaceManager
         //    Directory.Delete(elixir, true);
     }
 
-    readonly ServiceConfigProvider configProvider;
+    readonly IServiceConfigProvider configProvider;
     readonly ShellCommandRunner shell;
     readonly ILogger<WorkspaceManager> logger;
 
-    public WorkspaceManager(ServiceConfigProvider configProvider, ShellCommandRunner shell, ILogger<WorkspaceManager> logger)
+    public WorkspaceManager(IServiceConfigProvider configProvider, ShellCommandRunner shell, ILogger<WorkspaceManager> logger)
     {
         this.configProvider = configProvider;
         this.shell = shell;

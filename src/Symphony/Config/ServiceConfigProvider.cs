@@ -184,7 +184,7 @@ record ConfigValidationResult(bool IsOk, string? ErrorMessage)
     public static ConfigValidationResult Fail(string message) => new(false, message);
 }
 
-class ServiceConfigProvider
+class ServiceConfigProvider : IServiceConfigProvider
 {
     readonly WorkflowManager workflowManager;
     readonly ILogger<ServiceConfigProvider> logger;

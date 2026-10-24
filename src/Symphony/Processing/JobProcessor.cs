@@ -155,10 +155,13 @@ public sealed class JobProcessor : BackgroundService
     async Task<Job?> TryClaimQueuedJobAsync(CancellationToken cancellationToken)
     {
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
-        var job = await db.Jobs
+        var queued = await db.Jobs
             .Where(candidate => candidate.State == "Queued")
+            .ToListAsync(cancellationToken);
+
+        var job = queued
             .OrderBy(candidate => candidate.QueuedAt)
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefault();
 
         if (job is null)
             return null;

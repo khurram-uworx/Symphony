@@ -53,6 +53,10 @@ public sealed class SecretProtector : ISecretProtector
 
         return protector.Unprotect(ciphertext);
     }
+
+    public string? Encrypt(string? plaintext) => Protect(plaintext);
+
+    public string? Decrypt(string? ciphertext) => Unprotect(ciphertext);
 }
 
 public static class SecretProtectionRegistration

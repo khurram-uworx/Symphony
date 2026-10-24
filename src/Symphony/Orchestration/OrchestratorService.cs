@@ -394,7 +394,7 @@ class OrchestratorService : BackgroundService
     {
         lock (theLock)
         {
-            state.PollIntervalMs = config.Polling.IntervalMs;
+            state.PollIntervalMs = 30000;
             state.MaxConcurrentAgents = config.Agent.MaxConcurrentAgents;
         }
     }
@@ -455,7 +455,7 @@ class OrchestratorService : BackgroundService
 
         lock (theLock)
         {
-            state.PollIntervalMs = config.Polling.IntervalMs;
+            state.PollIntervalMs = 30000;
             state.MaxConcurrentAgents = config.Agent.MaxConcurrentAgents;
         }
 

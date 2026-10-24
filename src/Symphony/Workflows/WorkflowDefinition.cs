@@ -1,6 +1,6 @@
 namespace Symphony.Workflows;
 
-record WorkflowDefinition(
+public record WorkflowDefinition(
     IReadOnlyDictionary<string, object> Config,
     string PromptTemplate);
 

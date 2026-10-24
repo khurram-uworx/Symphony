@@ -5,7 +5,7 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace Symphony.Workflows;
 
-class WorkflowLoader
+public class WorkflowLoader
 {
     static IReadOnlyDictionary<string, object> toStringKeyDictionary(IDictionary<object, object> source)
     {
@@ -59,6 +59,14 @@ class WorkflowLoader
             throw new WorkflowException("missing_workflow_file", $"WORKFLOW.md not found at {path}");
 
         var content = File.ReadAllText(path, Encoding.UTF8);
+        return Parse(content);
+    }
+
+    public WorkflowDefinition Parse(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return new WorkflowDefinition(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase), string.Empty);
+
         if (!content.StartsWith("---"))
             return new WorkflowDefinition(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase), content.Trim());
 

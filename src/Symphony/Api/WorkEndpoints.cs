@@ -41,10 +41,7 @@ public static class WorkEndpoints
         {
             var job = await jobService.CreateAsync(userId, request!, cancellationToken);
 
-            try { JobQueue.NotifyNewJob(); }
-            catch { /* best-effort */ }
-
-            try { jobQueue?.NotifyInstance(); }
+            try { await (jobQueue?.SignalInstanceAsync(cancellationToken) ?? Task.CompletedTask); }
             catch { /* best-effort */ }
 
             var statusUrl = $"/api/jobs/{job.Id}";

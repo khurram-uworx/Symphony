@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging;
 using Symphony.Config;
 using Symphony.Domain;
 using Symphony.IssueTracker;
-using Symphony.Orchestration;
 using Symphony.Workflows;
 using Symphony.Workspaces;
 
@@ -89,6 +88,14 @@ class AgentRunner
                 catch (CodingAgentException ex)
                 {
                     return AgentRunResult.Fail(ex.Message, ex.InnerException ?? ex, liveSession.TurnCount);
+                }
+
+                if (config.Tracker.IsNone)
+                {
+                    if (turn >= maxTurns)
+                        break;
+                    turn++;
+                    continue;
                 }
 
                 var refreshed = await issueTracker.FetchIssueStatesByIdsAsync(new[] { issue.Id }, cancellationToken);

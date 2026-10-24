@@ -151,6 +151,16 @@ public class ConfigurationDto
             return false;
         }
 
+        if (!string.IsNullOrWhiteSpace(TrackerKind))
+        {
+            var trackerKind = TrackerKind.Trim().ToLowerInvariant();
+            if (trackerKind is not ("none" or "inline" or "null" or "linear" or "jira"))
+            {
+                error = "TrackerKind must be one of none, linear, or jira.";
+                return false;
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(CopilotProvider))
         {
             var provider = CopilotProvider.Trim().ToLowerInvariant();

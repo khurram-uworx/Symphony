@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using Symphony.Workflows;
 
 namespace Symphony.Config;
@@ -25,13 +24,26 @@ public record TrackerConfig(
     HashSet<string> ActiveStates,
     HashSet<string> TerminalStates)
 {
-    static HashSet<string> normalizeStates(IEnumerable<string> states)
+    public const string None = "none";
+
+    public bool IsNone
+    {
+        get
+        {
+            var kind = Kind?.Trim() ?? string.Empty;
+            if (kind.Length == 0)
+                return true;
+            var normalized = kind.ToLowerInvariant();
+            return normalized is "none" or "inline" or "null";
+        }
+    }
+
+    static HashSet<string> NormalizeStates(IEnumerable<string> states)
     {
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var state in states)
         {
             if (!string.IsNullOrWhiteSpace(state))
-                //set.Add(state.Trim().ToLowerInvariant());
                 set.Add(state.Trim());
         }
 
@@ -42,6 +54,8 @@ public record TrackerConfig(
     {
         var tracker = ConfigReader.ReadMap(root, "tracker");
         var kind = ConfigReader.ReadString(tracker, "kind") ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(kind))
+            kind = None;
         var endpoint = ConfigReader.ReadString(tracker, "endpoint") ?? "https://api.linear.app/graphql";
         var apiKeyRaw = ConfigReader.ReadString(tracker, "api_key")
             ?? Environment.GetEnvironmentVariable("LINEAR_API_KEY")
@@ -58,23 +72,8 @@ public record TrackerConfig(
             endpoint,
             apiKey,
             projectSlug,
-            normalizeStates(activeStates),
-            normalizeStates(terminalStates));
-    }
-}
-
-public record PollingConfig(int IntervalMs)
-{
-    public static PollingConfig From(IReadOnlyDictionary<string, object> root)
-    {
-        var polling = ConfigReader.ReadMap(root, "polling");
-        var interval = ConfigReader.ReadInt(polling, "interval_ms") ?? 30000;
-        if (interval <= 0)
-        {
-            interval = 30000;
-        }
-
-        return new PollingConfig(interval);
+            NormalizeStates(activeStates),
+            NormalizeStates(terminalStates));
     }
 }
 
@@ -175,74 +174,6 @@ public record CodexConfig(
         var readTimeout = ConfigReader.ReadInt(codex, "read_timeout_ms") ?? 5000;
         var stallTimeout = ConfigReader.ReadInt(codex, "stall_timeout_ms") ?? 300000;
         return new CodexConfig(command, approval, threadSandbox, turnSandbox, turnTimeout, readTimeout, stallTimeout);
-    }
-}
-
-record ConfigValidationResult(bool IsOk, string? ErrorMessage)
-{
-    public static ConfigValidationResult Ok() => new(true, null);
-    public static ConfigValidationResult Fail(string message) => new(false, message);
-}
-
-class ServiceConfigProvider : IServiceConfigProvider
-{
-    readonly WorkflowManager workflowManager;
-    readonly ILogger<ServiceConfigProvider> logger;
-
-    public ServiceConfigProvider(WorkflowManager workflowManager, ILogger<ServiceConfigProvider> logger)
-    {
-        this.workflowManager = workflowManager;
-        this.logger = logger;
-    }
-
-    public ServiceConfig GetConfig()
-    {
-        var definition = workflowManager.Current;
-        var config = definition.Config;
-
-        var tracker = TrackerConfig.From(config);
-        var workspace = WorkspaceConfig.From(config);
-        var hooks = HooksConfig.From(config);
-        var agent = AgentConfig.From(config);
-        var codex = CodexConfig.From(config);
-        var copilot = CopilotConfig.From(config);
-
-        return new ServiceConfig(definition, tracker, workspace, hooks, agent, codex, copilot);
-    }
-
-    public ConfigValidationResult ValidateForDispatch(ServiceConfig config)
-    {
-        if (string.IsNullOrWhiteSpace(config.Tracker.Kind))
-            return ConfigValidationResult.Fail("tracker.kind is missing");
-
-        if (!string.Equals(config.Tracker.Kind, "linear", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(config.Tracker.Kind, "jira", StringComparison.OrdinalIgnoreCase))
-            return ConfigValidationResult.Fail($"Unsupported tracker.kind '{config.Tracker.Kind}'. Supported values: 'linear', 'jira'.");
-
-        if (string.IsNullOrWhiteSpace(config.Tracker.ApiKey))
-            return ConfigValidationResult.Fail("tracker.api_key is missing");
-
-        if (string.IsNullOrWhiteSpace(config.Tracker.ProjectSlug))
-            return ConfigValidationResult.Fail("tracker.project_slug is missing");
-
-        if (config.Copilot is not null)
-        {
-            var copilotProvider = config.Copilot.Provider?.Trim();
-            if (!string.IsNullOrWhiteSpace(copilotProvider))
-            {
-                var normalized = copilotProvider.ToLowerInvariant();
-                if (normalized is not ("openai" or "azure" or "anthropic"))
-                    return ConfigValidationResult.Fail(
-                        $"Unsupported Copilot provider type '{config.Copilot.Provider}'. Supported values: 'openai', 'azure', 'anthropic'.");
-            }
-        }
-
-        return ConfigValidationResult.Ok();
-    }
-
-    public void LogValidationFailure(ConfigValidationResult validation)
-    {
-        logger.LogError("Configuration validation failed: {Error}", validation.ErrorMessage);
     }
 }
 

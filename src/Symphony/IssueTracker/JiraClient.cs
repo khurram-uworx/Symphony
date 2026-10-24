@@ -117,44 +117,6 @@ class JiraClient : IIssueTracker
         }
     }
 
-    public async Task<IReadOnlyList<Domain.Issue>> FetchCandidateIssuesAsync(CancellationToken cancellationToken)
-    {
-        // Build JQL query for active states
-        var stateConditions = new List<string>();
-        foreach (var state in config.ActiveStates)
-            stateConditions.Add($"status = '{escapedJqlString(state)}'");
-
-        if (!stateConditions.Any())
-        {
-            logger.LogWarning("No active states configured for Jira tracker");
-            return Array.Empty<Domain.Issue>();
-        }
-
-        var jql = $"project = '{escapedJqlString(config.Tracker.ProjectSlug)}' AND ({string.Join(" OR ", stateConditions)})";
-        logger.LogInformation("Fetching candidate issues with JQL: {Jql}", jql);
-
-        return await fetchIssuesByJqlAsync(jql, cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<Domain.Issue>> FetchTerminalIssuesAsync(CancellationToken cancellationToken)
-    {
-        // Build JQL query for terminal states
-        var stateConditions = new List<string>();
-        foreach (var state in config.TerminalStates)
-            stateConditions.Add($"status = '{escapedJqlString(state)}'");
-
-        if (!stateConditions.Any())
-        {
-            logger.LogWarning("No terminal states configured for Jira tracker");
-            return Array.Empty<Domain.Issue>();
-        }
-
-        var jql = $"project = '{escapedJqlString(config.Tracker.ProjectSlug)}' AND ({string.Join(" OR ", stateConditions)})";
-        logger.LogInformation("Fetching terminal issues with JQL: {Jql}", jql);
-
-        return await fetchIssuesByJqlAsync(jql, cancellationToken);
-    }
-
     public async Task<IReadOnlyList<Domain.Issue>> FetchIssueStatesByIdsAsync(
         IReadOnlyList<string> ids, CancellationToken cancellationToken)
     {

@@ -40,7 +40,7 @@ Current, implemented capabilities of the Symphony .NET web host. For runtime/des
 
 ## Trackers and Agents
 
-- Linear and Jira trackers.
+- Linear and Jira trackers (optional context sources).
 - Copilot SDK and Codex coding agents.
 - Workspace management and hooks.
 - Null tracker for inline work items.

@@ -1,0 +1,62 @@
+@{
+    ViewData["Title"] = "API Keys";
+    var keys = ViewBag.Keys as System.Collections.Generic.List<Symphony.Data.ApiKey> ?? new();
+    var newKey = TempData["NewApiKey"] as string;
+}
+<h1>API Keys</h1>
+<p>API keys allow external systems to submit work via <code>/api/work</code>. Keys are shown only once when created or rotated.</p>
+
+@if (!string.IsNullOrEmpty(newKey))
+{
+    <div class="alert alert-warning">
+        <strong>Save this key now:</strong> <code>@newKey</code>
+        <div>It will not be shown again.</div>
+    </div>
+}
+
+<form asp-action="CreateApiKey" method="post">
+    @Html.AntiForgeryToken()
+    <div>
+        <label>Name (optional)</label>
+        <input type="text" name="name" />
+    </div>
+    <button type="submit">Create API Key</button>
+</form>
+
+<h2>Your keys</h2>
+<table>
+    <thead>
+        <tr><th>Name</th><th>Prefix</th><th>Enabled</th><th>Created</th><th>Last Used</th><th>Expires</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+    @foreach (var k in keys)
+    {
+        <tr>
+            <td>@k.Name</td>
+            <td>@k.KeyPrefix</td>
+            <td>@(k.IsEnabled && k.RevokedAt == null ? "Yes" : "No")</td>
+            <td>@k.CreatedAt</td>
+            <td>@k.LastUsedAt</td>
+            <td>@k.ExpiresAt</td>
+            <td>
+                <form asp-action="RotateApiKey" method="post" style="display:inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@k.Id" />
+                    <button type="submit">Rotate</button>
+                </form>
+                <form asp-action="ToggleApiKey" method="post" style="display:inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@k.Id" />
+                    <input type="hidden" name="enabled" value="@(k.IsEnabled && k.RevokedAt == null ? "false" : "true")" />
+                    <button type="submit">@(k.IsEnabled && k.RevokedAt == null ? "Disable" : "Enable")</button>
+                </form>
+                <form asp-action="RevokeApiKey" method="post" style="display:inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@k.Id" />
+                    <button type="submit">Revoke</button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

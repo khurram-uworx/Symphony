@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Symphony.Repositories;
 
 namespace Symphony.Dto;
 
@@ -30,6 +31,14 @@ public class WorkRequest
             error = "GitHub repository is required.";
             return false;
         }
+
+        if (!GitHubRepository.TryParse(GitHub.Repository, out var repository, out var repositoryError))
+        {
+            error = repositoryError;
+            return false;
+        }
+
+        GitHub.Repository = repository!.Slug;
 
         if (string.IsNullOrWhiteSpace(GitHub.PersonalAccessToken))
         {

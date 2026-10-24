@@ -26,6 +26,9 @@ builder.Services.AddScoped<ConfigurationService>(serviceProvider =>
         serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),
         serviceProvider.GetRequiredService<ISecretProtector>()));
 
+builder.Services.AddScoped<WorkflowService>(serviceProvider =>
+    new WorkflowService(
+        serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>()));
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -42,7 +45,7 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapConfigurationEndpoints();
-
+app.MapWorkflowEndpoints();
 await DatabaseInitializer.InitializeAsync(
     app.Services.GetRequiredService<IDbContextFactory<SymphonyDbContext>>());
 

@@ -28,6 +28,7 @@ Design rationale and runtime shape for the Symphony .NET web host. For feature i
 - `JobProcessor` (hosted service) claims queued jobs, processes with concurrency, recovers stale running jobs, and marks terminal states.
 - Cancellation calls `JobProcessor.Cancel`, sets state to `Cancelled`, and records events.
 - Job APIs enforce ownership; admin sees all jobs.
+- Work is submitted explicitly; there is no candidate polling. Trackers are optional context/state sources used only when ticket IDs are submitted.
 
 ## Views and APIs
 

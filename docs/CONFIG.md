@@ -29,9 +29,8 @@ Description: {{ issue.description }}
 ## Where configuration is loaded
 
 - `WorkflowPathResolver` resolves the workflow file path from CLI args (defaulting to `./WORKFLOW.md`).
-- `WorkflowManager` loads and watches the file.
-- `ServiceConfigProvider.GetConfig()` converts the YAML into typed configuration records.
-- `ServiceConfigProvider.ValidateForDispatch()` validates required values before an issue is dispatched.
+- Workflow content is loaded by the web host services.
+- `ServiceConfig` is built from user/workflow configuration and used for job execution. Tracker configuration is optional and only needed when submitting ticket IDs.
 
 ## Configuration sections
 
@@ -39,10 +38,10 @@ Description: {{ issue.description }}
 
 | Key | Description | Default |
 | --- | --- | --- |
-| `kind` | Issue tracker type: `linear` or `jira` | (required) |
+| `kind` | Issue tracker type: `none`, `linear`, or `jira`. Use `none` for inline work items. | `none` |
 | `endpoint` | Tracker API endpoint | `https://api.linear.app/graphql` |
-| `api_key` | Tracker credential (see Credentials below) | (required / validated) |
-| `project_slug` | Tracker project identifier | (required / validated) |
+| `api_key` | Tracker credential (see Credentials below) | none |
+| `project_slug` | Tracker project identifier | none |
 | `active_states` | Issue states eligible for processing | `Todo`, `In Progress` |
 | `terminal_states` | Issue states that stop processing | `Closed`, `Cancelled`, `Canceled`, `Duplicate`, `Done` |
 
@@ -135,11 +134,7 @@ or (for backwards compatibility) rely on the implicit `LINEAR_API_KEY` environme
 
 ### Validation
 
-`ServiceConfigProvider.ValidateForDispatch` requires:
-
-- `tracker.kind` is `linear` or `jira`
-- `tracker.api_key` is non-empty
-- `tracker.project_slug` is non-empty
+Tracker configuration is optional. A tracker is only required when submitting ticket IDs. When submitting ticket IDs without a tracker configured, requests are rejected.
 
 ## Environment variables
 

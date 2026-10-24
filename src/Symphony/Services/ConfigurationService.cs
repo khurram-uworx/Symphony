@@ -164,10 +164,23 @@ public sealed class ConfigurationService(
 
     public static Task<UserConfiguration?> GetAsync(
         IDbContextFactory<SymphonyDbContext> factory,
+        string userId,
+        CancellationToken cancellationToken = default) =>
+        new ConfigurationService(factory).GetAsync(userId, cancellationToken);
+
+    public static Task<UserConfiguration?> GetAsync(
+        IDbContextFactory<SymphonyDbContext> factory,
         ISecretProtector protector,
         string userId,
         CancellationToken cancellationToken = default) =>
         new ConfigurationService(factory, protector).GetAsync(userId, cancellationToken);
+
+    public static Task<UserConfiguration> SaveAsync(
+        IDbContextFactory<SymphonyDbContext> factory,
+        string userId,
+        UserConfiguration configuration,
+        CancellationToken cancellationToken = default) =>
+        new ConfigurationService(factory).SaveAsync(userId, configuration, cancellationToken);
 
     public static Task<UserConfiguration> SaveAsync(
         IDbContextFactory<SymphonyDbContext> factory,

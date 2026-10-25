@@ -38,7 +38,7 @@ Description: {{ issue.description }}
 
 | Key | Description | Default |
 | --- | --- | --- |
-| `kind` | Issue tracker type: `none`, `linear`, or `jira`. Use `none` for inline work items. | `none` |
+| `kind` | Issue tracker type: `none`, `linear`, `jira`, or `github`. Use `none` for inline work items. | `none` |
 | `endpoint` | Tracker API endpoint | `https://api.linear.app/graphql` |
 | `api_key` | Tracker credential (see Credentials below) | none |
 | `project_slug` | Tracker project identifier | none |
@@ -122,6 +122,17 @@ or (for backwards compatibility) rely on the implicit `LINEAR_API_KEY` environme
   - `token` only (basic auth is then performed with `project_slug` as the username and the token as the password)
 - The Jira endpoint is provided through `tracker.endpoint`.
 
+### GitHub Issues
+
+- `GitHubIssuesClient` uses the GitHub REST API.
+- `project_slug` must be `owner/repo`.
+- Default endpoint: `https://api.github.com`; supports GitHub Enterprise (`https://github.example.com/api/v3`).
+- State values are native GitHub states (`open`, `closed`). Issue ticket IDs are issue numbers as strings.
+- Tracker credential may be a GitHub token with issue read access. If `tracker.api_key` is empty and the tracker kind is `github`, Symphony can fall back to the user's configured GitHub Personal Access Token.
+- Agent state updates are performed by the coding agent using `gh` or GitHub MCP, so the token must also permit issue write access when agent-driven state changes are required.
+- Pull requests are ignored when resolving issue IDs.
+
+
 ### Codex agent
 
 - Symphony does not store Codex credentials in the workflow file.
@@ -139,6 +150,7 @@ Tracker configuration is optional. A tracker is only required when submitting ti
 ## Environment variables
 
 - `LINEAR_API_KEY` — Linear (and fallback Jira-style) API token. Used when `tracker.api_key` is missing or referenced as `$LINEAR_API_KEY`.
+- `GITHUB_TOKEN` / `GH_TOKEN` — GitHub token fallback for `tracker.kind: github`. Also used by agents/workspaces as the repository token when provided.
 - `SYMPHONY_WORKSPACE_ROOT` — optional override for the system workspace root. Admin configuration defaults to `%TEMP%/Symphony`; environment variable takes precedence.
 - Standard environment variables used by the Codex/Copilot CLIs for their own authentication.
 

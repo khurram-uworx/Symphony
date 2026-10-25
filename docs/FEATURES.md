@@ -38,9 +38,16 @@ Current, implemented capabilities of the Symphony .NET web host. For runtime/des
 - Background processor runs queued jobs, recovers stale jobs, handles cancellation and retry link (`RetryOfJobId`).
 - Job status DTO includes issue progress, errors, and summary.
 
+## GitHub Integration
+
+- GitHub Issues can be used as the work source (`tracker.kind: github`).
+- GitHub repositories are cloned and synchronized per job using per-user Personal Access Tokens.
+- Secrets are encrypted and never returned in plaintext.
+- See [FEATURES-GITHUB.md](FEATURES-GITHUB.md) for details.
+
 ## Trackers and Agents
 
-- Linear and Jira trackers (optional context sources).
+- Linear, Jira, and GitHub Issues trackers (optional context sources).
 - Copilot SDK and Codex coding agents.
 - Workspace management and hooks.
 - Null tracker for inline work items.
@@ -50,6 +57,7 @@ Current, implemented capabilities of the Symphony .NET web host. For runtime/des
 - `docs/CONFIG.md` - legacy tracker workflow configuration.
 - `docs/adr/` - accepted architecture decisions.
 - `docs/plans/` - product and implementation plans.
+- `docs/FEATURES-GITHUB.md` - GitHub integration details.
 
 ## Out Of Scope In CI
 

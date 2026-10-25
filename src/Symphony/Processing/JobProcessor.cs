@@ -237,6 +237,15 @@ public sealed class JobProcessor : BackgroundService
         var snapshot = TryParseSnapshot(job, secretProtector);
         var workItems = ReadWorkItems(snapshot);
         var (githubRepo, githubToken) = ReadGitHubCredentials(snapshot);
+
+        if (string.Equals(config.Tracker.Kind, "github", StringComparison.OrdinalIgnoreCase) &&
+            string.IsNullOrWhiteSpace(config.Tracker.ProjectSlug) &&
+            !string.IsNullOrWhiteSpace(githubRepo))
+        {
+            var tracker = config.Tracker with { ProjectSlug = githubRepo.Trim() };
+            config = config with { Tracker = tracker };
+        }
+
         if (workItems.Count > 0)
         {
             if (string.IsNullOrWhiteSpace(githubRepo))

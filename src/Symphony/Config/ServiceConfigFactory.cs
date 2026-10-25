@@ -81,8 +81,14 @@ public class ServiceConfigFactory
     {
         var kind = string.IsNullOrWhiteSpace(user.TrackerKind) ? TrackerConfig.None : user.TrackerKind;
         var endpoint = user.TrackerEndpoint;
+        if (string.IsNullOrWhiteSpace(endpoint) && string.Equals(kind, "github", StringComparison.OrdinalIgnoreCase))
+            endpoint = "https://api.github.com";
         if (string.IsNullOrWhiteSpace(endpoint) && string.Equals(kind, "linear", StringComparison.OrdinalIgnoreCase))
             endpoint = "https://api.linear.app/graphql";
+
+        var apiKey = user.TrackerApiKey;
+        if (string.IsNullOrWhiteSpace(apiKey) && string.Equals(kind, "github", StringComparison.OrdinalIgnoreCase))
+            apiKey = user.GitHubPersonalAccessToken;
 
         var active = SplitStates(user.TrackerActiveStates, new[] { "Todo", "In Progress" });
         var terminal = SplitStates(user.TrackerTerminalStates, new[] { "Closed", "Cancelled", "Canceled", "Duplicate", "Done" });
@@ -90,7 +96,7 @@ public class ServiceConfigFactory
         return new TrackerConfig(
             kind,
             endpoint ?? string.Empty,
-            user.TrackerApiKey ?? string.Empty,
+            apiKey ?? string.Empty,
             user.TrackerProjectSlug ?? string.Empty,
             active,
             terminal);

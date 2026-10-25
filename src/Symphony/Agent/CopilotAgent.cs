@@ -33,6 +33,27 @@ class CopilotAgent : ICodingAgent
             WorkingDirectory = workspacePath
         };
 
+        if (string.Equals(config.Tracker.Kind, "github", StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(config.Tracker.ApiKey))
+        {
+            var token = config.Tracker.ApiKey;
+            var environment = Environment.GetEnvironmentVariables()
+                .Cast<System.Collections.DictionaryEntry>()
+                .Where(entry => entry.Key is string)
+                .ToDictionary(
+                    entry => (string)entry.Key,
+                    entry => entry.Value?.ToString() ?? string.Empty,
+                    StringComparer.OrdinalIgnoreCase);
+
+            environment["GH_TOKEN"] = token;
+            environment["GITHUB_TOKEN"] = token;
+            environment["GIT_TERMINAL_PROMPT"] = "0";
+            if (!string.IsNullOrWhiteSpace(config.Tracker.ProjectSlug))
+                environment["GITHUB_REPOSITORY"] = config.Tracker.ProjectSlug;
+
+            clientOptions.Environment = environment;
+        }
+
         copilotClient = new CopilotClient(clientOptions);
         await copilotClient.StartAsync();
 

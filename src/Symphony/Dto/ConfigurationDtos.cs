@@ -154,10 +154,30 @@ public class ConfigurationDto
         if (!string.IsNullOrWhiteSpace(TrackerKind))
         {
             var trackerKind = TrackerKind.Trim().ToLowerInvariant();
-            if (trackerKind is not ("none" or "inline" or "null" or "linear" or "jira"))
+            if (trackerKind is not ("none" or "inline" or "null" or "linear" or "jira" or "github"))
             {
-                error = "TrackerKind must be one of none, linear, or jira.";
+                error = "TrackerKind must be one of none, linear, jira, or github.";
                 return false;
+            }
+
+            if (trackerKind == "github")
+            {
+                if (!string.IsNullOrWhiteSpace(TrackerEndpoint) &&
+                    !Uri.TryCreate(TrackerEndpoint, UriKind.Absolute, out _))
+                {
+                    error = "TrackerEndpoint must be an absolute URL.";
+                    return false;
+                }
+
+                if (!string.IsNullOrWhiteSpace(TrackerProjectSlug))
+                {
+                    var parts = TrackerProjectSlug.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    if (parts.Length != 2)
+                    {
+                        error = "TrackerProjectSlug must be in owner/repo form.";
+                        return false;
+                    }
+                }
             }
         }
 

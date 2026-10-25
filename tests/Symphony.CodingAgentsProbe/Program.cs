@@ -16,6 +16,7 @@ internal class Program
         {
             "copilot" => await CopilotProbe.RunAsync(args.Skip(1).ToArray()),
             "byom" => await ByomProbe.RunAsync(args.Skip(1).ToArray()),
+            "sdk-options" => await SdkOptionsProbe.RunAsync(args.Skip(1).ToArray()),
             _ => await CopilotProbe.RunAsync(args)
         };
     }

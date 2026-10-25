@@ -11,11 +11,13 @@ namespace Symphony.Controllers;
 public sealed class AdminController(
     UserManagementService users,
     JobService? jobService = null,
-    UserManager<IdentityUser>? userManager = null) : Controller
+    UserManager<IdentityUser>? userManager = null,
+    Microsoft.EntityFrameworkCore.IDbContextFactory<Symphony.Data.SymphonyDbContext>? dbContextFactory = null) : Controller
 {
     readonly UserManagementService users = users;
     readonly JobService? configuredJobService = jobService;
     readonly UserManager<IdentityUser>? configuredUserManager = userManager;
+    readonly Microsoft.EntityFrameworkCore.IDbContextFactory<Symphony.Data.SymphonyDbContext>? configuredDbFactory = dbContextFactory;
 
     JobService JobService =>
         configuredJobService
@@ -25,6 +27,10 @@ public sealed class AdminController(
     UserManager<IdentityUser> UserManager =>
         configuredUserManager
         ?? HttpContext?.RequestServices?.GetRequiredService<UserManager<IdentityUser>>();
+
+    Microsoft.EntityFrameworkCore.IDbContextFactory<Symphony.Data.SymphonyDbContext> DbFactory =>
+        configuredDbFactory
+        ?? HttpContext?.RequestServices?.GetRequiredService<Microsoft.EntityFrameworkCore.IDbContextFactory<Symphony.Data.SymphonyDbContext>>();
 
     public IActionResult Index() => View();
 
@@ -230,8 +236,8 @@ public sealed class AdminController(
     [HttpGet("/admin/settings")]
     public async Task<IActionResult> Settings(CancellationToken cancellationToken)
     {
-        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
-        var settings = await db.AppSettings.AsNoTracking().ToListAsync(cancellationToken);
+        await using var db = await DbFactory.CreateDbContextAsync(cancellationToken);
+        var settings = db.AppSettings.ToList();
         ViewBag.Settings = settings.OrderBy(s => s.Key).ToList();
         return View();
     }
@@ -240,12 +246,13 @@ public sealed class AdminController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveSettings(IFormCollection form, CancellationToken cancellationToken)
     {
-        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
-        var keys = form.Keys.Where(k => !string.IsNullOrWhiteSpace(k) && k != "__RequestVerificationToken").ToList();
-        foreach (var key in keys)
+        await using var db = await DbFactory.CreateDbContextAsync(cancellationToken);
+        var keys = form.Keys.Where(k => !string.IsNullOrWhiteSpace(k) && k.ToString() != "__RequestVerificationToken").ToList();
+        foreach (var keyObj in keys)
         {
+            var key = keyObj.ToString();
             var value = form[key].ToString();
-            var existing = await db.AppSettings.FirstOrDefaultAsync(s => s.Key == key, cancellationToken);
+            var existing = db.AppSettings.FirstOrDefault(s => s.Key == key);
             if (existing is null)
             {
                 db.AppSettings.Add(new Symphony.Data.AppSetting { Key = key, Value = value ?? string.Empty });

@@ -37,6 +37,7 @@ Decisions (from human):
 
 ### UI
 - Admin `JobDetail.cshtml`: add Traces/Metrics section that lazily fetches `/api/jobs/{id}/telemetry` and renders a sortable table (time, type/signal, name, duration, parent, attributes JSON).
+- Follow-up UI change: replace dialog-based job detail with a dedicated full-page route (admin `/admin/jobs/{id}`, account `/Account/JobDetail/{id}`) using tabbed views: tab 1 Details, tab 2 Telemetry. When truncated, show the last 100 records rather than the first 100.
 - Account `Index.cshtml`: in job details modal, fetch telemetry and render the same compact view; poll while job is active (extend existing 5s job poll to also refresh telemetry when modal open, or add separate poll).
 
 ### Blast radius
@@ -57,6 +58,7 @@ Decisions (from human):
 ### GitHub issues log
 - [x] #103 — Codex agent telemetry once Codex support is enabled (follow-up).
 - [x] #104 — live OTLP receiver + SignalR streaming for true real-time telemetry beyond polling (follow-up).
+- [x] #106 — full-page tabbed job detail view and last-100 telemetry display (follow-up).
 
 ## Grounding notes
 - Copilot SDK uses `CopilotClientOptions.Telemetry` with `FilePath`/`ExporterType="file"` (validated by probe: 116 records produced).

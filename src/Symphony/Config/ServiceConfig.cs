@@ -57,10 +57,23 @@ public record TrackerConfig(
         var kind = ConfigReader.ReadString(tracker, "kind") ?? string.Empty;
         if (string.IsNullOrWhiteSpace(kind))
             kind = None;
-        var endpoint = ConfigReader.ReadString(tracker, "endpoint") ?? "https://api.linear.app/graphql";
-        var apiKeyRaw = ConfigReader.ReadString(tracker, "api_key")
-            ?? Environment.GetEnvironmentVariable("LINEAR_API_KEY")
-            ?? string.Empty;
+        kind = kind.Trim();
+        var endpoint = ConfigReader.ReadString(tracker, "endpoint");
+        if (string.IsNullOrWhiteSpace(endpoint) && string.Equals(kind, "github", StringComparison.OrdinalIgnoreCase))
+            endpoint = "https://api.github.com";
+        if (string.IsNullOrWhiteSpace(endpoint) && string.Equals(kind, "linear", StringComparison.OrdinalIgnoreCase))
+            endpoint = "https://api.linear.app/graphql";
+        if (string.IsNullOrWhiteSpace(endpoint))
+            endpoint = "https://api.linear.app/graphql";
+
+        var apiKeyRaw = ConfigReader.ReadString(tracker, "api_key");
+        if (string.IsNullOrWhiteSpace(apiKeyRaw) && string.Equals(kind, "linear", StringComparison.OrdinalIgnoreCase))
+            apiKeyRaw = Environment.GetEnvironmentVariable("LINEAR_API_KEY");
+        if (string.IsNullOrWhiteSpace(apiKeyRaw) && string.Equals(kind, "github", StringComparison.OrdinalIgnoreCase))
+            apiKeyRaw = Environment.GetEnvironmentVariable("GITHUB_TOKEN")
+                ?? Environment.GetEnvironmentVariable("GH_TOKEN");
+        if (string.IsNullOrWhiteSpace(apiKeyRaw))
+            apiKeyRaw = string.Empty;
         var apiKey = ConfigReader.ResolveEnvValue(apiKeyRaw);
         var projectSlug = ConfigReader.ReadString(tracker, "project_slug") ?? string.Empty;
         var activeStates = ConfigReader.ReadStringList(tracker, "active_states")

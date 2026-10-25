@@ -258,6 +258,8 @@ public sealed class ConfigurationService(
         result.TrackerKind = kind.Trim().ToLowerInvariant();
 
         var endpoint = ConfigReader.ReadString(trackerMap, "endpoint");
+        if (string.IsNullOrWhiteSpace(endpoint) && string.Equals(result.TrackerKind, "github", StringComparison.OrdinalIgnoreCase))
+            endpoint = "https://api.github.com";
         if (string.IsNullOrWhiteSpace(endpoint) && result.TrackerKind == "linear")
             endpoint = "https://api.linear.app/graphql";
         result.TrackerEndpoint = endpoint ?? string.Empty;

@@ -6,7 +6,7 @@
     var displayName = ViewData["DisplayName"] as string ?? User.Identity?.Name;
     var roles = (ViewData["Roles"] as IEnumerable<string>) ?? Array.Empty<string>();
     var apiKeys = (ViewData["ApiKeys"] as IReadOnlyList<ApiKey>) ?? Array.Empty<ApiKey>();
-    var activeTab = (ViewData["ActiveTab"] as string) ?? "configuration";
+    var activeTab = (ViewData["ActiveTab"] as string) ?? "repository";
     var workflowTemplate = (ViewData["WorkflowTemplate"] as string) ?? "";
     var newKey = ViewData["NewApiKey"] as string;
     var newKeyName = ViewData["NewApiKeyName"] as string;
@@ -22,9 +22,9 @@
     <p class="muted">Hello, @displayName <span class="muted">(@((roles.Any() ? string.Join(", ", roles) : "User")))</span></p>
 
     <div class="account-tabs" role="tablist">
+        <button type="button" class="account-tab @(activeTab == "repository" ? "is-active" : null)" data-tab="repository" role="tab" aria-selected="@(activeTab == "repository" ? "true" : "false")">Repository</button>
         <button type="button" class="account-tab @(activeTab == "worksource" ? "is-active" : null)" data-tab="worksource" role="tab" aria-selected="@(activeTab == "worksource" ? "true" : "false")">Work source</button>
         <button type="button" class="account-tab @(activeTab == "copilot" ? "is-active" : null)" data-tab="copilot" role="tab" aria-selected="@(activeTab == "copilot" ? "true" : "false")">Copilot settings</button>
-        <button type="button" class="account-tab @(activeTab == "repository" ? "is-active" : null)" data-tab="repository" role="tab" aria-selected="@(activeTab == "repository" ? "true" : "false")">Repository</button>
         <button type="button" class="account-tab @(activeTab == "workflows" ? "is-active" : null)" data-tab="workflows" role="tab" aria-selected="@(activeTab == "workflows" ? "true" : "false")">Workflows</button>
         <button type="button" class="account-tab @(activeTab == "apikeys" ? "is-active" : null)" data-tab="apikeys" role="tab" aria-selected="@(activeTab == "apikeys" ? "true" : "false")">API keys</button>
     </div>
@@ -360,7 +360,7 @@
                 activateTab(tab.getAttribute('data-tab'));
             });
         });
-        activateTab(window.activeAccountTab || 'worksource');
+        activateTab(window.activeAccountTab || 'repository');
     })();
 </script>
 <script>

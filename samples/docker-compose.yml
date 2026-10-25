@@ -22,12 +22,11 @@ services:
       - "8080:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      DataProtection__KeysPath: /home/app/.aspnet/DataProtection-Keys
+      DataProtection__KeysPath: ${DataProtection__KeysPath:-/home/app/.aspnet/DataProtection-Keys}
       Database__Provider: ${Database__Provider}
       ConnectionStrings__PostgreSQL: ${ConnectionStrings__PostgreSQL}
       SeedAdmin__UserName: ${SeedAdmin__UserName}
       ApiKeys__ServerKey: ${ApiKeys__ServerKey}
-      DataProtection__KeysPath: ${DataProtection__KeysPath:-/home/app/.aspnet/DataProtection-Keys}
     volumes:
       - dataprotection:/home/app/.aspnet/DataProtection-Keys
     depends_on:

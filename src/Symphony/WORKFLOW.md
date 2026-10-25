@@ -19,7 +19,7 @@ workspace:
   root: ~/symphony-workspaces
 hooks:
   after_create: |
-    git clone --depth 1 https://github.com/${GITHUB_REPOSITORY:-%GITHUB_REPOSITORY%} .
+    git clone --depth 1 https://github.com/${GITHUB_REPOSITORY} .
 agent:
   max_concurrent_agents: 10
   max_turns: 20

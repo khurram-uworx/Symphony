@@ -537,7 +537,9 @@
                 const telemetryResponse = await fetch('/api/jobs/' + jobId + '/telemetry', { credentials: 'same-origin' });
                 if (telemetryResponse.ok) {
                     const telemetryBundle = await telemetryResponse.json();
-                    const telemetryEntries = Array.isArray(telemetryBundle.entries) ? telemetryBundle.entries : [];
+                    const telemetryEntries = (Array.isArray(telemetryBundle.entries) ? telemetryBundle.entries : [])
+                        .slice()
+                        .sort(function (a, b) { return new Date(b.timestamp || 0) - new Date(a.timestamp || 0); });
                     if (telemetryEntries.length > 0) {
                         const telemetryHeading = document.createElement('h3');
                         telemetryHeading.textContent = 'Telemetry';
@@ -569,8 +571,7 @@
                         if (telemetryEntries.length > 100) {
                             const note = document.createElement('p');
                             note.className = 'muted';
-                            note.textContent = 'Showing first 100 of ' + telemetryEntries.length + ' telemetry records.';
-                            body.appendChild(note);
+                            note.textContent = 'Showing most recent 100 of ' + telemetryEntries.length + ' telemetry records.';                            body.appendChild(note);
                         }
                     }
                 }

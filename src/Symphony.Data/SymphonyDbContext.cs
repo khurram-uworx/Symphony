@@ -224,7 +224,7 @@ public sealed class SymphonyDbContext(DbContextOptions<SymphonyDbContext> option
             entity.HasOne(jobEvent => jobEvent.JobIssue)
                 .WithMany()
                 .HasForeignKey(jobEvent => jobEvent.JobIssueId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
         modelBuilder.Entity<JobTelemetry>(entity =>

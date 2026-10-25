@@ -117,6 +117,39 @@ docs/
 - **SeedAdmin__UserName**: First administrator username (default `testadmin`)
 - **SeedAdmin__Password**: First administrator password. Empty generates a strong password and prints it once; a configured value is used verbatim, is not policy-validated, and is never printed.
 
+## Submitting Work With curl (API Keys)
+
+Symphony supports terminal-first workflows through user-owned API keys.
+
+1. Sign in at `/Account/Login` (any role) and open `/Account/ApiKeys`.
+2. Create an API key. The raw key — `Authorization: Bearer <key>` material — is displayed exactly once; only a prefix and an HMAC-SHA256 hash are stored.
+3. Submit work from any terminal:
+
+```bash
+curl -X POST "http://localhost:5080/api/work" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <YOUR_API_KEY>" \
+  --data '{
+    "externalId": null,
+    "ticketIds": ["ENG-1"],
+    "workItems": [],
+    "github": { "repository": "owner/repo", "personalAccessToken": "<YOUR_GITHUB_TOKEN>" },
+    "workflowName": "<WORKFLOW_NAME>",
+    "overrides": {}
+  }'
+```
+
+The response returns `202 Accepted` with the job id and a status URL (`/api/jobs/{jobId}`); poll the status URL until the job reaches a terminal state (`Completed`, `CompletedWithFailures`, `Failed`, or `Cancelled`). The job and its progress are also visible in the web UI under `/Account/Jobs`. The `/Account/Run` page shows the same request as a copyable example and links to key management.
+
+Key behavior:
+
+- Keys are per-user: endpoints and work submitted with a key are attributed to the key owner. Admins cannot create, rotate, or revoke keys for other users.
+- Keys support enable/disable (temporary), rotate (old key stopped, new one issued), and revoke (permanent).
+- Disabling or deleting a user immediately invalidates all of their keys, and a disabled user cannot sign in.
+- API requests are rate limited per user (120 requests per minute; `429 Too Many Requests` beyond that).
+- The `X-API-Key` header is accepted as an alternative to `Authorization: Bearer`.
+
+
 ## Development
 
 ### Building

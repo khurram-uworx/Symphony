@@ -3,7 +3,6 @@ using Symphony.Services;
 
 namespace Symphony.Middleware;
 
-
 public sealed class ApiKeyMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext context, ApiKeyService apiKeyService, SignInManager<IdentityUser> signInManager)

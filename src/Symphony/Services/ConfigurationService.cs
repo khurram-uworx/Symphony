@@ -24,6 +24,7 @@ public sealed class ConfigurationService(
 
         entity.TrackerApiKey = protector.Unprotect(entity.TrackerApiKey) ?? string.Empty;
         entity.CopilotApiKey = protector.Unprotect(entity.CopilotApiKey);
+        entity.GitHubPersonalAccessToken = protector.Unprotect(entity.GitHubPersonalAccessToken);
         ApplyDefaults(entity);
         return entity;
     }
@@ -58,6 +59,7 @@ public sealed class ConfigurationService(
             var entity = Clone(configuration, userId);
             entity.TrackerApiKey = protector.Protect(configuration.TrackerApiKey) ?? string.Empty;
             entity.CopilotApiKey = protector.Protect(configuration.CopilotApiKey);
+            entity.GitHubPersonalAccessToken = protector.Protect(configuration.GitHubPersonalAccessToken);
             entity.CreatedAt = now;
             entity.UpdatedAt = now;
             ApplyDefaults(entity);
@@ -70,6 +72,7 @@ public sealed class ConfigurationService(
             existing.UserId = userId;
             existing.TrackerApiKey = protector.Protect(configuration.TrackerApiKey) ?? string.Empty;
             existing.CopilotApiKey = protector.Protect(configuration.CopilotApiKey);
+            existing.GitHubPersonalAccessToken = protector.Protect(configuration.GitHubPersonalAccessToken);
             existing.UpdatedAt = now;
             ApplyDefaults(existing);
             await db.SaveChangesAsync(cancellationToken);
@@ -78,6 +81,7 @@ public sealed class ConfigurationService(
         var result = Clone(configuration, userId);
         result.TrackerApiKey = configuration.TrackerApiKey;
         result.CopilotApiKey = configuration.CopilotApiKey;
+        result.GitHubPersonalAccessToken = configuration.GitHubPersonalAccessToken;
         result.CreatedAt = existing?.CreatedAt ?? now;
         result.UpdatedAt = now;
         ApplyDefaults(result);
@@ -120,6 +124,7 @@ public sealed class ConfigurationService(
         CopilotBaseUrl = source.CopilotBaseUrl,
         CopilotModelId = source.CopilotModelId,
         CopilotApiKey = source.CopilotApiKey,
+        GitHubPersonalAccessToken = source.GitHubPersonalAccessToken,
         CopilotWireApi = source.CopilotWireApi,
         DefaultWorkflowName = source.DefaultWorkflowName,
         CreatedAt = source.CreatedAt,
@@ -147,6 +152,7 @@ public sealed class ConfigurationService(
         target.CopilotBaseUrl = source.CopilotBaseUrl;
         target.CopilotModelId = source.CopilotModelId;
         target.CopilotWireApi = source.CopilotWireApi;
+        target.GitHubPersonalAccessToken = source.GitHubPersonalAccessToken;
         target.DefaultWorkflowName = source.DefaultWorkflowName;
     }
 

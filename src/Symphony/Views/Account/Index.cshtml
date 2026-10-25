@@ -189,7 +189,7 @@
             <span asp-validation-for="HookTimeoutMs" class="field-error"></span>
             </div>
 
-            <button type="submit">Save configuration</button>
+            <button type="submit" id="save-configuration">Save configuration</button>
         </form>
     </div>
 
@@ -349,6 +349,10 @@
                 tab.classList.toggle('is-active', active);
                 tab.setAttribute('aria-selected', active ? 'true' : 'false');
             });
+            const saveButton = document.getElementById('save-configuration');
+            if (saveButton) {
+                saveButton.hidden = ['worksource', 'copilot', 'hooks'].indexOf(name) === -1;
+            }
         }
         tabs.forEach(function (tab) {
             tab.addEventListener('click', function () {
@@ -357,6 +361,7 @@
         });
         activateTab(window.activeAccountTab || 'worksource');
     })();
+</script>
 <script>
     (function () {
         var provider = document.getElementById('copilot-provider');

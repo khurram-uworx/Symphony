@@ -52,6 +52,8 @@ public sealed class UserConfiguration
 
     public string? CopilotWireApi { get; set; }
 
+    public string? GitHubPersonalAccessToken { get; set; }
+
     public string? DefaultWorkflowName { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }

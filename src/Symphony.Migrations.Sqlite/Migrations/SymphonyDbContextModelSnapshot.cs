@@ -463,6 +463,9 @@ namespace Symphony.Migrations.Sqlite.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("GitHubPersonalAccessToken")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("HookAfterCreate")
                         .HasColumnType("TEXT");
 

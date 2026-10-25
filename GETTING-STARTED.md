@@ -111,7 +111,7 @@ curl -X POST "http://localhost:5080/api/work" \
     "externalId": null,
     "ticketIds": ["ENG-1"],
     "workItems": [],
-    "github": { "repository": "owner/repo", "personalAccessToken": "<YOUR_GITHUB_TOKEN>" },
+    "github": { "repository": "owner/repo" },
     "workflowName": "<WORKFLOW_NAME>",
     "overrides": {}
   }'

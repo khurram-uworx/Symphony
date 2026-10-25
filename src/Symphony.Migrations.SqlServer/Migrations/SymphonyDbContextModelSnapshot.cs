@@ -474,6 +474,9 @@ namespace Symphony.Migrations.SqlServer.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<string>("GitHubPersonalAccessToken")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("HookAfterCreate")
                         .HasColumnType("nvarchar(max)");
 

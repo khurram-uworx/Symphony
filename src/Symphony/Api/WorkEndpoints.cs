@@ -24,11 +24,23 @@ public static class WorkEndpoints
         WorkRequest? request,
         JobService jobService,
         JobQueue? jobQueue,
-        CancellationToken cancellationToken)
+        ConfigurationService? configurationService = null,
+        CancellationToken cancellationToken = default)
     {
         var userId = GetUserId(user);
         if (string.IsNullOrWhiteSpace(userId))
             return Results.Unauthorized();
+
+        if (request?.GitHub is not null && string.IsNullOrWhiteSpace(request.GitHub.PersonalAccessToken) &&
+            configurationService is not null)
+        {
+            var configuration = await configurationService.GetAsync(userId, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(configuration?.GitHubPersonalAccessToken))
+                request.GitHub.PersonalAccessToken = configuration.GitHubPersonalAccessToken;
+        }
+
+        if (request?.GitHub is not null && string.IsNullOrWhiteSpace(request.GitHub.PersonalAccessToken))
+            return Results.BadRequest(new { error = "GitHub personal access token is required. Configure it on Account/Configuration or provide it in the request." });
 
         if (!WorkRequest.IsValid(request, out var validationError))
             return Results.BadRequest(new { error = validationError });

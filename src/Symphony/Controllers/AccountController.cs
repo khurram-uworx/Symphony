@@ -202,6 +202,12 @@ public sealed class AccountController(
             model.CopilotApiKey = existing?.CopilotApiKey;
         }
 
+        if (string.IsNullOrWhiteSpace(model.GitHubPersonalAccessToken) ||
+            string.Equals(model.GitHubPersonalAccessToken, Redaction.Redacted, StringComparison.Ordinal))
+        {
+            model.GitHubPersonalAccessToken = existing?.GitHubPersonalAccessToken;
+        }
+
         model.UserId = userId;
         var configuration = model.ToUserConfiguration();
         configuration.UserId = userId;
@@ -265,8 +271,14 @@ public sealed class AccountController(
         var configuration = await ConfigurationService.GetAsync(userId, cancellationToken)
             ?? new UserConfiguration { UserId = userId };
 
+        var workSourceConfigured = !string.IsNullOrWhiteSpace(configuration.TrackerKind) &&
+            !string.Equals(configuration.TrackerKind, "none", StringComparison.OrdinalIgnoreCase);
+        var githubTokenConfigured = !string.IsNullOrWhiteSpace(configuration.GitHubPersonalAccessToken);
+
         ViewData["Title"] = "Run launcher";
         ViewData["DefaultWorkflowName"] = configuration.DefaultWorkflowName ?? string.Empty;
+        ViewData["WorkSourceConfigured"] = workSourceConfigured;
+        ViewData["GitHubTokenConfigured"] = githubTokenConfigured;
         return View("Run");
     }
 

@@ -180,6 +180,13 @@
                 <span asp-validation-for="CopilotWireApi" class="field-error"></span>
             </div>
 
+            <h2>GitHub</h2>
+            <label>
+                Personal access token
+                <input asp-for="GitHubPersonalAccessToken" type="password" autocomplete="off" placeholder="Leave blank to keep" />
+            </label>
+            <span asp-validation-for="GitHubPersonalAccessToken" class="field-error"></span>
+
             <h2>Workflow</h2>
             <label>
                 Default workflow name

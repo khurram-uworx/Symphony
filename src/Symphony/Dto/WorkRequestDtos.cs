@@ -40,12 +40,6 @@ public class WorkRequest
 
         GitHub.Repository = repository!.Slug;
 
-        if (string.IsNullOrWhiteSpace(GitHub.PersonalAccessToken))
-        {
-            error = "GitHub personal access token is required.";
-            return false;
-        }
-
         if (string.IsNullOrWhiteSpace(WorkflowName))
         {
             error = "Workflow name is required.";

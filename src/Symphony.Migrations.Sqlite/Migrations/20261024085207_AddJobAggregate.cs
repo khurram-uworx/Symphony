@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -81,8 +81,7 @@ namespace Symphony.Migrations.Sqlite.Migrations
                         name: "FK_JobEvents_JobIssues_JobIssueId",
                         column: x => x.JobIssueId,
                         principalTable: "JobIssues",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_JobEvents_Jobs_JobId",
                         column: x => x.JobId,

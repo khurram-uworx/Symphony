@@ -1032,3 +1032,25 @@ main:has(.workflows-shell--editor) {
     border-color: var(--accent);
     color: var(--accent-ink);
 }
+
+dialog h2 {
+    margin: 0 0 16px;
+    font-size: 1.25rem;
+}
+
+dialog h3 {
+    margin: 18px 0 8px;
+    font-size: 0.98rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+dialog form {
+    margin-bottom: 12px;
+}
+
+dialog .dialog-actions button,
+dialog button[type="submit"] {
+    margin-top: 0;
+}

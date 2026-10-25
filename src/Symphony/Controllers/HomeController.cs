@@ -6,5 +6,5 @@ namespace Symphony.Controllers;
 [Authorize]
 public sealed class HomeController : Controller
 {
-    public IActionResult Index() => View();
+    public IActionResult Index() => RedirectToAction("Index", "Account");
 }

@@ -396,6 +396,111 @@ public sealed class JobService
     public Task<Symphony.Data.Job?> GetJobByIdAsync(Guid jobId, CancellationToken cancellationToken = default) =>
         GetJobAsync(jobId, cancellationToken);
 
+    public async Task<Symphony.Data.Job?> RetryJobAsync(
+        Guid originalJobId,
+        string retriedByUserId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ValidateUserId(retriedByUserId);
+
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var original = await db.Jobs
+            .Include(j => j.Issues)
+            .Include(j => j.Events)
+            .FirstOrDefaultAsync(j => j.Id == originalJobId, cancellationToken);
+
+        if (original is null)
+            return null;
+
+        if (string.IsNullOrWhiteSpace(original.EncryptedRequestSnapshot))
+            throw new InvalidOperationException("Original job has no request snapshot; cannot retry.");
+
+        string snapshotJson;
+        try
+        {
+            snapshotJson = secretProtector.Unprotect(original.EncryptedRequestSnapshot);
+        }
+        catch
+        {
+            throw new InvalidOperationException("Original request snapshot could not be decrypted; cannot retry.");
+        }
+
+        JsonDocument? snapshotDoc;
+        try
+        {
+            snapshotDoc = JsonDocument.Parse(snapshotJson);
+        }
+        catch
+        {
+            throw new InvalidOperationException("Original request snapshot is invalid; cannot retry.");
+        }
+
+        using var _ = snapshotDoc;
+
+        var root = snapshotDoc.RootElement;
+        string? workflowName = null;
+        if (root.TryGetProperty("workflowName", out var wn) && wn.ValueKind == JsonValueKind.String)
+            workflowName = wn.GetString();
+        if (string.IsNullOrWhiteSpace(workflowName))
+            workflowName = original.WorkflowName;
+
+        string? repository = null;
+        if (root.TryGetProperty("github", out var gh) && gh.ValueKind == JsonValueKind.Object)
+        {
+            if (gh.TryGetProperty("repository", out var repoEl) && repoEl.ValueKind == JsonValueKind.String)
+                repository = repoEl.GetString();
+        }
+        if (string.IsNullOrWhiteSpace(repository))
+            repository = original.Repository;
+
+        if (string.IsNullOrWhiteSpace(workflowName))
+            throw new InvalidOperationException("Original job has no workflow name; cannot retry.");
+
+        string? externalId = original.ExternalId;
+        if (root.TryGetProperty("externalId", out var exId) && exId.ValueKind == JsonValueKind.String)
+            externalId = exId.GetString();
+
+        // Verify workflow still exists for original owner (Option A uses original workflow name)
+        var workflow = await db.Workflows
+            .AsNoTracking()
+            .FirstOrDefaultAsync(w => w.OwnerUserId == original.OwnerUserId && w.Name == workflowName, cancellationToken);
+
+        if (workflow is null)
+        {
+            // Try case-insensitive match
+            var workflows = await db.Workflows
+                .AsNoTracking()
+                .Where(w => w.OwnerUserId == original.OwnerUserId)
+                .ToListAsync(cancellationToken);
+            workflow = workflows.FirstOrDefault(w => string.Equals(w.Name, workflowName, StringComparison.OrdinalIgnoreCase));
+            if (workflow is null)
+                throw new InvalidOperationException("Original workflow not found for the job owner; cannot retry.");
+            workflowName = workflow.Name;
+        }
+
+        var newJob = new Job
+        {
+            Id = Guid.NewGuid(),
+            OwnerUserId = original.OwnerUserId,
+            ExternalId = string.IsNullOrWhiteSpace(externalId) ? null : externalId!.Trim(),
+            WorkflowName = workflowName,
+            RetryOfJobId = original.Id,
+            Repository = string.IsNullOrWhiteSpace(repository) ? original.Repository : repository.Trim(),
+            EncryptedRequestSnapshot = original.EncryptedRequestSnapshot, // reuse encrypted snapshot (contains PAT)
+            State = "Queued",
+            QueuedAt = DateTimeOffset.UtcNow
+        };
+
+        db.Jobs.Add(newJob);
+        await db.SaveChangesAsync(cancellationToken);
+
+        try { await (jobQueue?.SignalInstanceAsync(cancellationToken) ?? Task.CompletedTask); }
+        catch { /* best-effort */ }
+
+        return newJob;
+    }
+
     async Task<Symphony.Data.Job?> GetByKeyWithCheckAsync(
         string userId,
         Guid jobId,

@@ -18,6 +18,7 @@ builder.Logging.AddSimpleConsole(options =>
 });
 
 builder.Services.AddControllersWithViews();
+builder.Services.AddSignalR();
 builder.Services.AddSymphonyDatabase(builder.Configuration, builder.Environment.ContentRootPath);
 builder.Services.AddSymphonyDataProtection(builder.Configuration, builder.Environment.ContentRootPath);
 builder.Services.AddSymphonySecretProtection(builder.Configuration, builder.Environment.ContentRootPath);
@@ -90,6 +91,7 @@ app.MapWorkflowEndpoints();
 app.MapWorkEndpoints();
 app.MapJobEndpoints();
 app.MapApiKeyEndpoints();
+app.MapHub<Symphony.Hubs.JobUpdateHub>("/hubs/jobs");
 await DatabaseInitializer.InitializeAsync(
     app.Services.GetRequiredService<IDbContextFactory<SymphonyDbContext>>());
 

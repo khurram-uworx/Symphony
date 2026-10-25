@@ -1,62 +1,87 @@
+@using Symphony.Data
+@model IReadOnlyList<ApiKey>
 @{
-    ViewData["Title"] = "API Keys";
-    var keys = ViewBag.Keys as System.Collections.Generic.List<Symphony.Data.ApiKey> ?? new();
+    ViewData["Title"] = "API keys";
     var newKey = TempData["NewApiKey"] as string;
+    var newKeyName = TempData["NewApiKeyName"] as string;
 }
-<h1>API Keys</h1>
-<p>API keys allow external systems to submit work via <code>/api/work</code>. Keys are shown only once when created or rotated.</p>
+<section class="panel">
+    <h1>API keys</h1>
+    <p class="muted">API keys let external systems submit work to <code>/api/work</code> as you. Keys are system-generated and stored hashed; the raw key is shown only once, at creation or rotation.</p>
 
-@if (!string.IsNullOrEmpty(newKey))
-{
-    <div class="alert alert-warning">
-        <strong>Save this key now:</strong> <code>@newKey</code>
-        <div>It will not be shown again.</div>
-    </div>
-}
-
-<form asp-action="CreateApiKey" method="post">
-    @Html.AntiForgeryToken()
-    <div>
-        <label>Name (optional)</label>
-        <input type="text" name="name" />
-    </div>
-    <button type="submit">Create API Key</button>
-</form>
-
-<h2>Your keys</h2>
-<table>
-    <thead>
-        <tr><th>Name</th><th>Prefix</th><th>Enabled</th><th>Created</th><th>Last Used</th><th>Expires</th><th>Actions</th></tr>
-    </thead>
-    <tbody>
-    @foreach (var k in keys)
+    @if (!string.IsNullOrEmpty(newKey))
     {
-        <tr>
-            <td>@k.Name</td>
-            <td>@k.KeyPrefix</td>
-            <td>@(k.IsEnabled && k.RevokedAt == null ? "Yes" : "No")</td>
-            <td>@k.CreatedAt</td>
-            <td>@k.LastUsedAt</td>
-            <td>@k.ExpiresAt</td>
-            <td>
-                <form asp-action="RotateApiKey" method="post" style="display:inline">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="id" value="@k.Id" />
-                    <button type="submit">Rotate</button>
-                </form>
-                <form asp-action="ToggleApiKey" method="post" style="display:inline">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="id" value="@k.Id" />
-                    <input type="hidden" name="enabled" value="@(k.IsEnabled && k.RevokedAt == null ? "false" : "true")" />
-                    <button type="submit">@(k.IsEnabled && k.RevokedAt == null ? "Disable" : "Enable")</button>
-                </form>
-                <form asp-action="RevokeApiKey" method="post" style="display:inline">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="id" value="@k.Id" />
-                    <button type="submit">Revoke</button>
-                </form>
-            </td>
-        </tr>
+        <div class="validation validation-summary-valid" id="new-key-banner" role="alert">
+            <strong>@(string.IsNullOrEmpty(newKeyName) ? "New API key" : newKeyName) — copy it now:</strong>
+            <code id="new-key-value">@newKey</code>
+            <p class="muted">It will not be shown again. Rotate to get a new key if you lose it.</p>
+        </div>
     }
-    </tbody>
-</table>
+
+    <h2>Create a key</h2>
+    <form asp-action="CreateApiKey" method="post">
+        @Html.AntiForgeryToken()
+        <label>
+            Key name (optional)
+            <input name="name" maxlength="256" autocomplete="off" placeholder="e.g. laptop curl script" />
+        </label>
+        <button type="submit">Create API key</button>
+    </form>
+
+    <h2>Your keys</h2>
+    @if (Model.Count == 0)
+    {
+        <p class="muted">No API keys yet. Create one above to submit work from a terminal.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Prefix</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Last used</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var key in Model)
+                {
+                    var active = key.IsEnabled && key.RevokedAt is null && (key.ExpiresAt is null || key.ExpiresAt > DateTimeOffset.UtcNow);
+                    <tr>
+                        <td>@(string.IsNullOrEmpty(key.Name) ? "—" : key.Name)</td>
+                        <td><code>@key.KeyPrefix…</code></td>
+                        <td>
+                            @(active ? "Active" : key.RevokedAt is not null ? "Revoked" : "Disabled")
+                        </td>
+                        <td>@key.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>@(key.LastUsedAt?.ToString("yyyy-MM-dd HH:mm") ?? "never")</td>
+                        <td class="table-actions">
+                            <form asp-action="RotateApiKey" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@key.Id" />
+                                <button type="submit">Rotate</button>
+                            </form>
+                            <form asp-action="SetApiKeyEnabled" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@key.Id" />
+                                <input type="hidden" name="enabled" value="@(active ? "false" : "true")" />
+                                <button type="submit">@(active ? "Disable" : "Enable")</button>
+                            </form>
+                            @if (active)
+                            {
+                                <form asp-action="RevokeApiKey" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@key.Id" />
+                                    <button type="submit" class="danger-button">Revoke</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>

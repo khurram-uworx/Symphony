@@ -59,14 +59,19 @@
     </div>
 
     <div id="run-tab-api" class="run-panel" hidden>
-        <p class="muted">Replay the same request from a terminal. The token shown here is a placeholder only.</p>
+        <p class="muted">Replay the same request from a terminal using an API key or a signed-in session.</p>
+        <p>
+            <a href="/Account/ApiKeys">Manage API keys</a> — keys are system-generated and shown once. Authenticate with
+            <code>Authorization: Bearer &lt;YOUR_API_KEY&gt;</code> (or the <code>X-API-Key</code> header).
+        </p>
         <pre><code id="run-curl">curl -X POST "http://localhost:5080/api/work" \
   -H "Content-Type: application/json" \
-  -H "Cookie: &lt;YOUR_SESSION_COOKIE&gt;" \
+  -H "Authorization: Bearer &lt;YOUR_API_KEY&gt;" \
   --data '{"externalId":null,"ticketIds":["ENG-1"],"workItems":[],"github":{"repository":"owner/repo","personalAccessToken":"&lt;YOUR_GITHUB_TOKEN&gt;"},"workflowName":"WORKFLOW","overrides":{}}'</code></pre>
         <p class="muted">
-            GitHub tokens and API keys are never embedded in this page. API-key authentication arrives in a later task;
-            until then you can obtain a session cookie by signing in. If you do not have a workflow yet, create one on the
+            Replace <code>&lt;YOUR_API_KEY&gt;</code> with a key from the API Keys page. Keys are stored hashed and can be
+            disabled, rotated, or revoked at any time; disabling a user immediately invalidates all their keys.
+            GitHub tokens are never embedded in this page. If you do not have a workflow yet, create one on the
             Workflows page.
         </p>
     </div>

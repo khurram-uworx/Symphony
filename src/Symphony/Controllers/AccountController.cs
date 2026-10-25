@@ -219,4 +219,62 @@ public sealed class AccountController(
     [HttpGet]
     [AllowAnonymous]
     public IActionResult AccessDenied() => View();
+
+    [HttpGet]
+    [Authorize]
+    public async Task<IActionResult> ApiKeys([FromServices] ApiKeyService service)
+    {
+        var userId = await GetUserIdAsync();
+        ViewData["Title"] = "API keys";
+        return View(await service.ListAsync(userId));
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateApiKey(string? name, [FromServices] ApiKeyService service)
+    {
+        var userId = await GetUserIdAsync();
+        var trimmedName = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+        var (rawKey, metadata) = await service.CreateAsync(userId, trimmedName);
+        TempData["NewApiKey"] = rawKey;
+        TempData["NewApiKeyName"] = trimmedName;
+        return RedirectToAction(nameof(ApiKeys));
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RotateApiKey(string id, [FromServices] ApiKeyService service)
+    {
+        var userId = await GetUserIdAsync();
+        var result = await service.RotateAsync(userId, id);
+        if (result is not null)
+        {
+            var (rawKey, metadata) = result.Value;
+            TempData["NewApiKey"] = rawKey;
+            TempData["NewApiKeyName"] = string.IsNullOrEmpty(metadata.Name) ? "Rotated API key" : metadata.Name;
+        }
+        return RedirectToAction(nameof(ApiKeys));
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetApiKeyEnabled(string id, bool enabled, [FromServices] ApiKeyService service)
+    {
+        var userId = await GetUserIdAsync();
+        await service.SetEnabledAsync(userId, id, enabled);
+        return RedirectToAction(nameof(ApiKeys));
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RevokeApiKey(string id, [FromServices] ApiKeyService service)
+    {
+        var userId = await GetUserIdAsync();
+        await service.RevokeAsync(userId, id);
+        return RedirectToAction(nameof(ApiKeys));
+    }
 }

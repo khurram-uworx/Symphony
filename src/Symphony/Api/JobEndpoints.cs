@@ -13,7 +13,7 @@ public static class JobEndpoints
 {
     public static IEndpointRouteBuilder MapJobEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/jobs");
+        var group = endpoints.MapGroup("/api/jobs").RequireRateLimiting(ApiRateLimitPolicy.PolicyName);
 
         group.MapGet("/", ListAsync);
         group.MapGet("/{id:guid}", GetAsync);

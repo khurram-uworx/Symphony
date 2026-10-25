@@ -1,0 +1,106 @@
+@using Symphony.Data
+@model IReadOnlyList<ApiKey>
+@{
+    ViewData["Title"] = "API keys";
+    var newKey = TempData["NewApiKey"] as string;
+    var newKeyName = TempData["NewApiKeyName"] as string;
+}
+<section class="panel">
+    <h1>API keys</h1>
+    <p class="muted">API keys let external systems submit work to <code>/api/work</code> as you. Keys are system-generated and stored hashed; the raw key is shown only once, at creation or rotation.</p>
+
+    @if (!string.IsNullOrEmpty(newKey))
+    {
+        <div id="new-key-banner">
+            <strong>@(string.IsNullOrEmpty(newKeyName) ? "New API key" : newKeyName) — copy it now:</strong>
+            <br />
+            <code id="new-key-value" class="new-key-value">@newKey</code>
+            <p class="muted">It will not be shown again. Rotate to get a new key if you lose it.</p>
+        </div>
+    }
+
+    <h2>Create a key</h2>
+    <form asp-action="CreateApiKey" method="post">
+        @Html.AntiForgeryToken()
+        <label>
+            Key name (optional)
+            <input name="name" maxlength="256" autocomplete="off" placeholder="e.g. laptop curl script" />
+        </label>
+        <button type="submit">Create API key</button>
+    </form>
+
+    <h2>Your keys</h2>
+    @if (Model.Count == 0)
+    {
+        <p class="muted">No API keys yet. Create one above to submit work from a terminal.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Prefix</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Last used</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var key in Model)
+                {
+                    var now = DateTimeOffset.UtcNow;
+                    var revoked = key.RevokedAt is not null;
+                    var expired = !revoked && key.ExpiresAt is not null && key.ExpiresAt <= now;
+                    var active = key.IsEnabled && !revoked && !expired;
+                    var restorable = key.ExpiresAt is null || key.ExpiresAt > now;
+                    <tr>
+                        <td>@(string.IsNullOrEmpty(key.Name) ? "—" : key.Name)</td>
+                        <td><code>@key.KeyPrefix…</code></td>
+                        <td>
+                            @(revoked ? "Revoked" : expired ? "Expired" : active ? "Active" : "Disabled")
+                            @if (key.ExpiresAt is { } expires)
+                            {
+                                <br />
+                                <span class="muted">expires @expires.ToString("yyyy-MM-dd")</span>
+                            }
+                        </td>
+                        <td>@key.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>@(key.LastUsedAt?.ToString("yyyy-MM-dd HH:mm") ?? "never")</td>
+                        <td class="table-actions">
+                            <form asp-action="RotateApiKey" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@key.Id" />
+                                <button type="submit">Rotate</button>
+                            </form>
+                            @if (restorable && !active)
+                            {
+                                <form asp-action="SetApiKeyEnabled" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@key.Id" />
+                                    <input type="hidden" name="enabled" value="true" />
+                                    <button type="submit">Enable</button>
+                                </form>
+                            }
+                            @if (active)
+                            {
+                                <form asp-action="SetApiKeyEnabled" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@key.Id" />
+                                    <input type="hidden" name="enabled" value="false" />
+                                    <button type="submit">Disable</button>
+                                </form>
+                                <form asp-action="RevokeApiKey" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@key.Id" />
+                                    <button type="submit" class="danger-button">Revoke</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>

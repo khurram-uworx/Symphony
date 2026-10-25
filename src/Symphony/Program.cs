@@ -6,6 +6,7 @@ using Symphony.Data;
 using Symphony.Processing;
 using Symphony.Security;
 using Symphony.Services;
+using Symphony.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,7 +28,8 @@ builder.Services.AddScoped<UserManagementService>(serviceProvider =>
         serviceProvider.GetRequiredService<RoleManager<IdentityRole>>(),
         serviceProvider.GetService<SignInManager<IdentityUser>>(),
         serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),
-        serviceProvider.GetService<WorkflowService>()));
+        serviceProvider.GetService<WorkflowService>(),
+        serviceProvider.GetService<ApiKeyService>()));
 builder.Services.AddScoped<ConfigurationService>(serviceProvider =>
     new ConfigurationService(
         serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),
@@ -54,6 +56,18 @@ builder.Services.AddSingleton<JobProcessor>(serviceProvider =>
         serviceProvider.GetRequiredService<ILogger<JobProcessor>>()));
 builder.Services.AddHostedService(serviceProvider =>
     serviceProvider.GetRequiredService<JobProcessor>());
+
+builder.Services.AddScoped<ApiKeyService>(serviceProvider =>
+    new ApiKeyService(
+        serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),
+        serviceProvider.GetRequiredService<UserManager<IdentityUser>>(),
+        serviceProvider.GetRequiredService<IConfiguration>(),
+        serviceProvider.GetService<IWebHostEnvironment>()));
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddPolicy<string, ApiRateLimitPolicy>(ApiRateLimitPolicy.PolicyName);
+});
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -63,7 +77,9 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
+app.UseApiKeyAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapStaticAssets();
 app.MapControllerRoute(
@@ -73,6 +89,7 @@ app.MapConfigurationEndpoints();
 app.MapWorkflowEndpoints();
 app.MapWorkEndpoints();
 app.MapJobEndpoints();
+app.MapApiKeyEndpoints();
 await DatabaseInitializer.InitializeAsync(
     app.Services.GetRequiredService<IDbContextFactory<SymphonyDbContext>>());
 

@@ -52,19 +52,19 @@
 
             <div data-tracker-kind="linear jira">
                 <label>
-                    Tracker endpoint
+                    <span id="tracker-endpoint-label">Tracker endpoint</span>
                     <input asp-for="TrackerEndpoint" autocomplete="off" />
                 </label>
                 <span asp-validation-for="TrackerEndpoint" class="field-error"></span>
 
                 <label>
-                    Tracker API key
+                    <span id="tracker-apikey-label">Tracker API key</span>
                     <input asp-for="TrackerApiKey" type="password" autocomplete="off" placeholder="Leave blank to keep" />
                 </label>
                 <span asp-validation-for="TrackerApiKey" class="field-error"></span>
 
                 <label>
-                    Project slug
+                    <span id="tracker-project-label">Project slug</span>
                     <input asp-for="TrackerProjectSlug" autocomplete="off" />
                 </label>
                 <span asp-validation-for="TrackerProjectSlug" class="field-error"></span>
@@ -380,12 +380,30 @@
 
         var tracker = document.getElementById('tracker-kind');
         if (tracker) {
+            var endpointLabel = document.getElementById('tracker-endpoint-label');
+            var apiKeyLabel = document.getElementById('tracker-apikey-label');
+            var projectLabel = document.getElementById('tracker-project-label');
             function updateTracker() {
                 var value = (tracker.value || '').toLowerCase();
                 document.querySelectorAll('[data-tracker-kind]').forEach(function (el) {
                     var kinds = (el.getAttribute('data-tracker-kind') || '').split(/\s+/);
                     el.hidden = kinds.indexOf(value) === -1;
                 });
+                var endpointText = 'Tracker endpoint';
+                var apiKeyText = 'Tracker API key';
+                var projectText = 'Project slug';
+                if (value === 'linear') {
+                    endpointText = 'Linear Url';
+                    apiKeyText = 'Linear API key';
+                    projectText = 'Linear Project Slug';
+                } else if (value === 'jira') {
+                    endpointText = 'Jira Url';
+                    apiKeyText = 'Jira API key';
+                    projectText = 'Jira Project';
+                }
+                if (endpointLabel) endpointLabel.textContent = endpointText;
+                if (apiKeyLabel) apiKeyLabel.textContent = apiKeyText;
+                if (projectLabel) projectLabel.textContent = projectText;
             }
             tracker.addEventListener('change', updateTracker);
             updateTracker();

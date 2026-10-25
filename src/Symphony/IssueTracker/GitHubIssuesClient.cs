@@ -7,8 +7,6 @@ namespace Symphony.IssueTracker;
 
 sealed class GitHubIssuesClient : IIssueTracker
 {
-    static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     readonly IHttpClientFactory httpClientFactory;
     readonly ILogger<GitHubIssuesClient> logger;
     readonly ServiceConfig config;

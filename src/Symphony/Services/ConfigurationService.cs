@@ -114,7 +114,6 @@ public sealed class ConfigurationService(
         TrackerProjectSlug = source.TrackerProjectSlug,
         TrackerActiveStates = source.TrackerActiveStates,
         TrackerTerminalStates = source.TrackerTerminalStates,
-        WorkspaceRoot = source.WorkspaceRoot,
         HookAfterCreate = source.HookAfterCreate,
         HookBeforeRun = source.HookBeforeRun,
         HookAfterRun = source.HookAfterRun,
@@ -142,7 +141,6 @@ public sealed class ConfigurationService(
         target.TrackerProjectSlug = source.TrackerProjectSlug;
         target.TrackerActiveStates = source.TrackerActiveStates;
         target.TrackerTerminalStates = source.TrackerTerminalStates;
-        target.WorkspaceRoot = source.WorkspaceRoot;
         target.HookAfterCreate = source.HookAfterCreate;
         target.HookBeforeRun = source.HookBeforeRun;
         target.HookAfterRun = source.HookAfterRun;
@@ -280,12 +278,6 @@ public sealed class ConfigurationService(
         result.TrackerTerminalStates = terminalStates is null
             ? "Closed, Cancelled, Canceled, Duplicate, Done"
             : string.Join(", ", terminalStates);
-
-        var workspaceMap = ConfigReader.ReadMap(config, "workspace");
-        var workspaceRoot = ConfigReader.ReadString(workspaceMap, "root");
-        if (string.IsNullOrWhiteSpace(workspaceRoot))
-            workspaceRoot = ConfigReader.ReadString(config, "workspace_root");
-        result.WorkspaceRoot = workspaceRoot ?? string.Empty;
 
         var hooksMap = ConfigReader.ReadMap(config, "hooks");
         if (hooksMap.Count > 0)

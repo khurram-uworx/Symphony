@@ -22,8 +22,6 @@ public sealed class UserConfiguration
 
     public string? TrackerTerminalStates { get; set; }
 
-    public string WorkspaceRoot { get; set; } = string.Empty;
-
     public string? HookAfterCreate { get; set; }
 
     public string? HookBeforeRun { get; set; }

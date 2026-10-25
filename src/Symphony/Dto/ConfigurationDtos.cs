@@ -21,8 +21,6 @@ public class ConfigurationDto
 
     public string? TrackerTerminalStates { get; set; }
 
-    public string? WorkspaceRoot { get; set; }
-
     public string? HookAfterCreate { get; set; }
 
     public string? HookBeforeRun { get; set; }
@@ -73,7 +71,6 @@ public class ConfigurationDto
             TrackerProjectSlug = source.TrackerProjectSlug,
             TrackerActiveStates = source.TrackerActiveStates,
             TrackerTerminalStates = source.TrackerTerminalStates,
-            WorkspaceRoot = source.WorkspaceRoot,
             HookAfterCreate = source.HookAfterCreate,
             HookBeforeRun = source.HookBeforeRun,
             HookAfterRun = source.HookAfterRun,
@@ -107,7 +104,6 @@ public class ConfigurationDto
             TrackerProjectSlug = TrackerProjectSlug ?? string.Empty,
             TrackerActiveStates = TrackerActiveStates,
             TrackerTerminalStates = TrackerTerminalStates,
-            WorkspaceRoot = WorkspaceRoot ?? string.Empty,
             HookAfterCreate = HookAfterCreate,
             HookBeforeRun = HookBeforeRun,
             HookAfterRun = HookAfterRun,

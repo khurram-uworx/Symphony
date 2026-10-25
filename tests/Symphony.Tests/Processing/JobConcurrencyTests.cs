@@ -1,10 +1,10 @@
-using NUnit.Framework;
-using Symphony.Processing;
-using Symphony.Data;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Data.Sqlite;
+using NUnit.Framework;
+using Symphony.Data;
+using Symphony.Processing;
 using static Symphony.Tests.NUnitConstants;
 
 namespace Symphony.Tests.Processing;

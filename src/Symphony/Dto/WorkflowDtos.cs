@@ -1,5 +1,3 @@
-using Symphony.Data;
-
 namespace Symphony.Dto;
 
 public class WorkflowDto

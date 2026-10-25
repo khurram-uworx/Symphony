@@ -1,6 +1,5 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Identity;
 using Symphony.Services;
+using System.Security.Claims;
 
 namespace Symphony.Api;
 

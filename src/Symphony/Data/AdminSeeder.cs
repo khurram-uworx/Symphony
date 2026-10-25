@@ -1,7 +1,6 @@
-using System.Security.Cryptography;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Symphony.Services;
+using System.Security.Cryptography;
 
 namespace Symphony.Data;
 

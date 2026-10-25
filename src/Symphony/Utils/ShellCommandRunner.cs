@@ -1,8 +1,7 @@
-using Microsoft.Extensions.Logging;
+using Symphony.Security;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
-using Symphony.Security;
 
 namespace Symphony.Utils;
 

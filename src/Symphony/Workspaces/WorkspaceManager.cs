@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using Symphony.Config;
 using Symphony.Domain;
 using Symphony.Utils;

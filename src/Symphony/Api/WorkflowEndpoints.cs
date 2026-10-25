@@ -1,9 +1,6 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
-using Symphony.Data;
 using Symphony.Dto;
 using Symphony.Services;
+using System.Security.Claims;
 
 namespace Symphony.Api;
 

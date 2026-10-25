@@ -1,12 +1,11 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Symphony.Api;
 using Symphony.Data;
+using Symphony.Middleware;
 using Symphony.Processing;
 using Symphony.Security;
 using Symphony.Services;
-using Symphony.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 

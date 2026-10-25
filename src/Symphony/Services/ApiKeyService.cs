@@ -1,9 +1,8 @@
-﻿using System.Security.Cryptography;
-using System.Text;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Symphony.Data;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Symphony.Services;
 

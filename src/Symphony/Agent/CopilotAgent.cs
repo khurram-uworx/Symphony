@@ -2,10 +2,8 @@
 using GitHub.Copilot.Rpc;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Symphony.Config;
-using System.Collections.Generic;
 using System.Text.Json;
 
 namespace Symphony.Agent;

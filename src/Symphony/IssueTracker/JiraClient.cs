@@ -1,6 +1,5 @@
 using Dapplo.Jira;
 using Dapplo.Jira.Entities;
-using Microsoft.Extensions.Logging;
 using Symphony.Config;
 using Symphony.Domain;
 

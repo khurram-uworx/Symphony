@@ -1,7 +1,6 @@
 using NUnit.Framework;
 using Symphony.Domain;
 using Symphony.IssueTracker;
-using System.Threading;
 
 namespace Symphony.Tests;
 

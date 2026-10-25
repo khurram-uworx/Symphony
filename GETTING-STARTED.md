@@ -83,7 +83,7 @@ Legacy tracker workflow configuration is documented in [docs/CONFIG.md](docs/CON
 The NUnit suite is the only project intended for CI:
 
 ```bash
-dotnet test tests/Symphony.Tests
+dotnet test tests/Symphony.Tests --filter "Category!=Integration&Category!=Smoke&Category!=ReleaseReadiness"
 ```
 
 CI (`.github/workflows/ci.yml`) builds and tests only `tests/Symphony.Tests` with the filter `Category!=Integration&Category!=Smoke&Category!=ReleaseReadiness` and collects Cobertura coverage via `coverlet.collector`. The job fails if tests run but no coverage file is produced.

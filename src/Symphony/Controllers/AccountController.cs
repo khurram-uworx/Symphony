@@ -1,13 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using System.IO;
-using System.Security.Claims;
 using Symphony.Data;
 using Symphony.Dto;
 using Symphony.Security;
 using Symphony.Services;
+using System.Security.Claims;
 
 namespace Symphony.Controllers;
 

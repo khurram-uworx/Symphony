@@ -4,16 +4,19 @@
 
 Symphony is a .NET 10 web host for AI agent orchestration. The entry point is the ASP.NET Core MVC app in `src/Symphony`. It serves HTTP and does not require a workflow file to start.
 
-**Primary docs:** [README.md](README.md) for setup, configuration, and usage. [CONTAINER-README.md](CONTAINER-README.md) for the published image and sample compose. [docs/CONFIG.md](docs/CONFIG.md) for workflow configuration. [docs/adr/](docs/adr/) for accepted decisions. [docs/plans/](docs/plans/) for product plans.
+**Primary docs:** [README.md](README.md) for setup, configuration, and usage. [CONTAINER-README.md](CONTAINER-README.md) for the published image and sample compose. [docs/CONFIG.md](docs/CONFIG.md) for workflow configuration. [docs/adr/](docs/adr/) for accepted decisions. [docs/plans/](docs/plans/) for implementation plans.
 
 ## Repository map
 
-- `src/Symphony/`: web host entry point. MVC controllers and views, plus agent execution, config, domain models, issue tracker integration, orchestration, and workspace management.
+- `src/Symphony/`: web host entry point. MVC controllers and views, plus agent execution, config, issue tracker integration, processing, services, and workspace management.
 - `tests/Symphony.Tests/`: NUnit test suite. This is the only test project for default verification and CI.
 - `tests/Symphony.CodingAgentsProbe/`: manual Copilot SDK probes (hosted Copilot and BYOM). Not part of CI.
 - `tests/Symphony.PerformanceTests/`: manual performance harness. Not part of CI.
+- `src/Symphony.Data/`: shared domain entities, DbContext, and user configuration.
+- `src/Symphony.Migrations.Sqlite/`, `src/Symphony.Migrations.SqlServer/`, `src/Symphony.Migrations.PostgreSQL/`: provider-specific EF Core migration assemblies.
+- `docs/`: architecture, configuration, and features documentation.
 - `docs/adr/`: architecture decision records. Read the folder before revisiting an accepted decision.
-- `docs/plans/`: implementation plans (web product, GitHub Issues tracker, task breakdown).
+- `docs/plans/`: implementation plans (GitHub Issues tracker support).
 - `Symphony.slnx`: solution entry point.
 
 ## Build & Verify

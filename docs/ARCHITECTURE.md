@@ -2,6 +2,18 @@
 
 Design rationale and runtime shape for the Symphony .NET web host. For feature inventory, see [FEATURES.md](FEATURES.md).
 
+## Product Model
+
+Symphony is a multi-user ASP.NET Core MVC web application with a minimal API and a background job processor. The earlier console/polling/WORKFLOW.md-file mode is not retained; the web application is the product.
+
+- Work is always explicitly submitted; there is no polling for candidate work.
+- Users are created by admins (admin-invited); there is no public self-registration in the first cut.
+- Each user has a saved UserConfiguration (tracker, Copilot BYOM, workspace root, hooks, limits, default workflow). Tracker credentials and Copilot secrets are encrypted at rest.
+- Each user maintains named Workflow documents (WORKFLOW.md-style with front matter and prompt template). The default workflow is named WORKFLOW and seeded from the bundled WORKFLOW.md. At least one workflow must remain per user.
+- When ticket IDs are submitted, the owner's configured tracker is used as a context-fetching tool (not for polling). Inline work uses NullIssueTracker.
+- Jobs are owned by users; users see only their own jobs, admins see all jobs.
+- Each submission specifies target GitHub repository, GitHub PAT, and workflow name. The PAT and workflow selection are request-scoped and never stored in plaintext in saved configuration.
+
 ## Folder Structure
 
 ```text
@@ -9,13 +21,19 @@ src/Symphony/                    # Web host
   Program.cs                    # ASP.NET Core entry point
   Controllers/                  # MVC controllers
   Views/                        # MVC views
+  Api/                          # Minimal API endpoints
   Agent/                        # Copilot SDK and Codex runners
-  Config/
-  Domain/
+  Config/                       # ServiceConfig and factories/providers
+  Data/                         # DbContext, migrations, seeding
+  Domain/                       # Entities
+  Hubs/                         # SignalR hubs
   IssueTracker/                 # Linear and Jira
-  Orchestration/                # Orchestration components
-  Workflows/
-  Workspaces/
+  Middleware/                   # API key/auth middleware
+  Processing/                   # JobQueue, JobProcessor
+  Security/                     # Secret protection/redaction
+  Services/                     # Application services
+  Workflows/                    # Workflow loading/bundling
+  Workspaces/                   # Workspace management
   Utils/
 tests/
   Symphony.Tests/               # NUnit suite (CI)
@@ -24,51 +42,47 @@ tests/
 docs/
   CONFIG.md
   adr/                          # Accepted architecture decisions
-  plans/                        # Product and implementation plans
 ```
 
 ## Runtime Shape
 
-- `src/Symphony/Program.cs` configures MVC, Identity, database, data protection, secret protection, queue, and processor.
-- Kestrel serves the MVC app on `http://localhost:5080` with `launchSettings.json`.
-- Startup applies provider-specific EF Core migrations, then seeds admin.
+- Program.cs configures MVC, Identity, database, data protection, secret protection, queue, processor, SignalR, rate limiting, and API endpoints.
+- Kestrel serves the MVC app (default http://localhost:5080 via launchSettings.json).
+- Startup applies provider-specific EF Core migrations via DatabaseInitializer, then seeds roles/admin and default workflows.
 
-## Database Providers
+## Database and Persistence
 
-- Provider selected by `Database:Provider`.
-- SQLite uses `Symphony.Migrations.Sqlite`; SQL Server uses `Symphony.Migrations.SqlServer`; PostgreSQL uses `Symphony.Migrations.PostgreSQL`.
-- Each migration set is provider-specific; update all three together.
-- `DatabaseInitializer` creates parent directories for SQLite.
+- EF Core with SQLite by default; SQL Server and PostgreSQL supported via Database:Provider.
+- Connection strings: Sqlite, SqlServer, PostgreSQL (aliases postgres, npgsql). Provider-specific migrations in Symphony.Migrations.* projects.
+- Core entities: IdentityUser/IdentityRole, UserConfiguration, Workflow, Job, JobIssue, JobEvent, ApiKey (user-owned), AppSetting.
+- Indices: Job(State,QueuedAt), Job(OwnerUserId,QueuedAt), JobIssue(JobId), JobEvent(JobId,Timestamp), ApiKey(Prefix), unique Workflow(OwnerUserId,Name). Workflows resolved by name at runtime; admin retries create linked jobs (RetryOfJobId).
 
-## Identity and Authorization
+## Identity, Authentication, and Authorization
 
-- ASP.NET Core Identity cookie auth.
-- Minimal API and MVC actions resolve user from `ClaimsPrincipal`; admin checks use `IsInRole("Admin")`.
-- User and role management is admin-only.
+- ASP.NET Core Identity with cookie auth. Custom login/logout on AccountController (no Identity UI/Razor Pages).
+- API key auth via X-API-Key or Authorization: Bearer through ApiKeyMiddleware; keys user-owned, hashed, support enable/disable/rotate/revoke, raw value shown only once.
+- Role Admin required for /admin/*; users manage only their own resources; admins can view/cancel/retry any job and manage users/settings. Disabling/deleting a user invalidates sessions and API keys.
 
 ## Job Processing
 
-- `WorkEndpoints` creates `Job` rows with encrypted snapshots.
-- `JobQueue` is a wake signal over database-backed jobs.
-- `JobProcessor` (hosted service) claims queued jobs, processes with concurrency, recovers stale running jobs, and marks terminal states.
-- Cancellation calls `JobProcessor.Cancel`, sets state to `Cancelled`, and records events.
-- Job APIs enforce ownership; admin sees all jobs.
-- Work is submitted explicitly; there is no candidate polling. Trackers are optional context/state sources used only when ticket IDs are submitted.
+- Explicit submission via POST /api/work (requires ticketIds/workItems, github.repository, github.personalAccessToken, workflowName). Creates queued job with encrypted snapshot.
+- JobQueue provides wake-up signals; database remains source of truth. JobProcessor (hosted service) recovers queued/stale jobs, claims with concurrency (per-user primary, global ceiling), processes per issue with retry, persists issues/events, marks terminal states.
+- Cancellation via DELETE /api/jobs/{id} sets Cancelled. Stale Running jobs become Failed with interrupted-run events on startup.
+- Trackers fetched only when ticket IDs supplied; inline work uses NullIssueTracker. Copilot SDK is first-cut agent (Codex retained but not registered/exposed).
 
-## Views and APIs
+## Web UI and APIs
 
-- MVC Razor views; API endpoints are minimal APIs grouped under `/api`.
-- Runtime status DTO masks secrets and snapshots.
+- MVC Razor views/controllers; minimal APIs under /api (configuration, workflows, work, jobs, api-keys). SignalR hub at /hubs/jobs.
+- Screens: /admin (dashboard/jobs/users/settings), /account (index/configuration/workflows/run/api-keys). /account/run provides form submission and curl example using user's enabled API key.
+- Status DTOs mask secrets/snapshots. Rate limiting on APIs; antiforgery on admin forms.
 
 ## Data Protection and Secrets
 
-- Secret protection protects PAT and tracker credentials at rest.
-- Data Protection persists key ring when configured.
-- Browser and cookie settings are hardened for production.
+- ISecretProtector using ASP.NET Core Data Protection for field-level encryption. Data Protection key ring persisted when configured.
+- Cookie settings hardened in production (Secure/HttpOnly/SameSite, HTTPS/HSTS). GitHub PAT and tracker/Copilot secrets encrypted at rest; never logged or returned in normal API responses.
 
 ## Testing
 
-- `tests/Symphony.Tests` is the CI suite.
-- Integration and Smoke tests are excluded by default.
-- Playwright is run through the MCP against a launched host.
-- CI collects Cobertura coverage and fails if no coverage artifact is produced.
+- tests/Symphony.Tests is the CI suite (NUnit). Excluded: Integration, Smoke, ReleaseReadiness by default.
+- CI builds/tests Symphony.Tests, collects Cobertura via coverlet.collector, fails if no coverage artifact.
+- Playwright checks via Playwright MCP against a launched host (not in Symphony.Tests). Integration tests requiring external services need env vars.

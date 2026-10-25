@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Symphony.Data;
 
 namespace Symphony.Dto;
 

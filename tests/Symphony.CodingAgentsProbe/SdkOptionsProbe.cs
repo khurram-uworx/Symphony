@@ -1,7 +1,4 @@
 using GitHub.Copilot;
-using System;
-using System.Linq;
-using System.Reflection;
 
 namespace Symphony.CodingAgentsProbe;
 

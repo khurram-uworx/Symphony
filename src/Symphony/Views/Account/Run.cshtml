@@ -91,11 +91,6 @@
                 </select>
             </label>
 
-            <label>
-                Overrides (optional JSON object)
-                <textarea id="run-overrides" rows="3" placeholder="{}"></textarea>
-            </label>
-
             <button type="submit" id="run-submit">Submit work</button>
         </form>
         <div id="run-result" hidden></div>
@@ -117,8 +112,7 @@
     "github": {
       "repository": "owner/repo"
     },
-    "workflowName": "WORKFLOW",
-    "overrides": {}
+    "workflowName": "WORKFLOW"
   }'</code></pre>
         <p class="muted">
             Replace <code>&lt;YOUR_API_KEY&gt;</code> with a key from the API Keys page. Keys are stored hashed and can be
@@ -313,21 +307,7 @@
 
         const workItems = queuedWorkItems.slice();
 
-        let overrides = {};
-        const overridesText = document.getElementById('run-overrides').value.trim();
-        if (overridesText) {
-            try {
-                const parsed = JSON.parse(overridesText);
-                if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-                    throw new Error('Overrides must be a JSON object.');
-                }
-                overrides = parsed;
-            } catch (error) {
-                setStatus(error.message, true);
-                return;
-            }
-        }
-
+        const overrides = {};
         const payload = {
             externalId: externalId || null,
             ticketIds: ticketIds,

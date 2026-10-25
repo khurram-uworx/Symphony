@@ -879,6 +879,14 @@ main:has(.workflows-shell--editor) {
     box-shadow: 0 0 0 3px rgba(124, 108, 255, 0.16);
 }
 
+.account-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
 .account-shortcuts {
     display: flex;
     gap: 12px;

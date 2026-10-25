@@ -12,16 +12,19 @@
     var newKeyName = ViewData["NewApiKeyName"] as string;
 }
 <section class="panel">
-    <h1>Account</h1>
+    <div class="account-header">
+        <h1>Account</h1>
+        <div class="account-shortcuts">
+            <a class="primary-button" asp-controller="Account" asp-action="Manage">Manage (password &amp; sign out)</a>
+            <a class="primary-button" asp-controller="Account" asp-action="Run">Run launcher</a>
+        </div>
+    </div>
     <p class="muted">Hello, @displayName <span class="muted">(@((roles.Any() ? string.Join(", ", roles) : "User")))</span></p>
 
     <div class="account-tabs" role="tablist">
         <button type="button" class="account-tab @(activeTab == "configuration" ? "is-active" : null)" data-tab="configuration" role="tab" aria-selected="@(activeTab == "configuration" ? "true" : "false")">Configuration</button>
         <button type="button" class="account-tab @(activeTab == "workflows" ? "is-active" : null)" data-tab="workflows" role="tab" aria-selected="@(activeTab == "workflows" ? "true" : "false")">Workflows</button>
         <button type="button" class="account-tab @(activeTab == "apikeys" ? "is-active" : null)" data-tab="apikeys" role="tab" aria-selected="@(activeTab == "apikeys" ? "true" : "false")">API keys</button>
-        <span class="account-tab-separator" aria-hidden="true"></span>
-        <a class="account-tab account-tab--external" asp-controller="Account" asp-action="Manage">Manage (password &amp; sign out)</a>
-        <a class="account-tab account-tab--external" asp-controller="Account" asp-action="Run">Run launcher</a>
     </div>
 
     <div id="account-tab-configuration" class="account-panel" @(activeTab == "configuration" ? null : "hidden")>

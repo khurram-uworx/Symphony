@@ -139,7 +139,7 @@ Tracker configuration is optional. A tracker is only required when submitting ti
 ## Environment variables
 
 - `LINEAR_API_KEY` — Linear (and fallback Jira-style) API token. Used when `tracker.api_key` is missing or referenced as `$LINEAR_API_KEY`.
-- `SYMPHONY_WORKSPACE_ROOT` — optional; to use it, set `workspace.root: $SYMPHONY_WORKSPACE_ROOT` in `WORKFLOW.md`. The application itself resolves workspace paths through `workspace.root`.
+- `SYMPHONY_WORKSPACE_ROOT` — optional override for the system workspace root. Admin configuration defaults to `%TEMP%/Symphony`; environment variable takes precedence.
 - Standard environment variables used by the Codex/Copilot CLIs for their own authentication.
 
 ## Allowed workflow front matter overrides
@@ -147,8 +147,6 @@ Tracker configuration is optional. A tracker is only required when submitting ti
 When a `ServiceConfig` is built from saved user configuration plus workflow content,
 only the following front matter keys may override the user-level configuration:
 
-- `workspace.root`
-- `workspace_root`
 - `hooks.after_create`
 - `hooks.before_run`
 - `hooks.after_run`

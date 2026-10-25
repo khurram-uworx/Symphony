@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Symphony.Data;
+using Symphony.Security;
 using System.Security.Cryptography;
 
 namespace Symphony.Services;
@@ -11,7 +12,8 @@ public sealed class UserManagementService(
     SignInManager<IdentityUser>? signInManager = null,
     IDbContextFactory<SymphonyDbContext>? dbContextFactory = null,
     WorkflowService? workflowService = null,
-    ApiKeyService? apiKeyService = null)
+    ApiKeyService? apiKeyService = null,
+    ISecretProtector? secretProtector = null)
 {
     const string Upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const string Lower = "abcdefghijklmnopqrstuvwxyz";
@@ -24,6 +26,7 @@ public sealed class UserManagementService(
     readonly IDbContextFactory<SymphonyDbContext>? dbContextFactory = dbContextFactory;
     readonly WorkflowService? workflowService = workflowService;
     readonly ApiKeyService? apiKeyService = apiKeyService;
+    readonly ISecretProtector? secretProtector = secretProtector;
 
     public Task<IReadOnlyList<IdentityUser>> GetUsersAsync(CancellationToken cancellationToken = default) =>
         GetAllUsersAsync(users, cancellationToken);
@@ -93,6 +96,13 @@ public sealed class UserManagementService(
             await workflowService.EnsureDefaultWorkflowAsync(user.Id, cancellationToken);
         else if (dbContextFactory is not null)
             await WorkflowService.EnsureDefaultWorkflowAsync(dbContextFactory, user.Id, cancellationToken);
+
+        if (dbContextFactory is not null)
+            await ConfigurationService.EnsureDefaultConfigurationAsync(
+                dbContextFactory,
+                secretProtector ?? new SecretProtector(),
+                user.Id,
+                cancellationToken);
         return user;
     }
 
@@ -127,7 +137,10 @@ public sealed class UserManagementService(
         }
 
         if (dbContextFactory is not null)
+        {
             await WorkflowService.EnsureDefaultWorkflowAsync(dbContextFactory, user.Id, cancellationToken);
+            await ConfigurationService.EnsureDefaultConfigurationAsync(dbContextFactory, user.Id, cancellationToken);
+        }
 
         return user;
     }

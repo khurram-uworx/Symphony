@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Symphony.Security;
 using Symphony.Services;
 
 namespace Symphony.Data;
@@ -17,6 +18,7 @@ public static class DatabaseInitializer
 
     public static async Task InitializeAsync(
         IDbContextFactory<SymphonyDbContext> factory,
+        ISecretProtector? protector = null,
         CancellationToken cancellationToken = default)
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
@@ -24,6 +26,10 @@ public static class DatabaseInitializer
 
         await SeedAppSettingsAsync(db, cancellationToken);
         await SeedDefaultWorkflowsAsync(db, cancellationToken);
+        await ConfigurationService.SeedDefaultConfigurationsAsync(
+            factory,
+            protector ?? new SecretProtector(),
+            cancellationToken);
     }
 
     static async Task SeedAppSettingsAsync(SymphonyDbContext db, CancellationToken cancellationToken)

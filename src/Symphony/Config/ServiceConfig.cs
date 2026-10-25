@@ -80,10 +80,11 @@ public record TrackerConfig(
 
 public record WorkspaceConfig(string Root)
 {
-    public static WorkspaceConfig From(IReadOnlyDictionary<string, object> root)
+    public static WorkspaceConfig From(IReadOnlyDictionary<string, object> root, string? systemWorkspaceRoot = null)
     {
-        var workspace = ConfigReader.ReadMap(root, "workspace");
-        var rawRoot = ConfigReader.ReadString(workspace, "root") ?? Path.Combine(Path.GetTempPath(), "symphony_workspaces");
+        var rawRoot = string.IsNullOrWhiteSpace(systemWorkspaceRoot)
+            ? Path.Combine(Path.GetTempPath(), "symphony_workspaces")
+            : systemWorkspaceRoot!;
         return new WorkspaceConfig(WorkspacePath.RequireAbsoluteRoot(ConfigReader.ResolvePath(rawRoot)));
     }
 }

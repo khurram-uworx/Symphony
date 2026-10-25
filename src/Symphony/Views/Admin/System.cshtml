@@ -1,0 +1,31 @@
+@{
+    ViewData["Title"] = "System";
+    var configuredValue = ViewBag.SystemWorkspaceRootConfigured as string ?? "%TEMP%/Symphony";
+    var resolvedValue = ViewBag.SystemWorkspaceRootResolved as string;
+}
+<h1>System</h1>
+@if (TempData["Message"] != null)
+{
+    <div class="alert alert-success">@TempData["Message"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<nav class="tabs">
+    <a class="active" href="/admin/system">Configuration</a>
+</nav>
+
+<section class="panel">
+    <h2>Configuration</h2>
+    <form method="post" asp-action="SaveSystemConfiguration" asp-controller="Admin">
+        @Html.AntiForgeryToken()
+        <div>
+            <label for="workspaceRoot">Workspace root</label>
+            <input type="text" id="workspaceRoot" name="workspaceRoot" value="@configuredValue" class="form-control" />
+            <p class="muted">Absolute path or template such as %TEMP%/Symphony. Resolved path: @resolvedValue</p>
+        </div>
+        <button type="submit" class="btn btn-primary">Save</button>
+    </form>
+</section>

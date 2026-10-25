@@ -11,16 +11,18 @@ public class ServiceConfigFactory
     public static ServiceConfig Build(
         object? configuration,
         string workflowContent,
-        IEnumerable<string>? submittedStates = null)
+        IEnumerable<string>? submittedStates = null,
+        string? systemWorkspaceRoot = null)
     {
         var workflow = new WorkflowLoader(NullLogger<WorkflowLoader>.Instance).Parse(workflowContent ?? string.Empty);
-        return Build(configuration, workflow, submittedStates);
+        return Build(configuration, workflow, submittedStates, systemWorkspaceRoot);
     }
 
     public static ServiceConfig Build(
         object? configuration,
         WorkflowDefinition workflow,
-        IEnumerable<string>? submittedStates = null)
+        IEnumerable<string>? submittedStates = null,
+        string? systemWorkspaceRoot = null)
     {
         ArgumentNullException.ThrowIfNull(workflow);
 
@@ -37,7 +39,7 @@ public class ServiceConfigFactory
         if (dictionary is not null)
         {
             tracker = TrackerConfig.From(dictionary);
-            workspace = WorkspaceConfig.From(dictionary);
+            workspace = WorkspaceConfig.From(dictionary, systemWorkspaceRoot);
             hooks = HooksConfig.From(dictionary);
             agent = AgentConfig.From(dictionary);
             codex = CodexConfig.From(dictionary);
@@ -47,7 +49,7 @@ public class ServiceConfigFactory
         {
             user ??= new UserConfiguration();
             tracker = BuildTracker(user);
-            workspace = BuildWorkspace(user);
+            workspace = BuildWorkspace(user, systemWorkspaceRoot);
             hooks = BuildHooks(user);
             agent = BuildAgent(user);
             codex = null;
@@ -69,7 +71,6 @@ public class ServiceConfigFactory
             activeStates,
             tracker.TerminalStates);
 
-        workspace = ApplyWorkspaceOverride(workspace, workflow);
         hooks = ApplyHooksOverride(hooks, workflow);
         agent = ApplyAgentOverrides(agent, workflow);
 
@@ -95,11 +96,11 @@ public class ServiceConfigFactory
             terminal);
     }
 
-    static WorkspaceConfig BuildWorkspace(UserConfiguration user)
+    static WorkspaceConfig BuildWorkspace(UserConfiguration user, string? systemWorkspaceRoot = null)
     {
-        var rawRoot = string.IsNullOrWhiteSpace(user.WorkspaceRoot)
+        var rawRoot = string.IsNullOrWhiteSpace(systemWorkspaceRoot)
             ? Path.Combine(Path.GetTempPath(), "symphony_workspaces")
-            : user.WorkspaceRoot!;
+            : systemWorkspaceRoot!;
         return new WorkspaceConfig(WorkspacePath.RequireAbsoluteRoot(ConfigReader.ResolvePath(rawRoot)));
     }
 
@@ -252,21 +253,6 @@ public class ServiceConfigFactory
         return null;
     }
 
-    static WorkspaceConfig ApplyWorkspaceOverride(WorkspaceConfig workspace, WorkflowDefinition workflow)
-    {
-        var workspaceMap = ConfigReader.ReadMap(workflow.Config, "workspace");
-        var root = workspaceMap.Count > 0
-            ? ConfigReader.ReadString(workspaceMap, "root")
-            : null;
-
-        if (string.IsNullOrWhiteSpace(root))
-            root = ConfigReader.ReadString(workflow.Config, "workspace_root");
-
-        if (string.IsNullOrWhiteSpace(root))
-            return workspace;
-
-        return new WorkspaceConfig(WorkspacePath.RequireAbsoluteRoot(ConfigReader.ResolvePath(root!)));
-    }
 
     static HooksConfig ApplyHooksOverride(HooksConfig hooks, WorkflowDefinition workflow)
     {

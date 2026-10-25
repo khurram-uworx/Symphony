@@ -430,6 +430,33 @@ namespace Symphony.Migrations.Sqlite.Migrations
                     b.ToTable("JobIssues");
                 });
 
+            modelBuilder.Entity("Symphony.Data.RepositoryWorkspace", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OwnerUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Repository")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId", "Repository")
+                        .IsUnique();
+
+                    b.ToTable("RepositoryWorkspaces");
+                });
+
             modelBuilder.Entity("Symphony.Data.UserConfiguration", b =>
                 {
                     b.Property<string>("Id")
@@ -524,11 +551,6 @@ namespace Symphony.Migrations.Sqlite.Migrations
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasMaxLength(450)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("WorkspaceRoot")
-                        .IsRequired()
-                        .HasMaxLength(2048)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");

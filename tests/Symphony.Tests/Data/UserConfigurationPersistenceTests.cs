@@ -48,7 +48,7 @@ class UserConfigurationPersistenceTests
         {
             TrackerKind = "linear",
             TrackerApiKey = "super-secret",
-            WorkspaceRoot = "/tmp/work"
+
         });
 
         await using var db = await factory.CreateDbContextAsync();

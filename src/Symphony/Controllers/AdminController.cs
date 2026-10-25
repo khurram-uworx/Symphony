@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Symphony.Data;
 using Symphony.Services;
 
@@ -11,12 +12,14 @@ public sealed class AdminController(
     UserManagementService users,
     JobService? jobService = null,
     UserManager<IdentityUser>? userManager = null,
-    Microsoft.EntityFrameworkCore.IDbContextFactory<Symphony.Data.SymphonyDbContext>? dbContextFactory = null) : Controller
+    Microsoft.EntityFrameworkCore.IDbContextFactory<Symphony.Data.SymphonyDbContext>? dbContextFactory = null,
+    Symphony.Services.SystemWorkspaceRootProvider? workspaceRootProvider = null) : Controller
 {
     readonly UserManagementService users = users;
     readonly JobService? configuredJobService = jobService;
     readonly UserManager<IdentityUser>? configuredUserManager = userManager;
     readonly Microsoft.EntityFrameworkCore.IDbContextFactory<Symphony.Data.SymphonyDbContext>? configuredDbFactory = dbContextFactory;
+    readonly Symphony.Services.SystemWorkspaceRootProvider? configuredWorkspaceRootProvider = workspaceRootProvider;
 
     JobService JobService =>
         configuredJobService
@@ -30,6 +33,10 @@ public sealed class AdminController(
     Microsoft.EntityFrameworkCore.IDbContextFactory<Symphony.Data.SymphonyDbContext> DbFactory =>
         configuredDbFactory
         ?? HttpContext?.RequestServices?.GetRequiredService<Microsoft.EntityFrameworkCore.IDbContextFactory<Symphony.Data.SymphonyDbContext>>();
+
+    Symphony.Services.SystemWorkspaceRootProvider WorkspaceRootProvider =>
+        configuredWorkspaceRootProvider
+        ?? HttpContext?.RequestServices?.GetRequiredService<Symphony.Services.SystemWorkspaceRootProvider>();
 
     public IActionResult Index() => View();
 
@@ -247,6 +254,49 @@ public sealed class AdminController(
         }
 
         return RedirectToAction(nameof(Users));
+    }
+
+    [HttpGet("/admin/system")]
+    public async Task<IActionResult> System(CancellationToken cancellationToken = default)
+    {
+        var configuredValue = (await DbFactory.CreateDbContextAsync(cancellationToken)).AppSettings
+            .AsNoTracking()
+            .FirstOrDefault(setting => setting.Key == Services.SystemWorkspaceRootProvider.SettingKey)?.Value
+            ?? Services.SystemWorkspaceRootProvider.DefaultTemplate;
+
+        ViewBag.SystemWorkspaceRootConfigured = configuredValue;
+        ViewBag.SystemWorkspaceRootResolved = await WorkspaceRootProvider.GetAsync(cancellationToken);
+        return View();
+    }
+
+    [HttpPost("/admin/system")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveSystemConfiguration(string workspaceRoot, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(workspaceRoot))
+        {
+            TempData["Error"] = "Workspace root is required.";
+            return RedirectToAction(nameof(System));
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync(cancellationToken);
+        var existing = db.AppSettings.FirstOrDefault(setting => setting.Key == Services.SystemWorkspaceRootProvider.SettingKey);
+        if (existing is null)
+        {
+            db.AppSettings.Add(new Symphony.Data.AppSetting
+            {
+                Key = Services.SystemWorkspaceRootProvider.SettingKey,
+                Value = workspaceRoot.Trim()
+            });
+        }
+        else
+        {
+            existing.Value = workspaceRoot.Trim();
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        TempData["Message"] = "System configuration saved.";
+        return RedirectToAction(nameof(System));
     }
 
     [HttpGet("/admin/settings")]

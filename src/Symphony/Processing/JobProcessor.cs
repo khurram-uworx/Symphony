@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Symphony.Agent;
 using Symphony.Config;
@@ -228,7 +229,10 @@ public sealed class JobProcessor : BackgroundService
         if (workflow is null)
             throw new InvalidOperationException("Workflow not found.");
 
-        var config = ServiceConfigFactory.Build(userConfig, workflow.Content);
+        var systemWorkspaceRootProvider = sp.GetService<SystemWorkspaceRootProvider>() ?? new SystemWorkspaceRootProvider(dbFactory);
+        var repositoryWorkspaceService = sp.GetService<RepositoryWorkspaceService>() ?? new RepositoryWorkspaceService(dbFactory);
+        var systemWorkspaceRoot = await systemWorkspaceRootProvider.GetAsync(cancellationToken);
+        var config = ServiceConfigFactory.Build(userConfig, workflow.Content, systemWorkspaceRoot: systemWorkspaceRoot);
         var hasTickets = TryResolveTicketIds(job, secretProtector, out var ticketIds);
         var snapshot = TryParseSnapshot(job, secretProtector);
         var workItems = ReadWorkItems(snapshot);
@@ -299,8 +303,19 @@ public sealed class JobProcessor : BackgroundService
 
         var allSuccess = failedTicketCount == 0;
         var anyFailure = failedTicketCount > 0;
-        var baseRoot = config.Workspace.Root;
-        var scopedConfig = config with { Workspace = new WorkspaceConfig(WorkspacePath.UserScopedRoot(baseRoot, job.OwnerUserId)) };
+
+        var userManager = sp.GetService<UserManager<IdentityUser>>();
+        var ownerUser = userManager is null ? null : await userManager.FindByIdAsync(job.OwnerUserId);
+        var rawOwnerName = string.IsNullOrWhiteSpace(ownerUser?.UserName) ? job.OwnerUserId : ownerUser!.UserName!;
+        var sanitizedOwnerName = WorkspaceManager.SanitizeKey(rawOwnerName);
+        if (string.IsNullOrWhiteSpace(sanitizedOwnerName) || sanitizedOwnerName is "." or "..")
+            sanitizedOwnerName = "user-" + (job.OwnerUserId.Length >= 8 ? job.OwnerUserId[..8] : job.OwnerUserId);
+
+        var userRoot = WorkspacePath.UserScopedRoot(systemWorkspaceRoot, sanitizedOwnerName);
+        var repositoryNumber = await repositoryWorkspaceService.GetOrCreateAsync(job.OwnerUserId, job.Repository, cancellationToken);
+        var repositoryRoot = WorkspacePath.EnsureContainedBy(userRoot, Path.Combine(userRoot, repositoryNumber.ToString()));
+
+        var scopedConfig = config with { Workspace = new WorkspaceConfig(repositoryRoot) };
         var configProvider = new StaticServiceConfigProvider(scopedConfig);
         var workspaceManager = new WorkspaceManager(configProvider, shell, processorLogger is ILogger<WorkspaceManager> wmLogger ? wmLogger : Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkspaceManager>.Instance);
         if (!string.IsNullOrWhiteSpace(githubRepo))

@@ -11,6 +11,48 @@ Symphony runs as an ASP.NET Core MVC web host. Start it with `dotnet run --proje
 
 The web host uses ASP.NET Core Identity for sign-in, selects its database through configuration, applies EF Core migrations on startup, and seeds a first administrator whose generated password is printed to the console. A greeting is shown after sign-in.
 
+```mermaid
+flowchart LR
+
+GH["GitHub Issues (Supported)"]
+JIRA["Jira (Supported, not tested)"]
+LIN["Linear (Current)"]
+
+SYM["Symphony"]
+WF["Workflow.md (Settings & Instructions)"]
+ORCH["Orchestration System"]
+
+REPO["GitHub Repo (Only Supported Repo)"]
+MCP["GitHub MCP\nPRs, Issues, Repo Actions"]
+
+COP["GitHub Copilot (Current)"]
+CLAUDE["Claude Code (Future)"]
+CODEX["OpenAI Codex (Optional, untested)"]
+
+RUN["Agents run locally\nwhere Symphony runs"]
+FUTURE["Future: Agents may run\nin isolated containers"]
+
+GH --> SYM
+JIRA --> SYM
+LIN --> SYM
+
+SYM --> ORCH
+WF --> ORCH
+
+ORCH --> REPO
+REPO --> MCP
+
+ORCH --> COP
+ORCH --> CLAUDE
+ORCH --> CODEX
+
+COP --> RUN
+CLAUDE --> RUN
+CODEX --> RUN
+
+RUN --> FUTURE
+```
+
 ## Documentation
 
 - [GETTING-STARTED.md](GETTING-STARTED.md) - setup, running, configuration, tests, and API key usage

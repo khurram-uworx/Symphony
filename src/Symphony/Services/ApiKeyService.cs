@@ -75,7 +75,6 @@ public sealed class ApiKeyService
         var key = await db.ApiKeys.FirstOrDefaultAsync(k => k.Id == keyId && k.OwnerUserId == ownerUserId, cancellationToken);
         if (key is null) return false;
         key.IsEnabled = enabled;
-        if (!enabled) key.RevokedAt ??= DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -94,7 +93,8 @@ public sealed class ApiKeyService
     public async Task<List<ApiKey>> ListAsync(string ownerUserId, CancellationToken cancellationToken = default)
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
-        return await db.ApiKeys.Where(k => k.OwnerUserId == ownerUserId).OrderByDescending(k => k.CreatedAt).ToListAsync(cancellationToken);
+        var rows = await db.ApiKeys.AsNoTracking().Where(k => k.OwnerUserId == ownerUserId).ToListAsync(cancellationToken);
+        return rows.OrderByDescending(k => k.CreatedAt).ToList();
     }
 
     public async Task<IdentityUser?> ValidateAsync(string rawKey, CancellationToken cancellationToken = default)

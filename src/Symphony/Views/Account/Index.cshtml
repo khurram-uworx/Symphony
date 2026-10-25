@@ -24,7 +24,7 @@
     <div class="account-tabs" role="tablist">
         <button type="button" class="account-tab @(activeTab == "worksource" ? "is-active" : null)" data-tab="worksource" role="tab" aria-selected="@(activeTab == "worksource" ? "true" : "false")">Work source</button>
         <button type="button" class="account-tab @(activeTab == "copilot" ? "is-active" : null)" data-tab="copilot" role="tab" aria-selected="@(activeTab == "copilot" ? "true" : "false")">Copilot settings</button>
-        <button type="button" class="account-tab @(activeTab == "hooks" ? "is-active" : null)" data-tab="hooks" role="tab" aria-selected="@(activeTab == "hooks" ? "true" : "false")">Hooks</button>
+        <button type="button" class="account-tab @(activeTab == "repository" ? "is-active" : null)" data-tab="repository" role="tab" aria-selected="@(activeTab == "repository" ? "true" : "false")">Repository</button>
         <button type="button" class="account-tab @(activeTab == "workflows" ? "is-active" : null)" data-tab="workflows" role="tab" aria-selected="@(activeTab == "workflows" ? "true" : "false")">Workflows</button>
         <button type="button" class="account-tab @(activeTab == "apikeys" ? "is-active" : null)" data-tab="apikeys" role="tab" aria-selected="@(activeTab == "apikeys" ? "true" : "false")">API keys</button>
     </div>
@@ -155,16 +155,17 @@
             </label>
             <span asp-validation-for="MaxConcurrentAgentsByState" class="field-error"></span>
 
-            <h2>GitHub</h2>
+            </div>
+
+        </div>
+        <div id="account-tab-repository" class="account-panel" @(activeTab == "repository" ? null : "hidden")>
+            <h2>GitHub personal access token</h2>
             <label>
                 Personal access token
                 <input asp-for="GitHubPersonalAccessToken" type="password" autocomplete="off" placeholder="Leave blank to keep" />
             </label>
             <span asp-validation-for="GitHubPersonalAccessToken" class="field-error"></span>
-            </div>
 
-        </div>
-        <div id="account-tab-hooks" class="account-panel" @(activeTab == "hooks" ? null : "hidden")>
             <h2>Hooks</h2>
             <label>
                 After create
@@ -335,7 +336,7 @@
         const panels = {
             worksource: document.getElementById('account-tab-worksource'),
             copilot: document.getElementById('account-tab-copilot'),
-            hooks: document.getElementById('account-tab-hooks'),
+            repository: document.getElementById('account-tab-repository'),
             workflows: document.getElementById('account-tab-workflows'),
             apikeys: document.getElementById('account-tab-apikeys')
         };
@@ -351,7 +352,7 @@
             });
             const saveButton = document.getElementById('save-configuration');
             if (saveButton) {
-                saveButton.hidden = ['worksource', 'copilot', 'hooks'].indexOf(name) === -1;
+                saveButton.hidden = ['worksource', 'copilot', 'repository'].indexOf(name) === -1;
             }
         }
         tabs.forEach(function (tab) {

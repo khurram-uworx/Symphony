@@ -29,7 +29,8 @@ Add GitHub Issues support (`tracker.kind: github`) in the current multi-user Sym
 - [ ] Remove TODO.md
 
 ## GitHub issues log
-- [ ] (none yet)
+- [ ] #100 — Copilot per-user GitHub token injection for tracker updates (created while implementing github tracker)
+- [ ] #101 — Label-based state mapping for GitHub Issues tracker (created while implementing github tracker)
 
 ## Verification
 - `dotnet build Symphony.slnx`

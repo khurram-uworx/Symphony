@@ -13,17 +13,23 @@ public sealed class AccountController(
     SignInManager<IdentityUser> signInManager,
     UserManager<IdentityUser> userManager,
     ConfigurationService? configurationService = null,
+    ApiKeyService? apiKeyService = null,
     IWebHostEnvironment? environment = null) : Controller
 {
     readonly SignInManager<IdentityUser> signInManager = signInManager;
     readonly UserManager<IdentityUser> userManager = userManager;
     readonly ConfigurationService? configuredConfigurationService = configurationService;
+    readonly ApiKeyService? configuredApiKeyService = apiKeyService;
     readonly IWebHostEnvironment? configuredEnvironment = environment;
-
     ConfigurationService ConfigurationService =>
         configuredConfigurationService
         ?? HttpContext?.RequestServices?.GetService<ConfigurationService>()
         ?? throw new InvalidOperationException("ConfigurationService is not available.");
+
+    ApiKeyService ApiKeyService =>
+        configuredApiKeyService
+        ?? HttpContext?.RequestServices?.GetService<ApiKeyService>()
+        ?? throw new InvalidOperationException("ApiKeyService is not available.");
 
     IWebHostEnvironment? WebHostEnvironment =>
         configuredEnvironment
@@ -40,7 +46,7 @@ public sealed class AccountController(
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) && !isLoginPath(returnUrl))
             return LocalRedirect(returnUrl);
 
-        return RedirectToAction(nameof(HomeController.Index), "Home");
+        return RedirectToAction(nameof(Index), "Account");
     }
 
     async Task<string> GetUserIdAsync()
@@ -88,16 +94,27 @@ public sealed class AccountController(
 
     [HttpGet]
     [Authorize]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? tab = null)
     {
         var user = await userManager.GetUserAsync(User);
         var roles = user is null
             ? Array.Empty<string>()
             : await userManager.GetRolesAsync(user);
 
+        var userId = user?.Id ?? await GetUserIdAsync();
+        var configuration = await ConfigurationService.GetAsync(userId, HttpContext.RequestAborted)
+            ?? new UserConfiguration { UserId = userId };
+
+        var apiKeys = await ApiKeyService.ListAsync(userId);
+
         ViewData["DisplayName"] = user?.UserName ?? User.Identity?.Name;
         ViewData["Roles"] = roles;
-        return View();
+        ViewData["ApiKeys"] = apiKeys;
+        ViewData["NewApiKey"] = TempData["NewApiKey"];
+        ViewData["NewApiKeyName"] = TempData["NewApiKeyName"];
+        ViewData["WorkflowTemplate"] = LoadWorkflowTemplate(WebHostEnvironment);
+        ViewData["ActiveTab"] = tab is "copilot" or "repository" or "workflows" or "apikeys" ? tab : "worksource";
+        return View(ConfigurationDto.From(configuration));
     }
 
     [HttpPost]
@@ -111,13 +128,46 @@ public sealed class AccountController(
 
     [HttpGet]
     [Authorize]
-    public async Task<IActionResult> Configuration(CancellationToken cancellationToken = default)
+    public IActionResult Manage()
     {
-        var userId = await GetUserIdAsync();
-        var configuration = await ConfigurationService.GetAsync(userId, cancellationToken)
-            ?? new UserConfiguration { UserId = userId };
-        return View("Configuration", ConfigurationDto.From(configuration));
+        ViewData["DisplayName"] = User.Identity?.Name;
+        return View(new ChangePasswordInput());
     }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> Manage(ChangePasswordInput input) => ChangePassword(input);
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangePassword(ChangePasswordInput input)
+    {
+        if (!ModelState.IsValid)
+            return View("Manage", input);
+
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+            return Challenge();
+
+        var result = await userManager.ChangePasswordAsync(user, input.CurrentPassword!, input.NewPassword!);
+        if (result.Succeeded)
+        {
+            await signInManager.RefreshSignInAsync(user);
+            TempData["Message"] = "Password changed.";
+            return RedirectToAction(nameof(Manage));
+        }
+
+        foreach (var error in result.Errors)
+            ModelState.AddModelError(string.Empty, error.Description);
+        return View("Manage", input);
+    }
+
+    [HttpGet]
+    [Authorize]
+    public IActionResult Configuration() =>
+        RedirectToAction(nameof(Index), "Account", new { tab = "worksource" });
 
     [HttpPost]
     [Authorize]
@@ -133,7 +183,9 @@ public sealed class AccountController(
         {
             if (!string.IsNullOrWhiteSpace(validationError))
                 ModelState.AddModelError(string.Empty, validationError);
-            return View("Configuration", model);
+            await PopulateAccountViewAsync(userId);
+            ViewData["ActiveTab"] = "worksource";
+            return View("Index", model);
         }
 
         var existing = await ConfigurationService.GetAsync(userId, cancellationToken);
@@ -150,6 +202,12 @@ public sealed class AccountController(
             model.CopilotApiKey = existing?.CopilotApiKey;
         }
 
+        if (string.IsNullOrWhiteSpace(model.GitHubPersonalAccessToken) ||
+            string.Equals(model.GitHubPersonalAccessToken, Redaction.Redacted, StringComparison.Ordinal))
+        {
+            model.GitHubPersonalAccessToken = existing?.GitHubPersonalAccessToken;
+        }
+
         model.UserId = userId;
         var configuration = model.ToUserConfiguration();
         configuration.UserId = userId;
@@ -157,27 +215,31 @@ public sealed class AccountController(
         await ConfigurationService.SaveAsync(userId, configuration, cancellationToken);
 
         TempData["Message"] = "Configuration saved.";
-        return RedirectToAction(nameof(Configuration));
+        return RedirectToAction(nameof(Index), "Account", new { tab = "worksource" });
     }
 
     [HttpGet]
     [Authorize]
-    public Task<IActionResult> Workflows(CancellationToken cancellationToken = default)
+    public IActionResult Workflows() =>
+        RedirectToAction(nameof(Index), "Account", new { tab = "workflows" });
+
+    async Task PopulateAccountViewAsync(string userId)
     {
-        cancellationToken.ThrowIfCancellationRequested();
+        var apiKeys = await ApiKeyService.ListAsync(userId);
+        ViewData["ApiKeys"] = apiKeys;
+        ViewData["WorkflowTemplate"] = LoadWorkflowTemplate(WebHostEnvironment);
+        ViewData["NewApiKey"] = TempData["NewApiKey"];
+        ViewData["NewApiKeyName"] = TempData["NewApiKeyName"];
+    }
 
-        var template = string.Empty;
-        var environment = WebHostEnvironment;
-        if (environment is not null)
-        {
-            var path = Path.Combine(environment.ContentRootPath, "WORKFLOW.md");
-            if (System.IO.File.Exists(path))
-                template = System.IO.File.ReadAllText(path, System.Text.Encoding.UTF8);
-        }
-
-        ViewData["Title"] = "Workflows";
-        ViewData["WorkflowTemplate"] = template;
-        return Task.FromResult<IActionResult>(View("Workflows"));
+    static string LoadWorkflowTemplate(IWebHostEnvironment? environment)
+    {
+        if (environment is null)
+            return string.Empty;
+        var path = Path.Combine(environment.ContentRootPath, "WORKFLOW.md");
+        return System.IO.File.Exists(path)
+            ? System.IO.File.ReadAllText(path, System.Text.Encoding.UTF8)
+            : string.Empty;
     }
 
     [HttpGet]
@@ -209,8 +271,14 @@ public sealed class AccountController(
         var configuration = await ConfigurationService.GetAsync(userId, cancellationToken)
             ?? new UserConfiguration { UserId = userId };
 
+        var workSourceConfigured = !string.IsNullOrWhiteSpace(configuration.TrackerKind) &&
+            !string.Equals(configuration.TrackerKind, "none", StringComparison.OrdinalIgnoreCase);
+        var githubTokenConfigured = !string.IsNullOrWhiteSpace(configuration.GitHubPersonalAccessToken);
+
         ViewData["Title"] = "Run launcher";
         ViewData["DefaultWorkflowName"] = configuration.DefaultWorkflowName ?? string.Empty;
+        ViewData["WorkSourceConfigured"] = workSourceConfigured;
+        ViewData["GitHubTokenConfigured"] = githubTokenConfigured;
         return View("Run");
     }
 
@@ -220,12 +288,8 @@ public sealed class AccountController(
 
     [HttpGet]
     [Authorize]
-    public async Task<IActionResult> ApiKeys([FromServices] ApiKeyService service)
-    {
-        var userId = await GetUserIdAsync();
-        ViewData["Title"] = "API keys";
-        return View(await service.ListAsync(userId));
-    }
+    public IActionResult ApiKeys() =>
+        RedirectToAction(nameof(Index), "Account", new { tab = "apikeys" });
 
     [HttpPost]
     [Authorize]
@@ -237,7 +301,7 @@ public sealed class AccountController(
         var (rawKey, metadata) = await service.CreateAsync(userId, trimmedName);
         TempData["NewApiKey"] = rawKey;
         TempData["NewApiKeyName"] = trimmedName;
-        return RedirectToAction(nameof(ApiKeys));
+        return RedirectToAction(nameof(Index), "Account", new { tab = "apikeys" });
     }
 
     [HttpPost]
@@ -253,7 +317,7 @@ public sealed class AccountController(
             TempData["NewApiKey"] = rawKey;
             TempData["NewApiKeyName"] = string.IsNullOrEmpty(metadata.Name) ? "Rotated API key" : metadata.Name;
         }
-        return RedirectToAction(nameof(ApiKeys));
+        return RedirectToAction(nameof(Index), "Account", new { tab = "apikeys" });
     }
 
     [HttpPost]
@@ -263,7 +327,7 @@ public sealed class AccountController(
     {
         var userId = await GetUserIdAsync();
         await service.SetEnabledAsync(userId, id, enabled);
-        return RedirectToAction(nameof(ApiKeys));
+        return RedirectToAction(nameof(Index), "Account", new { tab = "apikeys" });
     }
 
     [HttpPost]
@@ -273,6 +337,6 @@ public sealed class AccountController(
     {
         var userId = await GetUserIdAsync();
         await service.RevokeAsync(userId, id);
-        return RedirectToAction(nameof(ApiKeys));
+        return RedirectToAction(nameof(Index), "Account", new { tab = "apikeys" });
     }
 }

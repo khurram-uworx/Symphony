@@ -472,6 +472,9 @@ namespace Symphony.Migrations.PostgreSQL.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<string>("GitHubPersonalAccessToken")
+                        .HasColumnType("text");
+
                     b.Property<string>("HookAfterCreate")
                         .HasColumnType("text");
 

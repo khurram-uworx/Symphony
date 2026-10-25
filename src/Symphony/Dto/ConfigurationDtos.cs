@@ -53,6 +53,8 @@ public class ConfigurationDto
 
     public string? DefaultWorkflowName { get; set; }
 
+    public string? GitHubPersonalAccessToken { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset UpdatedAt { get; set; }
@@ -86,6 +88,7 @@ public class ConfigurationDto
             CopilotModelId = source.CopilotModelId,
             CopilotApiKey = string.IsNullOrEmpty(source.CopilotApiKey) ? null : Redaction.Redacted,
             CopilotWireApi = source.CopilotWireApi,
+            GitHubPersonalAccessToken = string.IsNullOrEmpty(source.GitHubPersonalAccessToken) ? null : Redaction.Redacted,
             DefaultWorkflowName = source.DefaultWorkflowName,
             CreatedAt = source.CreatedAt,
             UpdatedAt = source.UpdatedAt
@@ -119,6 +122,7 @@ public class ConfigurationDto
             CopilotModelId = CopilotModelId,
             CopilotApiKey = CopilotApiKey,
             CopilotWireApi = CopilotWireApi,
+            GitHubPersonalAccessToken = GitHubPersonalAccessToken,
             DefaultWorkflowName = DefaultWorkflowName,
             CreatedAt = CreatedAt,
             UpdatedAt = UpdatedAt

@@ -441,10 +441,7 @@ tbody tr:last-child td {
     gap: 16px;
 }
 
-main:has(.workflows-shell) {
-    width: min(100%, calc(100vw - 32px));
-    max-width: none;
-}
+
 
 .workflows-header {
     display: flex;
@@ -882,6 +879,69 @@ main:has(.workflows-shell--editor) {
     box-shadow: 0 0 0 3px rgba(124, 108, 255, 0.16);
 }
 
+.account-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+.account-shortcuts {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+
+.account-tabs,
+.run-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 18px 0 12px;
+}
+
+.account-tab,
+.run-tab {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 8px 16px;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.account-tab-separator {
+    width: 1px;
+    align-self: stretch;
+    background: var(--line);
+    margin: 4px 6px;
+}
+
+.account-tab--external {
+    text-decoration: none;
+}
+.account-tab.is-active,
+.run-tab.is-active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+}
+.run-panel pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+    padding: 12px;
+    border-radius: 12px;
+    background: var(--inset);
+    border: 1px solid var(--line-strong);
+}
+
 #workflow-content {
     flex: 1 1 auto;
     width: 100%;
@@ -946,4 +1006,51 @@ main:has(.workflows-shell--editor) {
     #workflow-content {
         min-height: 420px;
     }
+}
+.config-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 18px 0 12px;
+}
+
+.config-tab {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 8px 16px;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.config-tab.is-active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+}
+
+dialog h2 {
+    margin: 0 0 16px;
+    font-size: 1.25rem;
+}
+
+dialog h3 {
+    margin: 18px 0 8px;
+    font-size: 0.98rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+dialog form {
+    margin-bottom: 12px;
+}
+
+dialog .dialog-actions button,
+dialog button[type="submit"] {
+    margin-top: 0;
 }

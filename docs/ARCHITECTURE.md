@@ -65,7 +65,7 @@ docs/
 
 ## Job Processing
 
-- Explicit submission via POST /api/work (requires ticketIds/workItems, github.repository, github.personalAccessToken, workflowName). Creates queued job with encrypted snapshot.
+- Explicit submission via POST /api/work (requires ticketIds/workItems, github.repository, workflowName). GitHub personal access token may be supplied in the request or configured once on the Configuration page. Creates queued job with encrypted snapshot.
 - JobQueue provides wake-up signals; database remains source of truth. JobProcessor (hosted service) recovers queued/stale jobs, claims with concurrency (per-user primary, global ceiling), processes per issue with retry, persists issues/events, marks terminal states.
 - Cancellation via DELETE /api/jobs/{id} sets Cancelled. Stale Running jobs become Failed with interrupted-run events on startup.
 - Trackers fetched only when ticket IDs supplied; inline work uses NullIssueTracker. Copilot SDK is first-cut agent (Codex retained but not registered/exposed).

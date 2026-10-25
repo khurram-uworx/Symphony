@@ -200,6 +200,23 @@ public sealed class AdminController(
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetUserPassword(string userId, string password, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await users.SetPasswordAsync(userId, password, cancellationToken);
+            TempData["Message"] = "Password changed.";
+        }
+        catch (Exception exception)
+        {
+            TempData["Error"] = exception.Message;
+        }
+
+        return RedirectToAction(nameof(Users));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> ResetPassword(string userId, CancellationToken cancellationToken)
     {
         try

@@ -17,6 +17,8 @@ public sealed class SymphonyDbContext(DbContextOptions<SymphonyDbContext> option
 
     public DbSet<JobEvent> JobEvents { get; set; } = default!;
 
+    public DbSet<JobTelemetry> JobTelemetry { get; set; } = default!;
+
     public DbSet<AppSetting> AppSettings { get; set; } = default!;
 
     public DbSet<RepositoryWorkspace> RepositoryWorkspaces { get; set; } = default!;
@@ -56,6 +58,7 @@ public sealed class SymphonyDbContext(DbContextOptions<SymphonyDbContext> option
             entity.Property(configuration => configuration.CopilotBaseUrl).HasMaxLength(2048);
             entity.Property(configuration => configuration.CopilotModelId).HasMaxLength(256);
             entity.Property(configuration => configuration.CopilotWireApi).HasMaxLength(64);
+            entity.Property(configuration => configuration.TelemetryContentEnabled).IsRequired();
             entity.Property(configuration => configuration.DefaultWorkflowName).HasMaxLength(256);
 
             entity.Property(configuration => configuration.CreatedAt)
@@ -150,6 +153,11 @@ public sealed class SymphonyDbContext(DbContextOptions<SymphonyDbContext> option
                 .WithOne(jobEvent => jobEvent.Job)
                 .HasForeignKey(jobEvent => jobEvent.JobId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(job => job.Telemetry)
+                .WithOne(telemetry => telemetry.Job)
+                .HasForeignKey(telemetry => telemetry.JobId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<JobIssue>(entity =>
@@ -217,6 +225,38 @@ public sealed class SymphonyDbContext(DbContextOptions<SymphonyDbContext> option
                 .WithMany()
                 .HasForeignKey(jobEvent => jobEvent.JobIssueId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<JobTelemetry>(entity =>
+        {
+            entity.HasKey(telemetry => telemetry.Id);
+
+            entity.Property(telemetry => telemetry.Id)
+                .ValueGeneratedOnAdd();
+
+            entity.HasIndex(telemetry => new { telemetry.JobId, telemetry.Timestamp });
+
+            entity.Property(telemetry => telemetry.JobId)
+                .IsRequired();
+
+            entity.Property(telemetry => telemetry.Timestamp)
+                .IsRequired();
+
+            entity.Property(telemetry => telemetry.Signal)
+                .IsRequired()
+                .HasMaxLength(64);
+
+            entity.Property(telemetry => telemetry.TraceId).HasMaxLength(128);
+            entity.Property(telemetry => telemetry.SpanId).HasMaxLength(64);
+            entity.Property(telemetry => telemetry.ParentSpanId).HasMaxLength(64);
+            entity.Property(telemetry => telemetry.Name).IsRequired().HasMaxLength(512);
+            entity.Property(telemetry => telemetry.Severity).HasMaxLength(32);
+            entity.Property(telemetry => telemetry.PayloadJson);
+
+            entity.HasOne(telemetry => telemetry.Job)
+                .WithMany(job => job.Telemetry)
+                .HasForeignKey(telemetry => telemetry.JobId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ApiKey>(entity =>

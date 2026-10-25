@@ -129,6 +129,7 @@ public sealed class ConfigurationService(
         CopilotApiKey = source.CopilotApiKey,
         GitHubPersonalAccessToken = source.GitHubPersonalAccessToken,
         CopilotWireApi = source.CopilotWireApi,
+        TelemetryContentEnabled = source.TelemetryContentEnabled,
         DefaultWorkflowName = source.DefaultWorkflowName,
         CreatedAt = source.CreatedAt,
         UpdatedAt = source.UpdatedAt
@@ -154,6 +155,7 @@ public sealed class ConfigurationService(
         target.CopilotBaseUrl = source.CopilotBaseUrl;
         target.CopilotModelId = source.CopilotModelId;
         target.CopilotWireApi = source.CopilotWireApi;
+        target.TelemetryContentEnabled = source.TelemetryContentEnabled;
         target.GitHubPersonalAccessToken = source.GitHubPersonalAccessToken;
         target.DefaultWorkflowName = source.DefaultWorkflowName;
     }

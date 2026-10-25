@@ -338,9 +338,9 @@ public sealed class JobProcessor : BackgroundService
         if (!string.IsNullOrWhiteSpace(githubRepo))
             workspaceManager.GitHubEnvironment = GitHubEnvironment.Build(Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>().Where(e => e.Key is not null).ToDictionary(e => e.Key!.ToString()!, e => e.Value?.ToString() ?? string.Empty), githubRepo, githubToken);
         var telemetryCapture = sp.GetService<JobTelemetryCapture>();
-    telemetryCapture?.BeginJob(job.Id, userConfig?.TelemetryContentEnabled ?? false);
+        telemetryCapture?.BeginJob(job.Id, userConfig?.TelemetryContentEnabled ?? false);
 
-    var codingAgent = TryCreateCodingAgent(scopedConfig, processorLogger, telemetryCapture) ?? throw new InvalidOperationException("agent_unavailable: no coding agent configured.");
+        var codingAgent = TryCreateCodingAgent(scopedConfig, processorLogger, telemetryCapture) ?? throw new InvalidOperationException("agent_unavailable: no coding agent configured.");
 
         foreach (var issue in issues)
         {

@@ -19,6 +19,8 @@ public sealed class SymphonyDbContext(DbContextOptions<SymphonyDbContext> option
 
     public DbSet<AppSetting> AppSettings { get; set; } = default!;
 
+    public DbSet<RepositoryWorkspace> RepositoryWorkspaces { get; set; } = default!;
+
     public DbSet<ApiKey> ApiKeys { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -265,6 +267,28 @@ public sealed class SymphonyDbContext(DbContextOptions<SymphonyDbContext> option
 
             entity.Property(setting => setting.Value)
                 .IsRequired();
+        });
+
+        modelBuilder.Entity<RepositoryWorkspace>(entity =>
+        {
+            entity.HasKey(workspace => workspace.Id);
+
+            entity.Property(workspace => workspace.Id)
+                .ValueGeneratedOnAdd();
+
+            entity.Property(workspace => workspace.OwnerUserId)
+                .IsRequired()
+                .HasMaxLength(450);
+
+            entity.Property(workspace => workspace.Repository)
+                .IsRequired()
+                .HasMaxLength(2048);
+
+            entity.Property(workspace => workspace.CreatedAt)
+                .IsRequired();
+
+            entity.HasIndex(workspace => new { workspace.OwnerUserId, workspace.Repository })
+                .IsUnique();
         });
     }
 }

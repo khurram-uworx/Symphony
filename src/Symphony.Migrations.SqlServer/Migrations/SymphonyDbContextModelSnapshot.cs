@@ -441,6 +441,35 @@ namespace Symphony.Migrations.SqlServer.Migrations
                     b.ToTable("JobIssues");
                 });
 
+            modelBuilder.Entity("Symphony.Data.RepositoryWorkspace", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("OwnerUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Repository")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId", "Repository")
+                        .IsUnique();
+
+                    b.ToTable("RepositoryWorkspaces");
+                });
+
             modelBuilder.Entity("Symphony.Data.UserConfiguration", b =>
                 {
                     b.Property<string>("Id")
@@ -536,11 +565,6 @@ namespace Symphony.Migrations.SqlServer.Migrations
                         .IsRequired()
                         .HasMaxLength(450)
                         .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("WorkspaceRoot")
-                        .IsRequired()
-                        .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)");
 
                     b.HasKey("Id");
 

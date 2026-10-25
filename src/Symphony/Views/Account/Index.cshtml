@@ -661,6 +661,15 @@
                 if (endpointLabel) endpointLabel.textContent = endpointText;
                 if (apiKeyLabel) apiKeyLabel.textContent = apiKeyText;
                 if (projectLabel) projectLabel.textContent = projectText;
+
+                var endpointInput = document.querySelector('[name="TrackerEndpoint"]');
+                if (endpointInput) {
+                    var current = (endpointInput.value || '').trim();
+                    if (value === 'github' && (current === '' || current === 'https://api.linear.app/graphql' || current === 'https://api.github.com'))
+                        endpointInput.value = 'https://api.github.com';
+                    else if (value === 'linear' && (current === '' || current === 'https://api.linear.app/graphql' || current === 'https://api.github.com'))
+                        endpointInput.value = 'https://api.linear.app/graphql';
+                }
             }
             tracker.addEventListener('change', updateTracker);
             updateTracker();

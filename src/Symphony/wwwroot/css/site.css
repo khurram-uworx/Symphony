@@ -908,6 +908,16 @@ main:has(.workflows-shell--editor) {
     transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
+.account-tab-separator {
+    width: 1px;
+    align-self: stretch;
+    background: var(--line);
+    margin: 4px 6px;
+}
+
+.account-tab--external {
+    text-decoration: none;
+}
 .account-tab.is-active,
 .run-tab.is-active {
     background: var(--accent);

@@ -113,7 +113,7 @@ public sealed class AccountController(
         ViewData["NewApiKey"] = TempData["NewApiKey"];
         ViewData["NewApiKeyName"] = TempData["NewApiKeyName"];
         ViewData["WorkflowTemplate"] = LoadWorkflowTemplate(WebHostEnvironment);
-        ViewData["ActiveTab"] = tab is "repository" or "worksource" or "copilot" or "workflows" or "apikeys" ? tab : "repository";
+        ViewData["ActiveTab"] = tab is "jobs" or "repository" or "worksource" or "copilot" or "workflows" or "apikeys" ? tab : "jobs";
         return View(ConfigurationDto.From(configuration));
     }
 
@@ -274,11 +274,13 @@ public sealed class AccountController(
         var workSourceConfigured = !string.IsNullOrWhiteSpace(configuration.TrackerKind) &&
             !string.Equals(configuration.TrackerKind, "none", StringComparison.OrdinalIgnoreCase);
         var githubTokenConfigured = !string.IsNullOrWhiteSpace(configuration.GitHubPersonalAccessToken);
+        var byomCopilotConfigured = !string.IsNullOrWhiteSpace(configuration.CopilotProvider);
 
         ViewData["Title"] = "Run launcher";
         ViewData["DefaultWorkflowName"] = configuration.DefaultWorkflowName ?? string.Empty;
         ViewData["WorkSourceConfigured"] = workSourceConfigured;
         ViewData["GitHubTokenConfigured"] = githubTokenConfigured;
+        ViewData["ByomCopilotConfigured"] = byomCopilotConfigured;
         return View("Run");
     }
 

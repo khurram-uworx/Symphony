@@ -3,6 +3,7 @@
     var defaultWorkflowName = ViewData["DefaultWorkflowName"] as string ?? "";
     var workSourceConfigured = ViewData["WorkSourceConfigured"] is true;
     var githubTokenConfigured = ViewData["GitHubTokenConfigured"] is true;
+    var byomCopilotConfigured = ViewData["ByomCopilotConfigured"] is true;
 }
 <style>
     #add-work-item-dialog { width: min(42rem, 92vw); }
@@ -19,6 +20,19 @@
 <section class="panel">
     <h1>Run launcher</h1>
     <p class="muted">Submit work to the same API used by integrations.</p>
+
+    @if (githubTokenConfigured == false)
+    {
+        <p class="validation">GitHub personal access token is not configured. Configure it on Account → Repository before submitting work.</p>
+    }
+    @if (byomCopilotConfigured == false)
+    {
+        <p class="validation">Copilot/BYOM is not configured. Work will run without an automated coding agent until you configure it on Account → Copilot settings.</p>
+    }
+    @if (workSourceConfigured == false)
+    {
+        <p class="muted">Work source is not configured; ticket IDs cannot be used, but inline work items still work.</p>
+    }
 
     <div class="run-tabs" role="tablist">
         <button type="button" class="run-tab is-active" data-tab="run" role="tab" aria-selected="true">Launch work</button>
@@ -95,6 +109,39 @@
         </form>
         <div id="run-result" hidden></div>
     </div>
+
+    <section class="run-jobs">
+        <h2>Active jobs</h2>
+        <table class="workflow-table" aria-label="Active jobs">
+            <thead>
+                <tr>
+                    <th>Job</th>
+                    <th>Workflow</th>
+                    <th>State</th>
+                    <th>Queued</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="run-active-jobs"></tbody>
+        </table>
+        <p id="run-active-jobs-empty" class="muted">No active jobs.</p>
+
+        <h2>Past jobs</h2>
+        <table class="workflow-table" aria-label="Past jobs">
+            <thead>
+                <tr>
+                    <th>Job</th>
+                    <th>Workflow</th>
+                    <th>State</th>
+                    <th>Queued</th>
+                    <th>Completed</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="run-past-jobs"></tbody>
+        </table>
+        <p id="run-past-jobs-empty" class="muted">No past jobs.</p>
+    </section>
 
     <div id="run-tab-api" class="run-panel" hidden>
         <p class="muted">Replay the same request from a terminal using an API key or a signed-in session.</p>
@@ -288,6 +335,79 @@
         }
     }
 
+    function shortDate(value) {
+        if (!value) return '—';
+        try { return new Date(value).toLocaleString(); } catch (_) { return value; }
+    }
+
+    function isPastJobState(state) {
+        const normalized = String(state || '').toLowerCase();
+        return normalized === 'completed' || normalized === 'completedwithfailures' || normalized === 'failed' || normalized === 'cancelled' || normalized === 'canceled';
+    }
+
+    function renderJobs(jobs) {
+        const activeBody = document.getElementById('run-active-jobs');
+        const pastBody = document.getElementById('run-past-jobs');
+        activeBody.innerHTML = '';
+        pastBody.innerHTML = '';
+
+        let activeCount = 0;
+        let pastCount = 0;
+
+        (jobs || []).forEach(function (job) {
+            const row = document.createElement('tr');
+            const jobId = document.createElement('td');
+            jobId.textContent = (job.externalId || job.id || '').toString().slice(0, 8);
+            const workflow = document.createElement('td');
+            workflow.textContent = job.workflowName || '—';
+            const state = document.createElement('td');
+            state.textContent = job.state || '—';
+            const queued = document.createElement('td');
+            queued.textContent = shortDate(job.queuedAt);
+            const statusCell = document.createElement('td');
+            const link = document.createElement('a');
+            link.href = '/api/jobs/' + job.id;
+            link.target = '_blank';
+            link.textContent = 'View';
+            statusCell.appendChild(link);
+
+            row.appendChild(jobId);
+            row.appendChild(workflow);
+            row.appendChild(state);
+            row.appendChild(queued);
+
+            if (isPastJobState(job.state)) {
+                const completed = document.createElement('td');
+                completed.textContent = shortDate(job.completedAt);
+                row.appendChild(completed);
+                row.appendChild(statusCell);
+                pastBody.appendChild(row);
+                pastCount++;
+            } else {
+                row.appendChild(statusCell);
+                activeBody.appendChild(row);
+                activeCount++;
+            }
+        });
+
+        document.getElementById('run-active-jobs-empty').hidden = activeCount !== 0;
+        document.getElementById('run-past-jobs-empty').hidden = pastCount !== 0;
+    }
+
+    async function loadJobs() {
+        try {
+            const response = await fetch('/api/jobs?pageSize=20', { credentials: 'same-origin' });
+            if (!response.ok) return;
+            const jobs = await response.json();
+            const sortedJobs = Array.isArray(jobs) ? jobs.slice().sort(function (a, b) {
+                return new Date(b.queuedAt || 0) - new Date(a.queuedAt || 0);
+            }) : [];
+            renderJobs(sortedJobs);
+        } catch (_) {
+            // Jobs are optional UI; keep submission flow usable.
+        }
+    }
+
     document.getElementById('run-form').addEventListener('submit', async function (event) {
         event.preventDefault();
         setStatus('', false);
@@ -360,6 +480,7 @@
             result.appendChild(paragraph);
             result.appendChild(linkParagraph);
             setStatus('Work submitted successfully.', false);
+            loadJobs();
         } catch (error) {
             setStatus(error.message, true);
         } finally {

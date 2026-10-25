@@ -879,6 +879,41 @@ main:has(.workflows-shell--editor) {
     box-shadow: 0 0 0 3px rgba(124, 108, 255, 0.16);
 }
 
+.account-shortcuts {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+
+.account-tabs,
+.run-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 18px 0 12px;
+}
+
+.account-tab,
+.run-tab {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 8px 16px;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.account-tab.is-active,
+.run-tab.is-active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+}
 .run-panel pre {
     white-space: pre-wrap;
     word-break: break-word;

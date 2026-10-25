@@ -1,36 +1,488 @@
+@using Symphony.Data
+@using Symphony.Dto
+@model ConfigurationDto
 @{
     ViewData["Title"] = "Account";
     var displayName = ViewData["DisplayName"] as string ?? User.Identity?.Name;
     var roles = (ViewData["Roles"] as IEnumerable<string>) ?? Array.Empty<string>();
+    var apiKeys = (ViewData["ApiKeys"] as IReadOnlyList<ApiKey>) ?? Array.Empty<ApiKey>();
+    var activeTab = (ViewData["ActiveTab"] as string) ?? "configuration";
+    var workflowTemplate = (ViewData["WorkflowTemplate"] as string) ?? "";
+    var newKey = ViewData["NewApiKey"] as string;
+    var newKeyName = ViewData["NewApiKeyName"] as string;
 }
 <section class="panel">
+    <div class="account-shortcuts">
+        <a class="primary-button" asp-controller="Account" asp-action="Manage">Manage (password &amp; sign out)</a>
+        <a class="primary-button" asp-controller="Account" asp-action="Run">Run launcher</a>
+    </div>
+
     <h1>Account</h1>
-    <p class="muted">Hello, @displayName</p>
+    <p class="muted">Hello, @displayName <span class="muted">(@((roles.Any() ? string.Join(", ", roles) : "User")))</span></p>
 
-    <dl class="details">
-        <dt>Display name</dt>
-        <dd>@displayName</dd>
-        <dt>Role</dt>
-        <dd>@(roles.Any() ? string.Join(", ", roles) : "User")</dd>
-    </dl>
+    <div class="account-tabs" role="tablist">
+        <button type="button" class="account-tab @(activeTab == "configuration" ? "is-active" : null)" data-tab="configuration" role="tab" aria-selected="@(activeTab == "configuration" ? "true" : "false")">Configuration</button>
+        <button type="button" class="account-tab @(activeTab == "workflows" ? "is-active" : null)" data-tab="workflows" role="tab" aria-selected="@(activeTab == "workflows" ? "true" : "false")">Workflows</button>
+        <button type="button" class="account-tab @(activeTab == "apikeys" ? "is-active" : null)" data-tab="apikeys" role="tab" aria-selected="@(activeTab == "apikeys" ? "true" : "false")">API keys</button>
+    </div>
 
-    <h2>Shortcuts</h2>
-    <ul class="shortcuts">
-        <li>
-            <a asp-controller="Account" asp-action="Manage">Manage (password &amp; sign out)</a>
-        </li>
-        <li>
-            <a asp-controller="Account" asp-action="Configuration">Configuration</a>
-        </li>
-        <li>
-            <a asp-controller="Account" asp-action="Workflows">Workflows</a>
-        </li>
-        <li>
-            <a asp-controller="Account" asp-action="ApiKeys">API keys</a>
-            <span class="muted">for terminal submissions</span>
-        </li>
-        <li>
-            <a asp-controller="Account" asp-action="Run">Run launcher</a>
-        </li>
-    </ul>
+    <div id="account-tab-configuration" class="account-panel" @(activeTab == "configuration" ? null : "hidden")>
+        @if (TempData["Message"] is string message)
+        {
+            <p class="muted">@message</p>
+        }
+
+        <form asp-action="Configuration" method="post">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="All" class="validation" role="alert"></div>
+
+            <h2>Work source</h2>
+            <p class="muted">Optional. Needed only when submitting ticket IDs; inline work items need no tracker.</p>
+            <label>
+                Work source
+                <select asp-for="TrackerKind" id="tracker-kind">
+                    <option value="none">None (inline work only)</option>
+                    <option value="linear">Linear</option>
+                    <option value="jira">Jira</option>
+                </select>
+            </label>
+            <span asp-validation-for="TrackerKind" class="field-error"></span>
+
+            <div data-tracker-kind="linear jira">
+                <label>
+                    Tracker endpoint
+                    <input asp-for="TrackerEndpoint" autocomplete="off" />
+                </label>
+                <span asp-validation-for="TrackerEndpoint" class="field-error"></span>
+
+                <label>
+                    Tracker API key
+                    <input asp-for="TrackerApiKey" type="password" autocomplete="off" placeholder="Leave blank to keep" />
+                </label>
+                <span asp-validation-for="TrackerApiKey" class="field-error"></span>
+
+                <label>
+                    Project slug
+                    <input asp-for="TrackerProjectSlug" autocomplete="off" />
+                </label>
+                <span asp-validation-for="TrackerProjectSlug" class="field-error"></span>
+
+                <label>
+                    Active states (comma separated)
+                    <input asp-for="TrackerActiveStates" autocomplete="off" />
+                </label>
+                <span asp-validation-for="TrackerActiveStates" class="field-error"></span>
+
+                <label>
+                    Terminal states (comma separated)
+                    <input asp-for="TrackerTerminalStates" autocomplete="off" />
+                </label>
+                <span asp-validation-for="TrackerTerminalStates" class="field-error"></span>
+            </div>
+
+            <h2>Workspace</h2>
+            <label>
+                Workspace root
+                <input asp-for="WorkspaceRoot" autocomplete="off" />
+            </label>
+            <span asp-validation-for="WorkspaceRoot" class="field-error"></span>
+
+            <h2>Hooks</h2>
+            <label>
+                After create
+                <textarea asp-for="HookAfterCreate" rows="3"></textarea>
+            </label>
+            <label>
+                Before run
+                <textarea asp-for="HookBeforeRun" rows="3"></textarea>
+            </label>
+            <label>
+                After run
+                <textarea asp-for="HookAfterRun" rows="3"></textarea>
+            </label>
+            <label>
+                Before remove
+                <textarea asp-for="HookBeforeRemove" rows="3"></textarea>
+            </label>
+            <label>
+                Hook timeout (ms)
+                <input asp-for="HookTimeoutMs" type="number" />
+            </label>
+            <span asp-validation-for="HookTimeoutMs" class="field-error"></span>
+
+            <h2>Agent</h2>
+            <label>
+                Max concurrent agents
+                <input asp-for="MaxConcurrentAgents" type="number" />
+            </label>
+            <span asp-validation-for="MaxConcurrentAgents" class="field-error"></span>
+
+            <label>
+                Max retry backoff (ms)
+                <input asp-for="MaxRetryBackoffMs" type="number" />
+            </label>
+            <span asp-validation-for="MaxRetryBackoffMs" class="field-error"></span>
+
+            <label>
+                Max turns
+                <input asp-for="MaxTurns" type="number" />
+            </label>
+            <span asp-validation-for="MaxTurns" class="field-error"></span>
+
+            <label>
+                Max concurrent agents by state
+                <input asp-for="MaxConcurrentAgentsByState" autocomplete="off" />
+            </label>
+            <span asp-validation-for="MaxConcurrentAgentsByState" class="field-error"></span>
+
+            <h2>Copilot BYOM</h2>
+            <label>
+                Provider
+                <select asp-for="CopilotProvider" id="copilot-provider">
+                    <option value="">(none)</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="azure">Azure</option>
+                    <option value="anthropic">Anthropic</option>
+                </select>
+            </label>
+            <span asp-validation-for="CopilotProvider" class="field-error"></span>
+
+            <div data-copilot-provider="openai azure anthropic">
+                <label>
+                    Base URL
+                    <input asp-for="CopilotBaseUrl" autocomplete="off" />
+                </label>
+                <span asp-validation-for="CopilotBaseUrl" class="field-error"></span>
+
+                <label>
+                    Model ID
+                    <input asp-for="CopilotModelId" autocomplete="off" />
+                </label>
+                <span asp-validation-for="CopilotModelId" class="field-error"></span>
+
+                <label>
+                    API key
+                    <input asp-for="CopilotApiKey" type="password" autocomplete="off" placeholder="Leave blank to keep" />
+                </label>
+                <span asp-validation-for="CopilotApiKey" class="field-error"></span>
+            </div>
+
+            <div data-copilot-provider="openai" id="openai-wire-api">
+                <label>
+                    Wire API
+                    <select asp-for="CopilotWireApi">
+                        <option value="">(default)</option>
+                        <option value="completions">completions</option>
+                        <option value="responses">responses</option>
+                    </select>
+                </label>
+                <span asp-validation-for="CopilotWireApi" class="field-error"></span>
+            </div>
+
+            <h2>Workflow</h2>
+            <label>
+                Default workflow name
+                <input asp-for="DefaultWorkflowName" autocomplete="off" />
+            </label>
+            <span asp-validation-for="DefaultWorkflowName" class="field-error"></span>
+
+            <button type="submit">Save configuration</button>
+        </form>
+    </div>
+
+    <div id="account-tab-workflows" class="account-panel" @(activeTab == "workflows" ? null : "hidden")>
+        <script>
+            const workflowTemplate = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(workflowTemplate));
+        </script>
+
+        <section class="workflows-shell">
+            <header class="workflows-header">
+                <div>
+                    <h1>Configured Workflows</h1>
+                </div>
+                <div class="workflow-toolbar" role="group" aria-label="Workflow actions">
+                    <button type="button" id="new-workflow" class="primary-button">New</button>
+                </div>
+            </header>
+
+            <div id="workflows-status" class="workflow-status" role="status" aria-live="polite"></div>
+
+            <div id="workflow-empty" class="workflow-empty" hidden>No workflows yet. Click New to create one from the template.</div>
+
+            <div class="table-panel">
+                <table class="workflow-table" aria-label="Configured workflows">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Created</th>
+                            <th>Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody id="workflow-table-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+    </div>
+
+    <div id="account-tab-apikeys" class="account-panel" @(activeTab == "apikeys" ? null : "hidden")>
+        @if (!string.IsNullOrEmpty(newKey))
+        {
+            <div id="new-key-banner">
+                <strong>@(string.IsNullOrEmpty(newKeyName) ? "New API key" : newKeyName) — copy it now:</strong>
+                <br />
+                <code id="new-key-value" class="new-key-value">@newKey</code>
+                <p class="muted">It will not be shown again. Rotate to get a new key if you lose it.</p>
+            </div>
+        }
+
+        <h2>Create a key</h2>
+        <form asp-action="CreateApiKey" method="post">
+            @Html.AntiForgeryToken()
+            <label>
+                Key name (optional)
+                <input name="name" maxlength="256" autocomplete="off" placeholder="e.g. laptop curl script" />
+            </label>
+            <button type="submit">Create API key</button>
+        </form>
+
+        <h2>Your keys</h2>
+        @if (apiKeys.Count == 0)
+        {
+            <p class="muted">No API keys yet. Create one above to submit work from a terminal.</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Prefix</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Last used</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var key in apiKeys)
+                    {
+                        var now = DateTimeOffset.UtcNow;
+                        var revoked = key.RevokedAt is not null;
+                        var expired = !revoked && key.ExpiresAt is not null && key.ExpiresAt <= now;
+                        var active = key.IsEnabled && !revoked && !expired;
+                        var restorable = key.ExpiresAt is null || key.ExpiresAt > now;
+                        <tr>
+                            <td>@(string.IsNullOrEmpty(key.Name) ? "—" : key.Name)</td>
+                            <td><code>@key.KeyPrefix…</code></td>
+                            <td>
+                                @(revoked ? "Revoked" : expired ? "Expired" : active ? "Active" : "Disabled")
+                                @if (key.ExpiresAt is { } expires)
+                                {
+                                    <br />
+                                    <span class="muted">expires @expires.ToString("yyyy-MM-dd")</span>
+                                }
+                            </td>
+                            <td>@key.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@(key.LastUsedAt?.ToString("yyyy-MM-dd HH:mm") ?? "never")</td>
+                            <td class="table-actions">
+                                <form asp-action="RotateApiKey" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@key.Id" />
+                                    <button type="submit">Rotate</button>
+                                </form>
+                                @if (restorable && !active)
+                                {
+                                    <form asp-action="SetApiKeyEnabled" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@key.Id" />
+                                        <input type="hidden" name="enabled" value="true" />
+                                        <button type="submit">Enable</button>
+                                    </form>
+                                }
+                                @if (active)
+                                {
+                                    <form asp-action="SetApiKeyEnabled" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@key.Id" />
+                                        <input type="hidden" name="enabled" value="false" />
+                                        <button type="submit">Disable</button>
+                                    </form>
+                                    <form asp-action="RevokeApiKey" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@key.Id" />
+                                        <button type="submit" class="danger-button">Revoke</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
 </section>
+
+<script>
+    window.activeAccountTab = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(activeTab));
+</script>
+<script>
+    (function () {
+        const tabs = document.querySelectorAll('.account-tab');
+        const panels = {
+            configuration: document.getElementById('account-tab-configuration'),
+            workflows: document.getElementById('account-tab-workflows'),
+            apikeys: document.getElementById('account-tab-apikeys')
+        };
+        function activateTab(name) {
+            if (!panels[name]) return;
+            Object.keys(panels).forEach(function (key) {
+                panels[key].hidden = key !== name;
+            });
+            tabs.forEach(function (tab) {
+                const active = tab.getAttribute('data-tab') === name;
+                tab.classList.toggle('is-active', active);
+                tab.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+        }
+        tabs.forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                activateTab(tab.getAttribute('data-tab'));
+            });
+        });
+        activateTab(window.activeAccountTab || 'configuration');
+    })();
+</script>
+<script>
+    (function () {
+        var provider = document.getElementById('copilot-provider');
+        if (provider) {
+            function updateCopilot() {
+                var value = (provider.value || '').toLowerCase();
+                document.querySelectorAll('[data-copilot-provider]').forEach(function (el) {
+                    var providers = (el.getAttribute('data-copilot-provider') || '').split(/\s+/);
+                    el.hidden = providers.indexOf(value) === -1;
+                });
+            }
+            provider.addEventListener('change', updateCopilot);
+            updateCopilot();
+        }
+
+        var tracker = document.getElementById('tracker-kind');
+        if (tracker) {
+            function updateTracker() {
+                var value = (tracker.value || '').toLowerCase();
+                document.querySelectorAll('[data-tracker-kind]').forEach(function (el) {
+                    var kinds = (el.getAttribute('data-tracker-kind') || '').split(/\s+/);
+                    el.hidden = kinds.indexOf(value) === -1;
+                });
+            }
+            tracker.addEventListener('change', updateTracker);
+            updateTracker();
+        }
+    })();
+</script>
+
+<script>
+(function () {
+    const api = '/api/workflows';
+    const status = document.getElementById('workflows-status');
+    const empty = document.getElementById('workflow-empty');
+    const tbody = document.getElementById('workflow-table-body');
+
+    async function parseError(response) {
+        try {
+            const body = await response.json();
+            return body && (body.error || body.title || body.message) || response.statusText;
+        } catch {
+            return response.statusText;
+        }
+    }
+
+    function relativeTime(value) {
+        if (!value) return 'unknown';
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return String(value);
+        const seconds = Math.round((Date.now() - date.getTime()) / 1000);
+        const abs = Math.abs(seconds);
+        if (abs < 60) return 'just now';
+        if (abs < 3600) return Math.floor(abs / 60) + 'm ago';
+        if (abs < 86400) return Math.floor(abs / 3600) + 'h ago';
+        if (abs < 2592000) return Math.floor(abs / 86400) + 'd ago';
+        if (abs < 31536000) return Math.floor(abs / 2592000) + 'mo ago';
+        return Math.floor(abs / 31536000) + 'y ago';
+    }
+
+    async function loadWorkflows() {
+        const response = await fetch(api, { credentials: 'same-origin' });
+        if (!response.ok) {
+            status.textContent = await parseError(response);
+            status.classList.add('is-error');
+            return;
+        }
+
+        const workflows = (await response.json())
+            .sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' }));
+
+        tbody.innerHTML = '';
+        if (!workflows.length) {
+            empty.hidden = false;
+            return;
+        }
+
+        empty.hidden = true;
+        workflows.forEach(item => {
+            const row = document.createElement('tr');
+
+            const nameCell = document.createElement('td');
+            const link = document.createElement('a');
+            link.href = '/Account/Workflows/Edit?name=' + encodeURIComponent(item.name);
+            link.textContent = item.name + (item.isDefault ? ' (Default)' : '');
+            link.className = 'workflow-link';
+            nameCell.appendChild(link);
+
+            const createdCell = document.createElement('td');
+            createdCell.textContent = relativeTime(item.createdAt);
+
+            const updatedCell = document.createElement('td');
+            updatedCell.textContent = relativeTime(item.updatedAt);
+
+            row.appendChild(nameCell);
+            row.appendChild(createdCell);
+            row.appendChild(updatedCell);
+            tbody.appendChild(row);
+        });
+    }
+
+    document.getElementById('new-workflow').addEventListener('click', async function () {
+        const response = await fetch(api, { credentials: 'same-origin' });
+        const existing = response.ok ? await response.json() : [];
+        const names = new Set(existing.map(item => String(item.name).toLowerCase()));
+
+        let name = 'New workflow';
+        let suffix = 2;
+        while (names.has(name.toLowerCase())) {
+            name = 'New workflow ' + suffix;
+            suffix += 1;
+        }
+
+        const createResponse = await fetch(api, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ name: name, content: workflowTemplate, isDefault: false })
+        });
+
+        if (!createResponse.ok) {
+            status.textContent = await parseError(createResponse);
+            status.classList.add('is-error');
+            return;
+        }
+
+        const created = await createResponse.json();
+        window.location.href = '/Account/Workflows/Edit?name=' + encodeURIComponent(created.name);
+    });
+
+    loadWorkflows();
+})();
+</script>

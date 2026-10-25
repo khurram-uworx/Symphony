@@ -449,6 +449,8 @@
         const dialog = document.getElementById('job-details-dialog');
         const body = document.getElementById('job-details-body');
         body.replaceChildren();
+        const oldRetry = dialog.querySelector('.job-retry-trigger');
+        if (oldRetry) oldRetry.remove();
         const loading = document.createElement('p');
         loading.className = 'muted';
         loading.textContent = 'Loading job details…';
@@ -522,6 +524,36 @@
                 table.appendChild(thead);
                 table.appendChild(tbody);
                 body.appendChild(table);
+            }
+
+            const normalizedState = String(job.state || '').toLowerCase();
+            if (normalizedState === 'failed' || normalizedState === 'completedwithfailures') {
+                const actions = dialog.querySelector('.dialog-actions');
+                const retryButton = document.createElement('button');
+                retryButton.type = 'button';
+                retryButton.className = 'primary-button job-retry-trigger';
+                retryButton.textContent = 'Retry job';
+                retryButton.addEventListener('click', async function () {
+                    retryButton.disabled = true;
+                    retryButton.textContent = 'Retrying…';
+                    try {
+                        const response = await fetch('/api/jobs/' + jobId + '/retry', {
+                            method: 'POST',
+                            credentials: 'same-origin'
+                        });
+                        if (!response.ok) {
+                            const payload = await response.json().catch(function () { return {}; });
+                            throw new Error((payload && (payload.error || payload.message)) || 'Retry failed.');
+                        }
+                        dialog.close();
+                        loadJobs();
+                    } catch (retryError) {
+                        retryButton.disabled = false;
+                        retryButton.textContent = 'Retry job';
+                        window.alert(retryError.message || 'Retry failed.');
+                    }
+                });
+                actions.insertBefore(retryButton, actions.firstChild);
             }
         } catch (error) {
             body.replaceChildren();

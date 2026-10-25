@@ -227,6 +227,39 @@ public sealed class AdminController(
         return RedirectToAction(nameof(Users));
     }
 
+    [HttpGet("/admin/settings")]
+    public async Task<IActionResult> Settings(CancellationToken cancellationToken)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        var settings = await db.AppSettings.AsNoTracking().ToListAsync(cancellationToken);
+        ViewBag.Settings = settings.OrderBy(s => s.Key).ToList();
+        return View();
+    }
+
+    [HttpPost("/admin/settings")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveSettings(IFormCollection form, CancellationToken cancellationToken)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        var keys = form.Keys.Where(k => !string.IsNullOrWhiteSpace(k) && k != "__RequestVerificationToken").ToList();
+        foreach (var key in keys)
+        {
+            var value = form[key].ToString();
+            var existing = await db.AppSettings.FirstOrDefaultAsync(s => s.Key == key, cancellationToken);
+            if (existing is null)
+            {
+                db.AppSettings.Add(new Symphony.Data.AppSetting { Key = key, Value = value ?? string.Empty });
+            }
+            else
+            {
+                existing.Value = value ?? string.Empty;
+            }
+        }
+        await db.SaveChangesAsync(cancellationToken);
+        TempData["Message"] = "Settings saved.";
+        return RedirectToAction("Settings");
+    }
+
     static string? FirstNonEmpty(params string?[] values)
     {
         foreach (var value in values)

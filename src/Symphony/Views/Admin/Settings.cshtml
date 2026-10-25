@@ -1,0 +1,33 @@
+@{
+    ViewData["Title"] = "Settings";
+    var settings = ViewBag.Settings as List<Symphony.Data.AppSetting> ?? new List<Symphony.Data.AppSetting>();
+}
+
+<h1>Admin Settings</h1>
+
+@if (TempData["Message"] != null)
+{
+    <div class="alert alert-success">@TempData["Message"]</div>
+}
+
+<form method="post" asp-action="SaveSettings" asp-controller="Admin">
+    @Html.AntiForgeryToken()
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Key</th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var setting in settings)
+            {
+                <tr>
+                    <td><label for="@setting.Key">@setting.Key</label></td>
+                    <td><input type="text" id="@setting.Key" name="@setting.Key" value="@setting.Value" class="form-control" /></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <button type="submit" class="btn btn-primary">Save</button>
+</form>

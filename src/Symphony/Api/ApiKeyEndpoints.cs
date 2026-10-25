@@ -37,6 +37,9 @@ public static class ApiKeyEndpoints
         group.MapPatch("/{id}", async (string id, UpdateApiKeyRequest req, ClaimsPrincipal user, ApiKeyService service, CancellationToken ct) =>
         {
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+            if (req.Revoke == true && req.Enabled.HasValue)
+                return Results.BadRequest(new { error = "Provide either 'revoke' or 'enabled', not both." });
+
             if (req.Revoke == true)
             {
                 var revoked = await service.RevokeAsync(userId, id, ct);
@@ -47,7 +50,7 @@ public static class ApiKeyEndpoints
                 var set = await service.SetEnabledAsync(userId, id, req.Enabled.Value, ct);
                 return set ? Results.Ok() : Results.NotFound();
             }
-            return Results.BadRequest();
+            return Results.BadRequest(new { error = "Nothing to update. Provide 'revoke' or 'enabled'." });
         });
 
         group.MapDelete("/{id}", async (string id, ClaimsPrincipal user, ApiKeyService service, CancellationToken ct) =>

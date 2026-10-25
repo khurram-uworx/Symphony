@@ -110,6 +110,20 @@ public class ApiKeyServiceTests
     }
 
     [Test]
+    public async Task SetEnabledAsync_RejectsInvalidInput_AndRefusesEnablingRevokedKey()
+    {
+        Assert.ThrowsAsync<ArgumentException>(async () => await service.CreateAsync(user.Id, new string('x', 257)));
+        Assert.ThrowsAsync<ArgumentException>(async () => await service.CreateAsync(user.Id, "past", DateTimeOffset.UtcNow.AddMinutes(-1)));
+
+        var (rawKey, meta) = await service.CreateAsync(user.Id, "future", DateTimeOffset.UtcNow.AddMinutes(5));
+        Assert.That(await service.ValidateAsync(rawKey), Is.Not.Null);
+
+        await service.RevokeAsync(user.Id, meta.Id);
+        Assert.That(await service.SetEnabledAsync(user.Id, meta.Id, true), Is.False);
+        Assert.That(await service.ValidateAsync(rawKey), Is.Null);
+    }
+
+    [Test]
     public async Task RevokeAsync_PermanentlyInvalidatesKey()
     {
         var (rawKey, meta) = await service.CreateAsync(user.Id);

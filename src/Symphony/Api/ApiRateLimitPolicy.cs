@@ -20,6 +20,7 @@ public sealed class ApiRateLimitPolicy : IRateLimiterPolicy<string>
         (context, _) =>
         {
             context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            context.HttpContext.Response.Headers.RetryAfter = ((int)Options.Window.TotalSeconds).ToString();
             return ValueTask.CompletedTask;
         };
 

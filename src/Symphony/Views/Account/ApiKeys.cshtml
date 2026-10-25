@@ -50,12 +50,21 @@
             <tbody>
                 @foreach (var key in Model)
                 {
-                    var active = key.IsEnabled && key.RevokedAt is null && (key.ExpiresAt is null || key.ExpiresAt > DateTimeOffset.UtcNow);
+                    var now = DateTimeOffset.UtcNow;
+                    var revoked = key.RevokedAt is not null;
+                    var expired = !revoked && key.ExpiresAt is not null && key.ExpiresAt <= now;
+                    var active = key.IsEnabled && !revoked && !expired;
+                    var restorable = key.ExpiresAt is null || key.ExpiresAt > now;
                     <tr>
                         <td>@(string.IsNullOrEmpty(key.Name) ? "—" : key.Name)</td>
                         <td><code>@key.KeyPrefix…</code></td>
                         <td>
-                            @(active ? "Active" : key.RevokedAt is not null ? "Revoked" : "Disabled")
+                            @(revoked ? "Revoked" : expired ? "Expired" : active ? "Active" : "Disabled")
+                            @if (key.ExpiresAt is { } expires)
+                            {
+                                <br />
+                                <span class="muted">expires @expires.ToString("yyyy-MM-dd")</span>
+                            }
                         </td>
                         <td>@key.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
                         <td>@(key.LastUsedAt?.ToString("yyyy-MM-dd HH:mm") ?? "never")</td>
@@ -65,14 +74,23 @@
                                 <input type="hidden" name="id" value="@key.Id" />
                                 <button type="submit">Rotate</button>
                             </form>
-                            <form asp-action="SetApiKeyEnabled" method="post">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@key.Id" />
-                                <input type="hidden" name="enabled" value="@(active ? "false" : "true")" />
-                                <button type="submit">@(active ? "Disable" : "Enable")</button>
-                            </form>
+                            @if (restorable && !active)
+                            {
+                                <form asp-action="SetApiKeyEnabled" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@key.Id" />
+                                    <input type="hidden" name="enabled" value="true" />
+                                    <button type="submit">Enable</button>
+                                </form>
+                            }
                             @if (active)
                             {
+                                <form asp-action="SetApiKeyEnabled" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@key.Id" />
+                                    <input type="hidden" name="enabled" value="false" />
+                                    <button type="submit">Disable</button>
+                                </form>
                                 <form asp-action="RevokeApiKey" method="post">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@key.Id" />

@@ -149,7 +149,7 @@ Key behavior:
 - API requests are rate limited per user (120 requests per minute; `429 Too Many Requests` beyond that).
 - The `X-API-Key` header is accepted as an alternative to `Authorization: Bearer`.
 
-Key material is hashed with HMAC-SHA256 using a server key read from configuration (`ApiKeys:ServerKey` or `DataProtection:ServerKey`, falling back to a development default). Set `ApiKeys__ServerKey` explicitly when running multiple instances so hashes stay comparable across nodes.
+Key material is hashed with HMAC-SHA256 using a server key read from `ApiKeys:ServerKey` (a development-only default is used outside Production; the host refuses to start in Production without it). Set `ApiKeys__ServerKey` explicitly when running multiple instances so hashes stay comparable across nodes.
 
 
 ## Development

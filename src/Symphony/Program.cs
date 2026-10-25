@@ -61,11 +61,11 @@ builder.Services.AddScoped<ApiKeyService>(serviceProvider =>
     new ApiKeyService(
         serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),
         serviceProvider.GetRequiredService<UserManager<IdentityUser>>(),
-        serviceProvider.GetRequiredService<IConfiguration>()));
+        serviceProvider.GetRequiredService<IConfiguration>(),
+        serviceProvider.GetService<IWebHostEnvironment>()));
 
 builder.Services.AddRateLimiter(options =>
 {
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddPolicy<string, ApiRateLimitPolicy>(ApiRateLimitPolicy.PolicyName);
 });
 var app = builder.Build();

@@ -238,7 +238,6 @@ public sealed class AccountController(
         var trimmedName = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
         var (rawKey, metadata) = await service.CreateAsync(userId, trimmedName);
         TempData["NewApiKey"] = rawKey;
-        TempData["NewApiKeyId"] = metadata.Id;
         TempData["NewApiKeyName"] = trimmedName;
         return RedirectToAction(nameof(ApiKeys));
     }
@@ -254,7 +253,6 @@ public sealed class AccountController(
         {
             var (rawKey, metadata) = result.Value;
             TempData["NewApiKey"] = rawKey;
-            TempData["NewApiKeyId"] = metadata.Id;
             TempData["NewApiKeyName"] = string.IsNullOrEmpty(metadata.Name) ? "Rotated API key" : metadata.Name;
         }
         return RedirectToAction(nameof(ApiKeys));

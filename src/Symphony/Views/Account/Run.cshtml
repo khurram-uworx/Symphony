@@ -4,6 +4,14 @@
     var workSourceConfigured = ViewData["WorkSourceConfigured"] is true;
     var githubTokenConfigured = ViewData["GitHubTokenConfigured"] is true;
 }
+<style>
+    .work-items-builder { margin: 1rem 0; }
+    .work-item-row { display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .work-item-row label { flex: 1 1 12rem; }
+    .work-item-list { list-style: none; padding: 0; margin: 0.5rem 0; }
+    .work-item-list li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.5rem 0; border-bottom: 1px solid rgba(0,0,0,0.08); }
+    .work-item-list li > div { flex: 1 1 auto; }
+</style>
 <section class="panel">
     <h1>Run launcher</h1>
     <p class="muted">Submit work to the same API used by integrations.</p>
@@ -34,10 +42,25 @@
                 <p class="muted">Work source is not yet configured.</p>
             }
 
-            <label>
-                Work items (optional JSON array)
-                <textarea id="run-work-items" rows="4" placeholder="[{&quot;id&quot;:&quot;123&quot;,&quot;title&quot;:&quot;Work item&quot;}]"></textarea>
-            </label>
+            <div class="work-items-builder">
+                <p class="muted">Work items (optional)</p>
+                <div class="work-item-row">
+                    <label>
+                        Title
+                        <input id="run-work-item-title" autocomplete="off" placeholder="Work item title" />
+                    </label>
+                    <label>
+                        Id (optional)
+                        <input id="run-work-item-id" autocomplete="off" placeholder="auto-generated if blank" />
+                    </label>
+                    <label>
+                        Description (optional)
+                        <textarea id="run-work-item-description" rows="2" placeholder="Details, context, or acceptance criteria"></textarea>
+                    </label>
+                    <button type="button" id="run-add-work-item">Add work item</button>
+                </div>
+                <ul id="run-work-item-list" class="work-item-list"></ul>
+            </div>
 
             @if (githubTokenConfigured)
             {
@@ -140,6 +163,72 @@
     }
 
     const workflowSelect = document.getElementById('run-workflow');
+    const queuedWorkItems = [];
+    const workItemList = document.getElementById('run-work-item-list');
+    function renderWorkItems() {
+        workItemList.innerHTML = '';
+        queuedWorkItems.forEach(function (item, index) {
+            const row = document.createElement('li');
+            row.className = 'work-item-row';
+
+            const details = document.createElement('div');
+            const title = document.createElement('strong');
+            title.textContent = item.title;
+            details.appendChild(title);
+            if (item.id) {
+                const id = document.createElement('span');
+                id.className = 'muted';
+                id.textContent = ' (' + item.id + ')';
+                details.appendChild(id);
+            }
+            if (item.description) {
+                const description = document.createElement('p');
+                description.className = 'muted';
+                description.textContent = item.description;
+                details.appendChild(description);
+            }
+
+            const removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.textContent = 'Remove';
+            removeButton.addEventListener('click', function () {
+                queuedWorkItems.splice(index, 1);
+                renderWorkItems();
+            });
+
+            row.appendChild(details);
+            row.appendChild(removeButton);
+            workItemList.appendChild(row);
+        });
+    }
+
+    function addWorkItem() {
+        const titleInput = document.getElementById('run-work-item-title');
+        const idInput = document.getElementById('run-work-item-id');
+        const descriptionInput = document.getElementById('run-work-item-description');
+        const title = (titleInput.value || '').trim();
+        if (!title) {
+            setStatus('Work item title is required.', true);
+            titleInput.focus();
+            return;
+        }
+
+        const item = { title: title };
+        const id = (idInput.value || '').trim();
+        if (id) item.id = id;
+        const description = (descriptionInput.value || '').trim();
+        if (description) item.description = description;
+        queuedWorkItems.push(item);
+        renderWorkItems();
+
+        titleInput.value = '';
+        idInput.value = '';
+        descriptionInput.value = '';
+        titleInput.focus();
+        setStatus('', false);
+    }
+
+    document.getElementById('run-add-work-item').addEventListener('click', addWorkItem);
     async function loadWorkflows() {
         workflowSelect.innerHTML = '';
         const placeholder = document.createElement('option');
@@ -197,20 +286,7 @@
         const ticketIds = ticketIdsInput ? parseList(ticketIdsInput.value) : [];
         const externalId = document.getElementById('run-external-id').value.trim();
 
-        let workItems = [];
-        const workItemsText = document.getElementById('run-work-items').value.trim();
-        if (workItemsText) {
-            try {
-                const parsed = JSON.parse(workItemsText);
-                if (!Array.isArray(parsed)) {
-                    throw new Error('Work items must be a JSON array.');
-                }
-                workItems = parsed;
-            } catch (error) {
-                setStatus(error.message, true);
-                return;
-            }
-        }
+        const workItems = queuedWorkItems.slice();
 
         let overrides = {};
         const overridesText = document.getElementById('run-overrides').value.trim();

@@ -113,7 +113,7 @@ public sealed class AccountController(
         ViewData["NewApiKey"] = TempData["NewApiKey"];
         ViewData["NewApiKeyName"] = TempData["NewApiKeyName"];
         ViewData["WorkflowTemplate"] = LoadWorkflowTemplate(WebHostEnvironment);
-        ViewData["ActiveTab"] = tab is "workflows" or "apikeys" ? tab : "configuration";
+        ViewData["ActiveTab"] = tab is "copilot" or "hooks" or "workflows" or "apikeys" ? tab : "worksource";
         return View(ConfigurationDto.From(configuration));
     }
 
@@ -167,7 +167,7 @@ public sealed class AccountController(
     [HttpGet]
     [Authorize]
     public IActionResult Configuration() =>
-        RedirectToAction(nameof(Index), "Account", new { tab = "configuration" });
+        RedirectToAction(nameof(Index), "Account", new { tab = "worksource" });
 
     [HttpPost]
     [Authorize]
@@ -184,7 +184,7 @@ public sealed class AccountController(
             if (!string.IsNullOrWhiteSpace(validationError))
                 ModelState.AddModelError(string.Empty, validationError);
             await PopulateAccountViewAsync(userId);
-            ViewData["ActiveTab"] = "configuration";
+            ViewData["ActiveTab"] = "worksource";
             return View("Index", model);
         }
 
@@ -215,7 +215,7 @@ public sealed class AccountController(
         await ConfigurationService.SaveAsync(userId, configuration, cancellationToken);
 
         TempData["Message"] = "Configuration saved.";
-        return RedirectToAction(nameof(Index), "Account", new { tab = "configuration" });
+        return RedirectToAction(nameof(Index), "Account", new { tab = "worksource" });
     }
 
     [HttpGet]

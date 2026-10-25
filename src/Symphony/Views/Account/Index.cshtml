@@ -22,28 +22,22 @@
     <p class="muted">Hello, @displayName <span class="muted">(@((roles.Any() ? string.Join(", ", roles) : "User")))</span></p>
 
     <div class="account-tabs" role="tablist">
-        <button type="button" class="account-tab @(activeTab == "configuration" ? "is-active" : null)" data-tab="configuration" role="tab" aria-selected="@(activeTab == "configuration" ? "true" : "false")">Configuration</button>
+        <button type="button" class="account-tab @(activeTab == "worksource" ? "is-active" : null)" data-tab="worksource" role="tab" aria-selected="@(activeTab == "worksource" ? "true" : "false")">Work source</button>
+        <button type="button" class="account-tab @(activeTab == "copilot" ? "is-active" : null)" data-tab="copilot" role="tab" aria-selected="@(activeTab == "copilot" ? "true" : "false")">Copilot settings</button>
+        <button type="button" class="account-tab @(activeTab == "hooks" ? "is-active" : null)" data-tab="hooks" role="tab" aria-selected="@(activeTab == "hooks" ? "true" : "false")">Hooks</button>
         <button type="button" class="account-tab @(activeTab == "workflows" ? "is-active" : null)" data-tab="workflows" role="tab" aria-selected="@(activeTab == "workflows" ? "true" : "false")">Workflows</button>
         <button type="button" class="account-tab @(activeTab == "apikeys" ? "is-active" : null)" data-tab="apikeys" role="tab" aria-selected="@(activeTab == "apikeys" ? "true" : "false")">API keys</button>
     </div>
 
-    <div id="account-tab-configuration" class="account-panel" @(activeTab == "configuration" ? null : "hidden")>
-        @if (TempData["Message"] is string message)
-        {
-            <p class="muted">@message</p>
-        }
+    @if (TempData["Message"] is string message)
+    {
+        <p class="muted">@message</p>
+    }
 
-        <form asp-action="Configuration" method="post">
-            @Html.AntiForgeryToken()
-            <div asp-validation-summary="All" class="validation" role="alert"></div>
-
-            <div class="config-tabs" role="tablist">
-                <button type="button" class="config-tab is-active" data-tab="worksource" role="tab" aria-selected="true">Work source</button>
-                <button type="button" class="config-tab" data-tab="copilot" role="tab" aria-selected="false">Copilot settings</button>
-                <button type="button" class="config-tab" data-tab="hooks" role="tab" aria-selected="false">Hooks</button>
-            </div>
-
-            <div id="config-tab-worksource" class="config-panel">
+    <form asp-action="Configuration" method="post">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="All" class="validation" role="alert"></div>
+        <div id="account-tab-worksource" class="account-panel" @(activeTab == "worksource" ? null : "hidden")>
             <h2>Work source</h2>
             <p class="muted">Optional. Needed only when submitting ticket IDs; inline work items need no tracker.</p>
             <label>
@@ -90,7 +84,8 @@
 
             </div>
 
-            <div id="config-tab-copilot" class="config-panel" hidden>
+        </div>
+        <div id="account-tab-copilot" class="account-panel" @(activeTab == "copilot" ? null : "hidden")>
             <h2>Copilot BYOM</h2>
             <label>
                 Provider
@@ -168,7 +163,8 @@
             <span asp-validation-for="GitHubPersonalAccessToken" class="field-error"></span>
             </div>
 
-            <div id="config-tab-hooks" class="config-panel" hidden>
+        </div>
+        <div id="account-tab-hooks" class="account-panel" @(activeTab == "hooks" ? null : "hidden")>
             <h2>Hooks</h2>
             <label>
                 After create
@@ -337,7 +333,9 @@
     (function () {
         const tabs = document.querySelectorAll('.account-tab');
         const panels = {
-            configuration: document.getElementById('account-tab-configuration'),
+            worksource: document.getElementById('account-tab-worksource'),
+            copilot: document.getElementById('account-tab-copilot'),
+            hooks: document.getElementById('account-tab-hooks'),
             workflows: document.getElementById('account-tab-workflows'),
             apikeys: document.getElementById('account-tab-apikeys')
         };
@@ -357,33 +355,7 @@
                 activateTab(tab.getAttribute('data-tab'));
             });
         });
-        activateTab(window.activeAccountTab || 'configuration');
-    })();
-
-    (function () {
-        const tabs = document.querySelectorAll('.config-tab');
-        const panels = {
-            worksource: document.getElementById('config-tab-worksource'),
-            copilot: document.getElementById('config-tab-copilot'),
-            hooks: document.getElementById('config-tab-hooks')
-        };
-        function activateTab(name) {
-            if (!panels[name]) return;
-            Object.keys(panels).forEach(function (key) {
-                panels[key].hidden = key !== name;
-            });
-            tabs.forEach(function (tab) {
-                const active = tab.getAttribute('data-tab') === name;
-                tab.classList.toggle('is-active', active);
-                tab.setAttribute('aria-selected', active ? 'true' : 'false');
-            });
-        }
-        tabs.forEach(function (tab) {
-            tab.addEventListener('click', function () {
-                activateTab(tab.getAttribute('data-tab'));
-            });
-        });
-        activateTab('worksource');
+        activateTab(window.activeAccountTab || 'worksource');
     })();
 <script>
     (function () {

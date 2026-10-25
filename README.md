@@ -14,41 +14,43 @@ The web host uses ASP.NET Core Identity for sign-in, selects its database throug
 ```mermaid
 flowchart LR
 
+LIN["Linear (Default tracker)"]
 GH["GitHub Issues (Supported)"]
 JIRA["Jira (Supported, not tested)"]
-LIN["Linear (Current)"]
+INLINE["Inline work items (No tracker)"]
 
-SYM["Symphony"]
-WF["Workflow.md (Settings & Instructions)"]
+SYM["Symphony Web Host"]
+WF["Workflows\n(WORKFLOW.md-style, named per user)"]
 ORCH["Orchestration System"]
 
-REPO["GitHub Repo (Only Supported Repo)"]
-MCP["GitHub MCP\nPRs, Issues, Repo Actions"]
+REPO["GitHub Repository\n(Only supported repo)"]
+GHAPI["GitHub REST API / gh CLI\n(agents may also use GitHub MCP)"]
 
-COP["GitHub Copilot (Current)"]
+COP["GitHub Copilot (Current)\nBYOM: OpenAI, Azure, Anthropic"]
+CODEX["OpenAI Codex\n(Retained; not registered in web host)"]
 CLAUDE["Claude Code (Future)"]
-CODEX["OpenAI Codex (Optional, untested)"]
 
 RUN["Agents run locally\nwhere Symphony runs"]
-FUTURE["Future: Agents may run\nin isolated containers"]
+FUTURE["Future: agents may run\nin isolated containers"]
 
+LIN --> SYM
 GH --> SYM
 JIRA --> SYM
-LIN --> SYM
+INLINE --> SYM
 
 SYM --> ORCH
 WF --> ORCH
 
 ORCH --> REPO
-REPO --> MCP
+REPO --> GHAPI
 
 ORCH --> COP
-ORCH --> CLAUDE
 ORCH --> CODEX
+ORCH --> CLAUDE
 
 COP --> RUN
-CLAUDE --> RUN
 CODEX --> RUN
+CLAUDE --> RUN
 
 RUN --> FUTURE
 ```

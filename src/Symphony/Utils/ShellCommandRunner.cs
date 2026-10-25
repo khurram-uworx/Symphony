@@ -41,6 +41,32 @@ class ShellCommandRunner
         }
     }
 
+    static string ExpandEnvironmentVariables(string command, IReadOnlyDictionary<string, string>? environment)
+    {
+        if (string.IsNullOrWhiteSpace(command) || environment is null || environment.Count == 0)
+            return command;
+
+        var expanded = System.Text.RegularExpressions.Regex.Replace(
+            command,
+            @"%([A-Za-z_][A-Za-z0-9_]*)%",
+            match =>
+            {
+                var name = match.Groups[1].Value;
+                return environment.TryGetValue(name, out var value) && value is not null ? value : match.Value;
+            });
+
+        expanded = System.Text.RegularExpressions.Regex.Replace(
+            expanded,
+            @"\\$\\{([A-Za-z_][A-Za-z0-9_]*)(?::-[^}]*)?\\}",
+            match =>
+            {
+                var name = match.Groups[1].Value;
+                return environment.TryGetValue(name, out var value) && value is not null ? value : match.Value;
+            });
+
+        return expanded;
+    }
+
     readonly ILogger<ShellCommandRunner> logger;
 
     public ShellCommandRunner(ILogger<ShellCommandRunner> logger)
@@ -58,7 +84,8 @@ class ShellCommandRunner
     public async Task<CommandResult> RunAsync(string command, string workingDirectory, int timeoutMs,
         IReadOnlyDictionary<string, string>? environment, CancellationToken cancellationToken)
     {
-        var startInfo = BuildShellStartInfo(command, workingDirectory);
+        var expandedCommand = ExpandEnvironmentVariables(command, environment);
+        var startInfo = BuildShellStartInfo(expandedCommand, workingDirectory);
         if (environment is not null)
         {
             foreach (var pair in environment)

@@ -64,18 +64,26 @@ public sealed class JobTelemetryCapture
     public async Task<JobTelemetryBundle> ReadAsync(Guid jobId, CancellationToken cancellationToken)
     {
         if (jobFiles.TryGetValue(jobId, out var path) && File.Exists(path))
-            return ParseFile(path);
+        {
+            var parsed = ParseFile(path);
+            parsed.Entries = parsed.Entries
+                .OrderByDescending(entry => entry.Timestamp)
+                .Take(100)
+                .ToList();
+            return parsed;
+        }
 
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         var rows = await db.JobTelemetry
             .AsNoTracking()
             .Where(item => item.JobId == jobId)
+            .OrderByDescending(item => item.Timestamp)
+            .Take(100)
             .ToListAsync(cancellationToken);
 
         return new JobTelemetryBundle
         {
             Entries = rows
-                .OrderBy(row => row.Timestamp)
                 .Select(row => new JobTelemetryEntry
                 {
                     Signal = row.Signal,

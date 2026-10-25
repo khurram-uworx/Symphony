@@ -132,7 +132,9 @@
                 return response.json();
             })
             .then(function (bundle) {
-                const entries = Array.isArray(bundle.entries) ? bundle.entries : [];
+                const entries = (Array.isArray(bundle.entries) ? bundle.entries : [])
+                    .slice()
+                    .sort(function (a, b) { return new Date(b.timestamp || 0) - new Date(a.timestamp || 0); });
                 if (entries.length === 0) {
                     status.textContent = 'No telemetry captured.';
                     return;

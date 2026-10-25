@@ -17,8 +17,9 @@ sealed class IssueTrackerFactory
             "" or "none" or "inline" or "null" => new NullIssueTracker(),
             "linear" => new LinearClient(new SimpleHttpClientFactory(), NullLogger<LinearClient>.Instance, config),
             "jira" => new JiraClient(NullLogger<JiraClient>.Instance, config),
+            "github" => new GitHubIssuesClient(new SimpleHttpClientFactory(), NullLogger<GitHubIssuesClient>.Instance, config),
             _ => throw new ArgumentException(
-                $"Unsupported tracker kind '{config.Tracker.Kind}'. Supported values: 'none', 'linear', 'jira'.",
+                $"Unsupported tracker kind '{config.Tracker.Kind}'. Supported values: 'none', 'linear', 'jira', 'github'.",
                 nameof(config))
         };
     }

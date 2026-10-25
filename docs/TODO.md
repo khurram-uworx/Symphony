@@ -62,26 +62,29 @@ Enable terminal `curl` submission against arbitrary configured repository/ticket
    - T43: test curl with API key against local app.
 
 ## Verification steps
-- [ ] Build: `dotnet build Symphony.slnx`
-- [ ] Tests (unit): `dotnet test tests/Symphony.Tests`
-- [ ] Manual: create API key, call `POST /api/work` with API key -> job queued
-- [ ] Manual: disable user as admin -> API key auth fails
-- [ ] Manual: rotate key -> old fails, new works
-- [ ] Manual: enable/disable key -> toggles access
+- [x] Build: `dotnet build Symphony.slnx` — succeeds with 0 warnings in Symphony
+- [x] Tests (unit): `dotnet test tests/Symphony.Tests` with CI filter — 92/92 passed
+    - Added migrations for all three providers were required; DatabaseInitializerTests updated for `AddApiKey` history row
+- [x] Manual: create API key in UI, copy raw key, call `POST /api/work` with `Authorization: Bearer <key>` → `202 Accepted` with `jobId` + `statusUrl`; polled until terminal state `Completed`
+- [x] Manual: invalid key → 401; disabled key → 401; rotated old key → 401; `X-API-Key` header path → 200
+- [x] Manual: enable/disable is reversible; revoke is permanent
+- [x] Manual: rate limiting → 97×200 then 33×429 on 130 rapid requests (120/min fixed window per user)
+- [x] Manual: admin disables user `bob` → his API key returns 401 immediately and bob cannot sign in
+- [x] Manual: non-admin denied `/Admin/Users` (Access denied)
+- [x] Curl example on `/Account/Run` points at `Authorization: Bearer` and links to key management
 
-## Planned commits
-1. `feat(api-keys): add ApiKey entity, DbContext mapping, migration`
-2. `feat(api-keys): add API key service with secure generation, hashing, rotation, lifecycle`
-3. `feat(api-keys): add API key auth middleware and integrate into pipeline`
-4. `feat(api-keys): add API endpoints for key management (/api/api-keys)`
-5. `feat(api-keys): add account API keys UI (list/create/rotate/enable-disable)`
-6. `feat(api-keys): update /account/run with live curl example using API key`
-7. `feat(api): add request validation and rate limiting for API endpoints`
-8. `test(api-keys): add ApiKeyServiceTests and ApiKeyMiddlewareTests`
+## Verification findings fixed while testing
+- Raw-key banner rendered with `validation-summary-valid` class, which site.css hides → restyled as a visible `#new-key-banner` block
+- `ApiKeyService` was not registered in DI → added scoped registration (would have 500'd every use)
+- `userManager.CreateAsync(user)` misuse in middleware → `signInManager.CreateUserPrincipalAsync(user)`
+- `SetEnabledAsync(false)` stamped `RevokedAt`, making disable permanent → only revoke does that now
+- SQLite cannot `ORDER BY DateTimeOffset` → keys are sorted client-side like JobService does
+- Empty commits from failed shell edits (25a6404, c94c690) superseded by 6834e07 and 7eeef63
 
 ## GitHub issues log
-- [ ] #TBD — Track any follow-ups discovered during implementation
+- (none created — all findings fixed on branch during execution)
 
 ## Notes
-- Store hashed keys only; raw key shown once. Use prefix lookup + constant-time verification.
-- Invalidate keys on user disable/delete. Admins do not manage other users' keys.
+- Update: earlier shell-based edits created literal `\n` and escaped-quote corruption in several files; all repaired and now verified by build + tests + live browser/curl verification.
+- Key hashing HMAC-SHA256 with server key from `ApiKeys:ServerKey`/`DataProtection:ServerKey` (dev fallback documented in README).
+- Store hashed keys only; raw key shown once at create/rotate. Invalidate keys on user disable/delete. Admins cannot manage other users' keys (service is owner-scoped everywhere).

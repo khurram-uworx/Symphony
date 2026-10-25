@@ -138,6 +138,12 @@
                 <span asp-validation-for="CopilotWireApi" class="field-error"></span>
             </div>
 
+            <label>
+                <input asp-for="TelemetryContentEnabled" type="checkbox" />
+                Capture Copilot telemetry content (prompts, tool args, outputs) for this account's jobs
+            </label>
+            <p class="muted">When enabled, telemetry is stored for job runs and shown to you (and admins). Disable to keep prompts and tool content out of traces.</p>
+
             <h2>Agent</h2>
             <label>
                 Max concurrent agents
@@ -526,6 +532,49 @@
                 table.appendChild(tbody);
                 body.appendChild(table);
             }
+
+            try {
+                const telemetryResponse = await fetch('/api/jobs/' + jobId + '/telemetry', { credentials: 'same-origin' });
+                if (telemetryResponse.ok) {
+                    const telemetryBundle = await telemetryResponse.json();
+                    const telemetryEntries = Array.isArray(telemetryBundle.entries) ? telemetryBundle.entries : [];
+                    if (telemetryEntries.length > 0) {
+                        const telemetryHeading = document.createElement('h3');
+                        telemetryHeading.textContent = 'Telemetry';
+                        body.appendChild(telemetryHeading);
+
+                        const telemetryTable = document.createElement('table');
+                        telemetryTable.className = 'workflow-table';
+                        const telemetryHead = document.createElement('thead');
+                        telemetryHead.innerHTML = '<tr><th>Time</th><th>Signal</th><th>Name</th><th>Duration</th></tr>';
+                        const telemetryBody = document.createElement('tbody');
+                        telemetryEntries.slice(0, 100).forEach(function (entry) {
+                            const row = document.createElement('tr');
+                            const cells = [
+                                shortDate(entry.timestamp),
+                                entry.signal || '—',
+                                entry.name || '—',
+                                (entry.durationMs === null || entry.durationMs === undefined) ? '—' : (entry.durationMs + ' ms')
+                            ];
+                            cells.forEach(function (value) {
+                                const td = document.createElement('td');
+                                td.textContent = String(value);
+                                row.appendChild(td);
+                            });
+                            telemetryBody.appendChild(row);
+                        });
+                        telemetryTable.appendChild(telemetryHead);
+                        telemetryTable.appendChild(telemetryBody);
+                        body.appendChild(telemetryTable);
+                        if (telemetryEntries.length > 100) {
+                            const note = document.createElement('p');
+                            note.className = 'muted';
+                            note.textContent = 'Showing first 100 of ' + telemetryEntries.length + ' telemetry records.';
+                            body.appendChild(note);
+                        }
+                    }
+                }
+            } catch (_) { }
 
             const normalizedState = String(job.state || '').toLowerCase();
             if (normalizedState === 'failed' || normalizedState === 'completedwithfailures') {

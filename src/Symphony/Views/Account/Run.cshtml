@@ -7,8 +7,8 @@
     <p class="muted">Submit work to the same API used by integrations.</p>
 
     <div class="run-tabs" role="tablist">
-        <button type="button" class="run-tab is-active" data-tab="run" role="tab" aria-selected="true">Run</button>
-        <button type="button" class="run-tab" data-tab="api" role="tab" aria-selected="false">API</button>
+        <button type="button" class="run-tab is-active" data-tab="run" role="tab" aria-selected="true">Launch work</button>
+        <button type="button" class="run-tab" data-tab="api" role="tab" aria-selected="false">Curl example</button>
     </div>
 
     <div id="run-tab-run" class="run-panel">
@@ -67,7 +67,17 @@
         <pre><code id="run-curl">curl -X POST "http://localhost:5080/api/work" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer &lt;YOUR_API_KEY&gt;" \
-  --data '{"externalId":null,"ticketIds":["ENG-1"],"workItems":[],"github":{"repository":"owner/repo","personalAccessToken":"&lt;YOUR_GITHUB_TOKEN&gt;"},"workflowName":"WORKFLOW","overrides":{}}'</code></pre>
+  --data '{
+    "externalId": null,
+    "ticketIds": ["ENG-1"],
+    "workItems": [],
+    "github": {
+      "repository": "owner/repo",
+      "personalAccessToken": "&lt;YOUR_GITHUB_TOKEN&gt;"
+    },
+    "workflowName": "WORKFLOW",
+    "overrides": {}
+  }'</code></pre>
         <p class="muted">
             Replace <code>&lt;YOUR_API_KEY&gt;</code> with a key from the API Keys page. Keys are stored hashed and can be
             disabled, rotated, or revoked at any time; disabling a user immediately invalidates all their keys.

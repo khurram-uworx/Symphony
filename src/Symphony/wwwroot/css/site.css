@@ -882,6 +882,16 @@ main:has(.workflows-shell--editor) {
     box-shadow: 0 0 0 3px rgba(124, 108, 255, 0.16);
 }
 
+.run-panel pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+    padding: 12px;
+    border-radius: 12px;
+    background: var(--inset);
+    border: 1px solid var(--line-strong);
+}
+
 #workflow-content {
     flex: 1 1 auto;
     width: 100%;

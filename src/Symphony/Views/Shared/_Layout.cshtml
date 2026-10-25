@@ -17,14 +17,12 @@
             @if (User.Identity?.IsAuthenticated == true)
             {
                 <a asp-controller="Account" asp-action="Index">Account</a>
-                <span class="who">@User.Identity.Name</span>
+                <a class="who" asp-controller="Account" asp-action="Manage">@User.Identity.Name</a>
                 @if (User.IsInRole(AdminSeeder.AdminRole))
                 {
                     <a asp-controller="Admin" asp-action="Users">Admin</a>
                 }
-                <form asp-controller="Account" asp-action="Logout" method="post">
-                    <button type="submit">Log out</button>
-                </form>
+
             }
             else
             {

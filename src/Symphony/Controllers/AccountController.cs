@@ -40,7 +40,7 @@ public sealed class AccountController(
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) && !isLoginPath(returnUrl))
             return LocalRedirect(returnUrl);
 
-        return RedirectToAction(nameof(HomeController.Index), "Home");
+        return RedirectToAction(nameof(Index), "Account");
     }
 
     async Task<string> GetUserIdAsync()
@@ -107,6 +107,44 @@ public sealed class AccountController(
     {
         await signInManager.SignOutAsync();
         return RedirectToAction(nameof(Login));
+    }
+
+    [HttpGet]
+    [Authorize]
+    public IActionResult Manage()
+    {
+        ViewData["DisplayName"] = User.Identity?.Name;
+        return View(new ChangePasswordInput());
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> Manage(ChangePasswordInput input) => ChangePassword(input);
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangePassword(ChangePasswordInput input)
+    {
+        if (!ModelState.IsValid)
+            return View("Manage", input);
+
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+            return Challenge();
+
+        var result = await userManager.ChangePasswordAsync(user, input.CurrentPassword!, input.NewPassword!);
+        if (result.Succeeded)
+        {
+            await signInManager.RefreshSignInAsync(user);
+            TempData["Message"] = "Password changed.";
+            return RedirectToAction(nameof(Manage));
+        }
+
+        foreach (var error in result.Errors)
+            ModelState.AddModelError(string.Empty, error.Description);
+        return View("Manage", input);
     }
 
     [HttpGet]

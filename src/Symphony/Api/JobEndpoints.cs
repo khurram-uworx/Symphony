@@ -140,20 +140,19 @@ public static class JobEndpoints
             return Results.Unauthorized();
 
         var isAdmin = IsAdmin(user);
-        if (!isAdmin)
-            return Results.Forbid();
-
-        var original = await jobService.GetJobAsync(id, cancellationToken);
-        if (original is null)
-            return Results.NotFound(new { error = "Job not found." });
 
         try
         {
-            var retryJob = await jobService.RetryJobAsync(original.Id, userId, cancellationToken);
-            if (retryJob is null)
-                return Results.Conflict(new { error = "Job could not be retried." });
-
-            return Results.Accepted($"/api/jobs/{retryJob.Id}", new { jobId = retryJob.Id, statusUrl = $"/api/jobs/{retryJob.Id}", retryOfJobId = original.Id });
+            var retryJob = await jobService.CreateRetryAsync(id, userId, isAdmin, cancellationToken);
+            return Results.Accepted($"/api/jobs/{retryJob.Id}", new { jobId = retryJob.Id, statusUrl = $"/api/jobs/{retryJob.Id}", retryOfJobId = id });
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound(new { error = "Job not found." });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Results.Forbid();
         }
         catch (ArgumentException ex)
         {

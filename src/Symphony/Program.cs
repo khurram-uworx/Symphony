@@ -30,7 +30,8 @@ builder.Services.AddScoped<UserManagementService>(serviceProvider =>
         serviceProvider.GetService<SignInManager<IdentityUser>>(),
         serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),
         serviceProvider.GetService<WorkflowService>(),
-        serviceProvider.GetService<ApiKeyService>()));
+        serviceProvider.GetService<ApiKeyService>(),
+        serviceProvider.GetService<ISecretProtector>()));
 builder.Services.AddScoped<ConfigurationService>(serviceProvider =>
     new ConfigurationService(
         serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),
@@ -94,7 +95,8 @@ app.MapJobEndpoints();
 app.MapApiKeyEndpoints();
 app.MapHub<Symphony.Hubs.JobUpdateHub>("/hubs/jobs");
 await DatabaseInitializer.InitializeAsync(
-    app.Services.GetRequiredService<IDbContextFactory<SymphonyDbContext>>());
+    app.Services.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),
+    app.Services.GetRequiredService<ISecretProtector>());
 
 await using (var scope = app.Services.CreateAsyncScope())
 {
@@ -106,6 +108,14 @@ await using (var scope = app.Services.CreateAsyncScope())
         app.Configuration["SeedAdmin:UserName"],
         Console.Out,
         app.Configuration["SeedAdmin:Password"]);
+}
+
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var services = scope.ServiceProvider;
+    var factory = services.GetRequiredService<IDbContextFactory<SymphonyDbContext>>();
+    var protector = services.GetRequiredService<ISecretProtector>();
+    await ConfigurationService.SeedDefaultConfigurationsAsync(factory, protector);
 }
 
 app.Run();

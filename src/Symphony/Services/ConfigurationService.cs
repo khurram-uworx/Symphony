@@ -1,6 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using Symphony.Config;
 using Symphony.Data;
 using Symphony.Security;
+using Symphony.Workflows;
+using System.Text.Json;
 
 namespace Symphony.Services;
 
@@ -195,4 +199,137 @@ public sealed class ConfigurationService(
         UserConfiguration configuration,
         CancellationToken cancellationToken = default) =>
         new ConfigurationService(factory, protector).SaveAsync(userId, configuration, cancellationToken);
+
+    public static async Task EnsureDefaultConfigurationAsync(
+        IDbContextFactory<SymphonyDbContext> factory,
+        string userId,
+        CancellationToken cancellationToken = default) =>
+        await EnsureDefaultConfigurationAsync(factory, new SecretProtector(), userId, cancellationToken);
+
+    public static async Task EnsureDefaultConfigurationAsync(
+        IDbContextFactory<SymphonyDbContext> factory,
+        ISecretProtector protector,
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentException("User id cannot be empty.", nameof(userId));
+
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var exists = await db.UserConfigurations
+            .AnyAsync(configuration => configuration.UserId == userId, cancellationToken);
+        if (exists)
+            return;
+
+        var workflow = new WorkflowLoader(NullLogger<WorkflowLoader>.Instance)
+            .Parse(BundledWorkflow.Content);
+        var configuration = BuildFromWorkflow(workflow);
+        configuration.UserId = userId;
+        configuration.DefaultWorkflowName = BundledWorkflow.DefaultName;
+        configuration.CreatedAt = DateTimeOffset.UtcNow;
+        configuration.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await new ConfigurationService(factory, protector)
+            .SaveAsync(userId, configuration, cancellationToken);
+    }
+
+    public static async Task SeedDefaultConfigurationsAsync(
+        IDbContextFactory<SymphonyDbContext> factory,
+        ISecretProtector protector,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var userIds = await db.Users
+            .Select(user => user.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var userId in userIds)
+            await EnsureDefaultConfigurationAsync(factory, protector, userId, cancellationToken);
+    }
+
+    static UserConfiguration BuildFromWorkflow(WorkflowDefinition workflow)
+    {
+        var config = workflow.Config;
+        var result = new UserConfiguration();
+
+        var trackerMap = ConfigReader.ReadMap(config, "tracker");
+        var kind = ConfigReader.ReadString(trackerMap, "kind");
+        if (string.IsNullOrWhiteSpace(kind))
+            kind = "none";
+        result.TrackerKind = kind.Trim().ToLowerInvariant();
+
+        var endpoint = ConfigReader.ReadString(trackerMap, "endpoint");
+        if (string.IsNullOrWhiteSpace(endpoint) && result.TrackerKind == "linear")
+            endpoint = "https://api.linear.app/graphql";
+        result.TrackerEndpoint = endpoint ?? string.Empty;
+
+        var apiKeyRaw = ConfigReader.ReadString(trackerMap, "api_key");
+        result.TrackerApiKey = string.IsNullOrWhiteSpace(apiKeyRaw)
+            ? string.Empty
+            : ConfigReader.ResolveEnvValue(apiKeyRaw);
+
+        result.TrackerProjectSlug = ConfigReader.ReadString(trackerMap, "project_slug") ?? string.Empty;
+
+        var activeStates = ConfigReader.ReadStringList(trackerMap, "active_states");
+        result.TrackerActiveStates = activeStates is null
+            ? "Todo, In Progress"
+            : string.Join(", ", activeStates);
+
+        var terminalStates = ConfigReader.ReadStringList(trackerMap, "terminal_states");
+        result.TrackerTerminalStates = terminalStates is null
+            ? "Closed, Cancelled, Canceled, Duplicate, Done"
+            : string.Join(", ", terminalStates);
+
+        var workspaceMap = ConfigReader.ReadMap(config, "workspace");
+        var workspaceRoot = ConfigReader.ReadString(workspaceMap, "root");
+        if (string.IsNullOrWhiteSpace(workspaceRoot))
+            workspaceRoot = ConfigReader.ReadString(config, "workspace_root");
+        result.WorkspaceRoot = workspaceRoot ?? string.Empty;
+
+        var hooksMap = ConfigReader.ReadMap(config, "hooks");
+        if (hooksMap.Count > 0)
+        {
+            result.HookAfterCreate = ConfigReader.ReadString(hooksMap, "after_create");
+            result.HookBeforeRun = ConfigReader.ReadString(hooksMap, "before_run");
+            result.HookAfterRun = ConfigReader.ReadString(hooksMap, "after_run");
+            result.HookBeforeRemove = ConfigReader.ReadString(hooksMap, "before_remove");
+            var timeout = ConfigReader.ReadInt(hooksMap, "timeout_ms");
+            if (timeout.HasValue && timeout.Value > 0)
+                result.HookTimeoutMs = timeout.Value;
+        }
+
+        var agentMap = ConfigReader.ReadMap(config, "agent");
+        var maxConcurrent = ConfigReader.ReadInt(agentMap, "max_concurrent_agents")
+            ?? ConfigReader.ReadInt(config, "max_concurrent_agents");
+        if (maxConcurrent.HasValue && maxConcurrent.Value > 0)
+            result.MaxConcurrentAgents = maxConcurrent.Value;
+
+        var backoff = ConfigReader.ReadInt(agentMap, "max_retry_backoff_ms")
+            ?? ConfigReader.ReadInt(config, "max_retry_backoff_ms");
+        if (backoff.HasValue && backoff.Value > 0)
+            result.MaxRetryBackoffMs = backoff.Value;
+
+        var maxTurns = ConfigReader.ReadInt(agentMap, "max_turns")
+            ?? ConfigReader.ReadInt(config, "max_turns");
+        if (maxTurns.HasValue && maxTurns.Value > 0)
+            result.MaxTurns = maxTurns.Value;
+
+        if (agentMap.TryGetValue("max_concurrent_agents_by_state", out var byStateRaw)
+            && byStateRaw is IReadOnlyDictionary<string, object> byStateMap)
+        {
+            result.MaxConcurrentAgentsByState = JsonSerializer.Serialize(byStateMap);
+        }
+
+        if (result.HookTimeoutMs <= 0)
+            result.HookTimeoutMs = 60000;
+        if (result.MaxConcurrentAgents <= 0)
+            result.MaxConcurrentAgents = 10;
+        if (result.MaxRetryBackoffMs <= 0)
+            result.MaxRetryBackoffMs = 300000;
+        if (result.MaxTurns <= 0)
+            result.MaxTurns = 1;
+
+        return result;
+    }
 }

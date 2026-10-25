@@ -6,11 +6,17 @@
     var displayName = ViewData["DisplayName"] as string ?? User.Identity?.Name;
     var roles = (ViewData["Roles"] as IEnumerable<string>) ?? Array.Empty<string>();
     var apiKeys = (ViewData["ApiKeys"] as IReadOnlyList<ApiKey>) ?? Array.Empty<ApiKey>();
-    var activeTab = (ViewData["ActiveTab"] as string) ?? "configuration";
+    var activeTab = (ViewData["ActiveTab"] as string) ?? "jobs";
     var workflowTemplate = (ViewData["WorkflowTemplate"] as string) ?? "";
     var newKey = ViewData["NewApiKey"] as string;
     var newKeyName = ViewData["NewApiKeyName"] as string;
 }
+<style>
+    #job-details-dialog { width: min(46rem, 92vw); }
+    .job-details-grid { display: grid; grid-template-columns: minmax(8rem, 10rem) 1fr; gap: 0.35rem 1rem; margin: 0.75rem 0; }
+    .job-details-grid dt { font-weight: 600; }
+    .job-details-grid dd { margin: 0; }
+</style>
 <section class="panel">
     <div class="account-header">
         <h1>Account</h1>
@@ -22,9 +28,10 @@
     <p class="muted">Hello, @displayName <span class="muted">(@((roles.Any() ? string.Join(", ", roles) : "User")))</span></p>
 
     <div class="account-tabs" role="tablist">
+        <button type="button" class="account-tab @(activeTab == "jobs" ? "is-active" : null)" data-tab="jobs" role="tab" aria-selected="@(activeTab == "jobs" ? "true" : "false")">Jobs</button>
+        <button type="button" class="account-tab @(activeTab == "repository" ? "is-active" : null)" data-tab="repository" role="tab" aria-selected="@(activeTab == "repository" ? "true" : "false")">Repository</button>
         <button type="button" class="account-tab @(activeTab == "worksource" ? "is-active" : null)" data-tab="worksource" role="tab" aria-selected="@(activeTab == "worksource" ? "true" : "false")">Work source</button>
         <button type="button" class="account-tab @(activeTab == "copilot" ? "is-active" : null)" data-tab="copilot" role="tab" aria-selected="@(activeTab == "copilot" ? "true" : "false")">Copilot settings</button>
-        <button type="button" class="account-tab @(activeTab == "repository" ? "is-active" : null)" data-tab="repository" role="tab" aria-selected="@(activeTab == "repository" ? "true" : "false")">Repository</button>
         <button type="button" class="account-tab @(activeTab == "workflows" ? "is-active" : null)" data-tab="workflows" role="tab" aria-selected="@(activeTab == "workflows" ? "true" : "false")">Workflows</button>
         <button type="button" class="account-tab @(activeTab == "apikeys" ? "is-active" : null)" data-tab="apikeys" role="tab" aria-selected="@(activeTab == "apikeys" ? "true" : "false")">API keys</button>
     </div>
@@ -52,19 +59,19 @@
 
             <div data-tracker-kind="linear jira">
                 <label>
-                    Tracker endpoint
+                    <span id="tracker-endpoint-label">Tracker endpoint</span>
                     <input asp-for="TrackerEndpoint" autocomplete="off" />
                 </label>
                 <span asp-validation-for="TrackerEndpoint" class="field-error"></span>
 
                 <label>
-                    Tracker API key
+                    <span id="tracker-apikey-label">Tracker API key</span>
                     <input asp-for="TrackerApiKey" type="password" autocomplete="off" placeholder="Leave blank to keep" />
                 </label>
                 <span asp-validation-for="TrackerApiKey" class="field-error"></span>
 
                 <label>
-                    Project slug
+                    <span id="tracker-project-label">Project slug</span>
                     <input asp-for="TrackerProjectSlug" autocomplete="off" />
                 </label>
                 <span asp-validation-for="TrackerProjectSlug" class="field-error"></span>
@@ -325,15 +332,260 @@
             </table>
         }
     </div>
+
+    <div id="account-tab-jobs" class="account-panel" @(activeTab == "jobs" ? null : "hidden")>
+        <h2>Active jobs</h2>
+        <table class="workflow-table" aria-label="Active jobs">
+            <thead>
+                <tr>
+                    <th>Job</th>
+                    <th>Workflow</th>
+                    <th>State</th>
+                    <th>Queued</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="account-active-jobs"></tbody>
+        </table>
+        <p id="account-active-jobs-empty" class="muted">No active jobs.</p>
+
+        <h2>Past jobs</h2>
+        <table class="workflow-table" aria-label="Past jobs">
+            <thead>
+                <tr>
+                    <th>Job</th>
+                    <th>Workflow</th>
+                    <th>State</th>
+                    <th>Queued</th>
+                    <th>Completed</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="account-past-jobs"></tbody>
+        </table>
+        <p id="account-past-jobs-empty" class="muted">No past jobs.</p>
+    </div>
 </section>
+
+<dialog id="job-details-dialog">
+    <h2>Job details</h2>
+    <div id="job-details-body"></div>
+    <div class="dialog-actions">
+        <button type="button" onclick="this.closest('dialog').close()">Close</button>
+    </div>
+</dialog>
 
 <script>
     window.activeAccountTab = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(activeTab));
 </script>
 <script>
+(function () {
+    function shortDate(value) {
+        if (!value) return '—';
+        try { return new Date(value).toLocaleString(); } catch (_) { return value; }
+    }
+
+    function isPastJobState(state) {
+        const normalized = String(state || '').toLowerCase();
+        return normalized === 'completed' || normalized === 'completedwithfailures' || normalized === 'failed' || normalized === 'cancelled' || normalized === 'canceled';
+    }
+
+    function renderJobs(jobs) {
+        const activeBody = document.getElementById('account-active-jobs');
+        const pastBody = document.getElementById('account-past-jobs');
+        if (!activeBody || !pastBody) return;
+
+        activeBody.innerHTML = '';
+        pastBody.innerHTML = '';
+        let activeCount = 0;
+        let pastCount = 0;
+
+        (jobs || []).forEach(function (job) {
+            const row = document.createElement('tr');
+            const jobId = document.createElement('td');
+            jobId.textContent = String(job.externalId || job.id || '').slice(0, 8);
+            const workflow = document.createElement('td');
+            workflow.textContent = job.workflowName || '—';
+            const state = document.createElement('td');
+            state.textContent = job.state || '—';
+            const queued = document.createElement('td');
+            queued.textContent = shortDate(job.queuedAt);
+            const statusCell = document.createElement('td');
+            const viewButton = document.createElement('button');
+            viewButton.type = 'button';
+            viewButton.className = 'job-details-trigger';
+            viewButton.textContent = 'View';
+            viewButton.addEventListener('click', function () {
+                openJobDetails(job.id);
+            });
+            statusCell.appendChild(viewButton);
+
+            row.appendChild(jobId);
+            row.appendChild(workflow);
+            row.appendChild(state);
+            row.appendChild(queued);
+
+            if (isPastJobState(job.state)) {
+                const completed = document.createElement('td');
+                completed.textContent = shortDate(job.completedAt);
+                row.appendChild(completed);
+                row.appendChild(statusCell);
+                pastBody.appendChild(row);
+                pastCount++;
+            } else {
+                row.appendChild(statusCell);
+                activeBody.appendChild(row);
+                activeCount++;
+            }
+        });
+
+        const activeEmpty = document.getElementById('account-active-jobs-empty');
+        const pastEmpty = document.getElementById('account-past-jobs-empty');
+        if (activeEmpty) activeEmpty.hidden = activeCount !== 0;
+        if (pastEmpty) pastEmpty.hidden = pastCount !== 0;
+    }
+
+    async function openJobDetails(jobId) {
+        const dialog = document.getElementById('job-details-dialog');
+        const body = document.getElementById('job-details-body');
+        body.replaceChildren();
+        const oldRetry = dialog.querySelector('.job-retry-trigger');
+        if (oldRetry) oldRetry.remove();
+        const loading = document.createElement('p');
+        loading.className = 'muted';
+        loading.textContent = 'Loading job details…';
+        body.appendChild(loading);
+        dialog.showModal();
+
+        try {
+            const response = await fetch('/api/jobs/' + jobId, { credentials: 'same-origin' });
+            if (!response.ok) throw new Error('Job not found.');
+            const job = await response.json();
+            body.replaceChildren();
+
+            const grid = document.createElement('dl');
+            grid.className = 'job-details-grid';
+
+            function addDetail(label, value) {
+                const dt = document.createElement('dt');
+                dt.textContent = label;
+                const dd = document.createElement('dd');
+                dd.textContent = value === null || value === undefined || value === '' ? '—' : String(value);
+                grid.appendChild(dt);
+                grid.appendChild(dd);
+            }
+
+            addDetail('Job ID', job.id);
+            addDetail('External ID', job.externalId);
+            addDetail('Workflow', job.workflowName);
+            addDetail('Repository', job.repository || (job.github && job.github.repository));
+            addDetail('State', job.state);
+            addDetail('Queued', shortDate(job.queuedAt));
+            addDetail('Started', shortDate(job.startedAt));
+            addDetail('Completed', shortDate(job.completedAt));
+            addDetail('Issue count', job.issueCount);
+            addDetail('Failed issues', job.failedIssueCount);
+            if (job.error || job.errorMessage || job.errorCode) {
+                addDetail('Error', job.errorMessage || job.error || job.errorCode);
+            }
+            if (job.summary) addDetail('Summary', job.summary);
+
+            body.appendChild(grid);
+
+            if (Array.isArray(job.issues) && job.issues.length > 0) {
+                const heading = document.createElement('h3');
+                heading.textContent = 'Issues';
+                body.appendChild(heading);
+
+                const table = document.createElement('table');
+                table.className = 'workflow-table';
+                const thead = document.createElement('thead');
+                thead.innerHTML = '<tr><th>#</th><th>Identifier</th><th>Title</th><th>State</th><th>Result</th></tr>';
+                const tbody = document.createElement('tbody');
+                job.issues.forEach(function (issue, index) {
+                    const row = document.createElement('tr');
+                    const idCell = document.createElement('td');
+                    idCell.textContent = index + 1;
+                    const identifierCell = document.createElement('td');
+                    identifierCell.textContent = issue.identifier || issue.id || '—';
+                    const titleCell = document.createElement('td');
+                    titleCell.textContent = issue.title || '—';
+                    const stateCell = document.createElement('td');
+                    stateCell.textContent = issue.state || '—';
+                    const resultCell = document.createElement('td');
+                    resultCell.textContent = issue.reason || issue.success === true ? 'OK' : (issue.success === false ? 'Failed' : '—');
+                    row.appendChild(idCell);
+                    row.appendChild(identifierCell);
+                    row.appendChild(titleCell);
+                    row.appendChild(stateCell);
+                    row.appendChild(resultCell);
+                    tbody.appendChild(row);
+                });
+                table.appendChild(thead);
+                table.appendChild(tbody);
+                body.appendChild(table);
+            }
+
+            const normalizedState = String(job.state || '').toLowerCase();
+            if (normalizedState === 'failed' || normalizedState === 'completedwithfailures') {
+                const actions = dialog.querySelector('.dialog-actions');
+                const retryButton = document.createElement('button');
+                retryButton.type = 'button';
+                retryButton.className = 'primary-button job-retry-trigger';
+                retryButton.textContent = 'Retry job';
+                retryButton.addEventListener('click', async function () {
+                    retryButton.disabled = true;
+                    retryButton.textContent = 'Retrying…';
+                    try {
+                        const response = await fetch('/api/jobs/' + jobId + '/retry', {
+                            method: 'POST',
+                            credentials: 'same-origin'
+                        });
+                        if (!response.ok) {
+                            const payload = await response.json().catch(function () { return {}; });
+                            throw new Error((payload && (payload.error || payload.message)) || 'Retry failed.');
+                        }
+                        dialog.close();
+                        loadJobs();
+                    } catch (retryError) {
+                        retryButton.disabled = false;
+                        retryButton.textContent = 'Retry job';
+                        window.alert(retryError.message || 'Retry failed.');
+                    }
+                });
+                actions.insertBefore(retryButton, actions.firstChild);
+            }
+        } catch (error) {
+            body.replaceChildren();
+            const message = document.createElement('p');
+            message.className = 'validation';
+            message.textContent = 'Unable to load job details.';
+            body.appendChild(message);
+        }
+    }
+
+    async function loadJobs() {
+        try {
+            const response = await fetch('/api/jobs?pageSize=20', { credentials: 'same-origin' });
+            if (!response.ok) return;
+            const jobs = await response.json();
+            const sortedJobs = Array.isArray(jobs) ? jobs.slice().sort(function (a, b) {
+                return new Date(b.queuedAt || 0) - new Date(a.queuedAt || 0);
+            }) : [];
+            renderJobs(sortedJobs);
+        } catch (_) {
+        }
+    }
+
+    loadJobs();
+    setInterval(loadJobs, 5000);
+})();
+</script>
+<script>
     (function () {
         const tabs = document.querySelectorAll('.account-tab');
         const panels = {
+            jobs: document.getElementById('account-tab-jobs'),
             worksource: document.getElementById('account-tab-worksource'),
             copilot: document.getElementById('account-tab-copilot'),
             repository: document.getElementById('account-tab-repository'),
@@ -360,7 +612,7 @@
                 activateTab(tab.getAttribute('data-tab'));
             });
         });
-        activateTab(window.activeAccountTab || 'worksource');
+        activateTab(window.activeAccountTab || 'jobs');
     })();
 </script>
 <script>
@@ -380,12 +632,30 @@
 
         var tracker = document.getElementById('tracker-kind');
         if (tracker) {
+            var endpointLabel = document.getElementById('tracker-endpoint-label');
+            var apiKeyLabel = document.getElementById('tracker-apikey-label');
+            var projectLabel = document.getElementById('tracker-project-label');
             function updateTracker() {
                 var value = (tracker.value || '').toLowerCase();
                 document.querySelectorAll('[data-tracker-kind]').forEach(function (el) {
                     var kinds = (el.getAttribute('data-tracker-kind') || '').split(/\s+/);
                     el.hidden = kinds.indexOf(value) === -1;
                 });
+                var endpointText = 'Tracker endpoint';
+                var apiKeyText = 'Tracker API key';
+                var projectText = 'Project slug';
+                if (value === 'linear') {
+                    endpointText = 'Linear Url';
+                    apiKeyText = 'Linear API key';
+                    projectText = 'Linear Project Slug';
+                } else if (value === 'jira') {
+                    endpointText = 'Jira Url';
+                    apiKeyText = 'Jira API key';
+                    projectText = 'Jira Project';
+                }
+                if (endpointLabel) endpointLabel.textContent = endpointText;
+                if (apiKeyLabel) apiKeyLabel.textContent = apiKeyText;
+                if (projectLabel) projectLabel.textContent = projectText;
             }
             tracker.addEventListener('change', updateTracker);
             updateTracker();

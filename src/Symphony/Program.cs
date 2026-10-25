@@ -48,6 +48,9 @@ builder.Services.AddScoped<WorkflowService>(serviceProvider =>
     new WorkflowService(
         serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>()));
 
+builder.Services.AddSingleton<JobTelemetryCapture>(serviceProvider =>
+    new JobTelemetryCapture(serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>()));
+
 builder.Services.AddSingleton(JobQueue.Default);
 builder.Services.AddSingleton<IJobQueue>(JobQueue.Default);
 builder.Services.AddScoped<JobService>(serviceProvider =>

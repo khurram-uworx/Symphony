@@ -108,4 +108,72 @@
             </tbody>
         </table>
     }
+
+    <h2>Telemetry</h2>
+    <p class="muted" id="telemetry-status">Loading telemetry…</p>
+    <div id="telemetry-root"></div>
+
+    <script>
+    (function () {
+        const jobId = '@Model.Id';
+        const status = document.getElementById('telemetry-status');
+        const root = document.getElementById('telemetry-root');
+
+        function shortDate(value) {
+            if (!value) return '—';
+            try { return new Date(value).toLocaleString(); } catch (_) { return value; }
+        }
+
+        function loadTelemetry() {
+            root.replaceChildren();
+            fetch('/api/jobs/' + jobId + '/telemetry', { credentials: 'same-origin' })
+            .then(function (response) {
+                if (!response.ok) throw new Error('unavailable');
+                return response.json();
+            })
+            .then(function (bundle) {
+                const entries = Array.isArray(bundle.entries) ? bundle.entries : [];
+                if (entries.length === 0) {
+                    status.textContent = 'No telemetry captured.';
+                    return;
+                }
+                status.textContent = entries.length + ' telemetry record(s)' + (bundle.truncated ? ' (truncated)' : '') + '.';
+                const table = document.createElement('table');
+                table.className = 'workflow-table';
+                const thead = document.createElement('thead');
+                thead.innerHTML = '<tr><th>Time</th><th>Signal</th><th>Name</th><th>Duration</th><th>Parent</th><th>Payload</th></tr>';
+                const tbody = document.createElement('tbody');
+                entries.forEach(function (entry) {
+                    const row = document.createElement('tr');
+                    const cells = [
+                        shortDate(entry.timestamp),
+                        entry.signal || '—',
+                        entry.name || '—',
+                        (entry.durationMs === null || entry.durationMs === undefined) ? '—' : (entry.durationMs + ' ms'),
+                        entry.parentSpanId || '—',
+                        entry.payloadJson || '—'
+                    ];
+                    cells.forEach(function (value) {
+                        const td = document.createElement('td');
+                        td.textContent = String(value);
+                        td.style.maxWidth = '24rem';
+                        td.style.overflow = 'hidden';
+                        td.style.textOverflow = 'ellipsis';
+                        row.appendChild(td);
+                    });
+                    tbody.appendChild(row);
+                });
+                table.appendChild(thead);
+                table.appendChild(tbody);
+                root.appendChild(table);
+            })
+            .catch(function () {
+                status.textContent = 'Telemetry unavailable.';
+            });
+        }
+
+        loadTelemetry();
+        setInterval(loadTelemetry, 5000);
+    })();
+    </script>
 </section>

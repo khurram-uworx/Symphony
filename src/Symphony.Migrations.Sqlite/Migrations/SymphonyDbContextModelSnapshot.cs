@@ -430,6 +430,57 @@ namespace Symphony.Migrations.Sqlite.Migrations
                     b.ToTable("JobIssues");
                 });
 
+            modelBuilder.Entity("Symphony.Data.JobTelemetry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("DurationMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("JobId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ParentSpanId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PayloadJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Severity")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Signal")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SpanId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("Timestamp")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TraceId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobId", "Timestamp");
+
+                    b.ToTable("JobTelemetry");
+                });
+
             modelBuilder.Entity("Symphony.Data.RepositoryWorkspace", b =>
                 {
                     b.Property<int>("Id")
@@ -518,6 +569,9 @@ namespace Symphony.Migrations.Sqlite.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("MaxTurns")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("TelemetryContentEnabled")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("TrackerActiveStates")
@@ -690,6 +744,17 @@ namespace Symphony.Migrations.Sqlite.Migrations
                     b.Navigation("Job");
                 });
 
+            modelBuilder.Entity("Symphony.Data.JobTelemetry", b =>
+                {
+                    b.HasOne("Symphony.Data.Job", "Job")
+                        .WithMany("Telemetry")
+                        .HasForeignKey("JobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Job");
+                });
+
             modelBuilder.Entity("Symphony.Data.UserConfiguration", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "User")
@@ -717,6 +782,8 @@ namespace Symphony.Migrations.Sqlite.Migrations
                     b.Navigation("Events");
 
                     b.Navigation("Issues");
+
+                    b.Navigation("Telemetry");
                 });
 #pragma warning restore 612, 618
         }

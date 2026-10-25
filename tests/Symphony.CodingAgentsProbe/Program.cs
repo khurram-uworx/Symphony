@@ -9,6 +9,7 @@ internal class Program
             Console.WriteLine("Usage:");
             Console.WriteLine("  dotnet run --project tests/Symphony.CodingAgentsProbe -- copilot [question...]");
             Console.WriteLine("  dotnet run --project tests/Symphony.CodingAgentsProbe -- byom [model] [baseUrl] [wireApi] [question...]");
+            Console.WriteLine("  dotnet run --project tests/Symphony.CodingAgentsProbe -- otel [output-file.jsonl] [question...]");
             return 0;
         }
 
@@ -17,6 +18,7 @@ internal class Program
             "copilot" => await CopilotProbe.RunAsync(args.Skip(1).ToArray()),
             "byom" => await ByomProbe.RunAsync(args.Skip(1).ToArray()),
             "sdk-options" => await SdkOptionsProbe.RunAsync(args.Skip(1).ToArray()),
+            "otel" => await CopilotTelemetryProbe.RunAsync(args.Skip(1).ToArray()),
             _ => await CopilotProbe.RunAsync(args)
         };
     }

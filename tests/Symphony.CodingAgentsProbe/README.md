@@ -31,3 +31,17 @@ dotnet run --project tests/Symphony.CodingAgentsProbe -- byom
 ```
 
 Overrides: `byom [model] [baseUrl] [wireApi] [question...]`
+
+## otel
+
+Writes Copilot SDK spans to a JSONL file via `TelemetryConfig` (file exporter). Confirms the SDK's built-in OpenTelemetry support without an OTLP collector.
+
+```bash
+dotnet run --project tests/Symphony.CodingAgentsProbe -- otel
+```
+
+Optional output file override:
+
+```bash
+dotnet run --project tests/Symphony.CodingAgentsProbe -- otel ./copilot-otel.jsonl "Say hello in one sentence."
+```

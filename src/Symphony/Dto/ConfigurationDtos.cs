@@ -49,6 +49,8 @@ public class ConfigurationDto
 
     public string? CopilotWireApi { get; set; }
 
+    public bool TelemetryContentEnabled { get; set; }
+
     public string? DefaultWorkflowName { get; set; }
 
     public string? GitHubPersonalAccessToken { get; set; }
@@ -85,6 +87,7 @@ public class ConfigurationDto
             CopilotModelId = source.CopilotModelId,
             CopilotApiKey = string.IsNullOrEmpty(source.CopilotApiKey) ? null : Redaction.Redacted,
             CopilotWireApi = source.CopilotWireApi,
+            TelemetryContentEnabled = source.TelemetryContentEnabled,
             GitHubPersonalAccessToken = string.IsNullOrEmpty(source.GitHubPersonalAccessToken) ? null : Redaction.Redacted,
             DefaultWorkflowName = source.DefaultWorkflowName,
             CreatedAt = source.CreatedAt,
@@ -118,6 +121,7 @@ public class ConfigurationDto
             CopilotModelId = CopilotModelId,
             CopilotApiKey = CopilotApiKey,
             CopilotWireApi = CopilotWireApi,
+            TelemetryContentEnabled = TelemetryContentEnabled,
             GitHubPersonalAccessToken = GitHubPersonalAccessToken,
             DefaultWorkflowName = DefaultWorkflowName,
             CreatedAt = CreatedAt,

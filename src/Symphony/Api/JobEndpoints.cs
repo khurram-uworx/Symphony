@@ -14,6 +14,7 @@ public static class JobEndpoints
 
         group.MapGet("/", ListAsync);
         group.MapGet("/{id:guid}", GetAsync);
+        group.MapGet("/{id:guid}/telemetry", GetTelemetryAsync);
         group.MapDelete("/{id:guid}", DeleteAsync);
         group.MapPost("/{id:guid}/retry", RetryAsync);
 
@@ -97,6 +98,32 @@ public static class JobEndpoints
             return Results.NotFound(new { error = "Job not found." });
 
         return Results.Ok(JobStatusDto.From(job, job.Issues));
+    }
+
+    static async Task<IResult> GetTelemetryAsync(
+        Guid id,
+        ClaimsPrincipal user,
+        JobService jobService,
+        JobTelemetryCapture? jobTelemetryCapture,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetUserId(user);
+        if (string.IsNullOrWhiteSpace(userId))
+            return Results.Unauthorized();
+
+        var isAdmin = IsAdmin(user);
+        var job = isAdmin
+            ? await jobService.GetJobAsync(id, cancellationToken)
+            : await jobService.GetJobAsync(userId, id, false, cancellationToken);
+
+        if (job is null || (!isAdmin && job.OwnerUserId != userId))
+            return Results.NotFound(new { error = "Job not found." });
+
+        if (jobTelemetryCapture is null)
+            return Results.Ok(new JobTelemetryBundle());
+
+        var bundle = await jobTelemetryCapture.ReadAsync(id, cancellationToken);
+        return Results.Ok(bundle);
     }
 
     static async Task<IResult> DeleteAsync(

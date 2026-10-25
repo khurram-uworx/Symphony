@@ -50,6 +50,8 @@ public sealed class UserConfiguration
 
     public string? CopilotWireApi { get; set; }
 
+    public bool TelemetryContentEnabled { get; set; }
+
     public string? GitHubPersonalAccessToken { get; set; }
 
     public string? DefaultWorkflowName { get; set; }

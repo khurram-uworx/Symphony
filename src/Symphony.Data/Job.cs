@@ -43,6 +43,8 @@ public sealed class Job
 
     public ICollection<JobEvent> Events { get; set; } = [];
 
+    public ICollection<JobTelemetry> Telemetry { get; set; } = [];
+
     [NotMapped]
     public ICollection<JobEvent> JobEvents
     {

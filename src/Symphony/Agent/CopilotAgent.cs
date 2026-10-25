@@ -4,6 +4,7 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 using Symphony.Config;
+using Symphony.Services;
 using System.Text.Json;
 
 namespace Symphony.Agent;
@@ -12,18 +13,20 @@ class CopilotAgent : ICodingAgent
 {
     readonly ServiceConfig config;
     readonly ILogger<CopilotAgent> logger;
+    readonly JobTelemetryCapture? telemetryCapture;
     CopilotClient? copilotClient;
     AIAgent? agent;
 
     public CopilotAgent(ServiceConfig config)
-        : this(NullLogger<CopilotAgent>.Instance, config)
+        : this(NullLogger<CopilotAgent>.Instance, config, null)
     {
     }
 
-    public CopilotAgent(ILogger<CopilotAgent> logger, ServiceConfig config)
+    public CopilotAgent(ILogger<CopilotAgent> logger, ServiceConfig config, JobTelemetryCapture? telemetryCapture = null)
     {
         this.logger = logger;
         this.config = config;
+        this.telemetryCapture = telemetryCapture;
     }
 
     public async Task InitializeAsync(string workspacePath, LiveSession liveSession, Action<CodingAgentEvent> onEvent, CancellationToken cancellationToken)
@@ -32,6 +35,17 @@ class CopilotAgent : ICodingAgent
         {
             WorkingDirectory = workspacePath
         };
+
+        if (telemetryCapture?.CurrentFilePath is string telemetryPath)
+        {
+            clientOptions.Telemetry = new TelemetryConfig
+            {
+                FilePath = telemetryPath,
+                ExporterType = "file",
+                SourceName = "symphony",
+                CaptureContent = telemetryCapture.CurrentContentEnabled,
+            };
+        }
 
         if (string.Equals(config.Tracker.Kind, "github", StringComparison.OrdinalIgnoreCase) &&
             !string.IsNullOrWhiteSpace(config.Tracker.ApiKey))

@@ -439,6 +439,57 @@ namespace Symphony.Migrations.PostgreSQL.Migrations
                     b.ToTable("JobIssues");
                 });
 
+            modelBuilder.Entity("Symphony.Data.JobTelemetry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("DurationMs")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("JobId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("ParentSpanId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("PayloadJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Severity")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Signal")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("SpanId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TraceId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobId", "Timestamp");
+
+                    b.ToTable("JobTelemetry");
+                });
+
             modelBuilder.Entity("Symphony.Data.RepositoryWorkspace", b =>
                 {
                     b.Property<int>("Id")
@@ -530,6 +581,9 @@ namespace Symphony.Migrations.PostgreSQL.Migrations
 
                     b.Property<int>("MaxTurns")
                         .HasColumnType("integer");
+
+                    b.Property<bool>("TelemetryContentEnabled")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("TrackerActiveStates")
                         .HasColumnType("text");
@@ -701,6 +755,17 @@ namespace Symphony.Migrations.PostgreSQL.Migrations
                     b.Navigation("Job");
                 });
 
+            modelBuilder.Entity("Symphony.Data.JobTelemetry", b =>
+                {
+                    b.HasOne("Symphony.Data.Job", "Job")
+                        .WithMany("Telemetry")
+                        .HasForeignKey("JobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Job");
+                });
+
             modelBuilder.Entity("Symphony.Data.UserConfiguration", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "User")
@@ -728,6 +793,8 @@ namespace Symphony.Migrations.PostgreSQL.Migrations
                     b.Navigation("Events");
 
                     b.Navigation("Issues");
+
+                    b.Navigation("Telemetry");
                 });
 #pragma warning restore 612, 618
         }

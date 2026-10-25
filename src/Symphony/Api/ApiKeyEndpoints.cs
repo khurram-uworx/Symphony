@@ -8,7 +8,7 @@ public static class ApiKeyEndpoints
 {
     public static IEndpointRouteBuilder MapApiKeyEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/api-keys").RequireAuthorization();
+        var group = endpoints.MapGroup("/api/api-keys").RequireAuthorization().RequireRateLimiting(ApiRateLimitPolicy.PolicyName);
 
         group.MapGet("/", async (ClaimsPrincipal user, ApiKeyService service, CancellationToken ct) =>
         {

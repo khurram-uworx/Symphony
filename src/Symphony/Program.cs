@@ -56,6 +56,18 @@ builder.Services.AddSingleton<JobProcessor>(serviceProvider =>
         serviceProvider.GetRequiredService<ILogger<JobProcessor>>()));
 builder.Services.AddHostedService(serviceProvider =>
     serviceProvider.GetRequiredService<JobProcessor>());
+
+builder.Services.AddScoped<ApiKeyService>(serviceProvider =>
+    new ApiKeyService(
+        serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),
+        serviceProvider.GetRequiredService<UserManager<IdentityUser>>(),
+        serviceProvider.GetRequiredService<IConfiguration>()));
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy<string, ApiRateLimitPolicy>(ApiRateLimitPolicy.PolicyName);
+});
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -67,6 +79,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseApiKeyAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapStaticAssets();
 app.MapControllerRoute(

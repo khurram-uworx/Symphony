@@ -13,7 +13,7 @@ public static class WorkEndpoints
 {
     public static IEndpointRouteBuilder MapWorkEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapPost("/api/work", CreateAsync);
+        endpoints.MapPost("/api/work", CreateAsync).RequireRateLimiting(ApiRateLimitPolicy.PolicyName);
         return endpoints;
     }
 

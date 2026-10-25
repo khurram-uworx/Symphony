@@ -124,7 +124,9 @@
             try { return new Date(value).toLocaleString(); } catch (_) { return value; }
         }
 
-        fetch('/api/jobs/' + jobId + '/telemetry', { credentials: 'same-origin' })
+        function loadTelemetry() {
+            root.replaceChildren();
+            fetch('/api/jobs/' + jobId + '/telemetry', { credentials: 'same-origin' })
             .then(function (response) {
                 if (!response.ok) throw new Error('unavailable');
                 return response.json();
@@ -168,6 +170,10 @@
             .catch(function () {
                 status.textContent = 'Telemetry unavailable.';
             });
+        }
+
+        loadTelemetry();
+        setInterval(loadTelemetry, 5000);
     })();
     </script>
 </section>

@@ -55,8 +55,8 @@ Decisions (from human):
 9. `docs: remove TODO.md — plan executed`
 
 ### GitHub issues log
-- [ ] follow-up: Codex agent telemetry once Codex support is enabled.
-- [ ] follow-up: optional live OTLP receiver + SignalR streaming for true real-time telemetry beyond polling.
+- [x] #103 — Codex agent telemetry once Codex support is enabled (follow-up).
+- [x] #104 — live OTLP receiver + SignalR streaming for true real-time telemetry beyond polling (follow-up).
 
 ## Grounding notes
 - Copilot SDK uses `CopilotClientOptions.Telemetry` with `FilePath`/`ExporterType="file"` (validated by probe: 116 records produced).

@@ -5,7 +5,11 @@
     var githubTokenConfigured = ViewData["GitHubTokenConfigured"] is true;
 }
 <style>
+    #add-work-item-dialog { width: min(42rem, 92vw); }
     .work-items-builder { margin: 1rem 0; }
+    .work-item-remove { background: transparent; border: 0; color: #e05a66; cursor: pointer; padding: 0.25rem; border-radius: 8px; line-height: 0; }
+    .work-item-remove:hover { color: #c2414d; background: rgba(224, 90, 102, 0.08); }
+    .work-item-remove svg { display: block; }
     .work-item-row { display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 0.75rem; flex-wrap: wrap; }
     .work-item-row label { flex: 1 1 12rem; }
     .work-item-list { list-style: none; padding: 0; margin: 0.5rem 0; }
@@ -44,7 +48,11 @@
 
             <div class="work-items-builder">
                 <p class="muted">Work items (optional)</p>
-                <div class="work-item-row">
+                <button type="button" class="primary-button" id="open-add-work-item">Add work item</button>
+                <ul id="run-work-item-list" class="work-item-list"></ul>
+
+                <dialog id="add-work-item-dialog">
+                    <h2>Add work item</h2>
                     <label>
                         Title
                         <input id="run-work-item-title" autocomplete="off" placeholder="Work item title" />
@@ -55,11 +63,13 @@
                     </label>
                     <label>
                         Description (optional)
-                        <textarea id="run-work-item-description" rows="2" placeholder="Details, context, or acceptance criteria"></textarea>
+                        <textarea id="run-work-item-description" rows="4" placeholder="Details, context, or acceptance criteria"></textarea>
                     </label>
-                    <button type="button" id="run-add-work-item">Add work item</button>
-                </div>
-                <ul id="run-work-item-list" class="work-item-list"></ul>
+                    <div class="dialog-actions">
+                        <button type="button" class="primary-button" id="run-add-work-item">Add work item</button>
+                        <button type="button" onclick="this.closest('dialog').close()">Cancel</button>
+                    </div>
+                </dialog>
             </div>
 
             @if (githubTokenConfigured)
@@ -190,7 +200,9 @@
 
             const removeButton = document.createElement('button');
             removeButton.type = 'button';
-            removeButton.textContent = 'Remove';
+            removeButton.className = 'work-item-remove';
+            removeButton.setAttribute('aria-label', 'Remove work item');
+            removeButton.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M9 3h6l1 1h4v2H4V4h4l1-1zm1 6h2v9h-2V9zm4 0h2v9h-2V9zm-8 0h2v9H6V9zM7 7h10l-1 13H8L7 7z" fill="currentColor"></path></svg>';
             removeButton.addEventListener('click', function () {
                 queuedWorkItems.splice(index, 1);
                 renderWorkItems();
@@ -226,7 +238,20 @@
         descriptionInput.value = '';
         titleInput.focus();
         setStatus('', false);
+
+        const dialog = document.getElementById('add-work-item-dialog');
+        if (dialog && dialog.open) {
+            dialog.close();
+        }
     }
+
+    document.getElementById('open-add-work-item').addEventListener('click', function () {
+        document.getElementById('run-work-item-title').value = '';
+        document.getElementById('run-work-item-id').value = '';
+        document.getElementById('run-work-item-description').value = '';
+        document.getElementById('add-work-item-dialog').showModal();
+        document.getElementById('run-work-item-title').focus();
+    });
 
     document.getElementById('run-add-work-item').addEventListener('click', addWorkItem);
     async function loadWorkflows() {

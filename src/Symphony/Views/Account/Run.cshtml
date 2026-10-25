@@ -35,11 +35,45 @@
     }
 
     <div class="run-tabs" role="tablist">
-        <button type="button" class="run-tab is-active" data-tab="run" role="tab" aria-selected="true">Launch work</button>
+        <button type="button" class="run-tab is-active" data-tab="jobs" role="tab" aria-selected="true">Jobs</button>
+        <button type="button" class="run-tab" data-tab="run" role="tab" aria-selected="false">Launch work</button>
         <button type="button" class="run-tab" data-tab="api" role="tab" aria-selected="false">Curl example</button>
     </div>
 
-    <div id="run-tab-run" class="run-panel">
+    <div id="run-tab-jobs" class="run-panel">
+        <h2>Active jobs</h2>
+        <table class="workflow-table" aria-label="Active jobs">
+            <thead>
+                <tr>
+                    <th>Job</th>
+                    <th>Workflow</th>
+                    <th>State</th>
+                    <th>Queued</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="run-active-jobs"></tbody>
+        </table>
+        <p id="run-active-jobs-empty" class="muted">No active jobs.</p>
+
+        <h2>Past jobs</h2>
+        <table class="workflow-table" aria-label="Past jobs">
+            <thead>
+                <tr>
+                    <th>Job</th>
+                    <th>Workflow</th>
+                    <th>State</th>
+                    <th>Queued</th>
+                    <th>Completed</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="run-past-jobs"></tbody>
+        </table>
+        <p id="run-past-jobs-empty" class="muted">No past jobs.</p>
+    </div>
+
+    <div id="run-tab-run" class="run-panel" hidden>
         <div id="run-status" class="validation" role="status" aria-live="polite"></div>
         <form id="run-form">
             @Html.AntiForgeryToken()
@@ -110,39 +144,6 @@
         <div id="run-result" hidden></div>
     </div>
 
-    <section class="run-jobs">
-        <h2>Active jobs</h2>
-        <table class="workflow-table" aria-label="Active jobs">
-            <thead>
-                <tr>
-                    <th>Job</th>
-                    <th>Workflow</th>
-                    <th>State</th>
-                    <th>Queued</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody id="run-active-jobs"></tbody>
-        </table>
-        <p id="run-active-jobs-empty" class="muted">No active jobs.</p>
-
-        <h2>Past jobs</h2>
-        <table class="workflow-table" aria-label="Past jobs">
-            <thead>
-                <tr>
-                    <th>Job</th>
-                    <th>Workflow</th>
-                    <th>State</th>
-                    <th>Queued</th>
-                    <th>Completed</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody id="run-past-jobs"></tbody>
-        </table>
-        <p id="run-past-jobs-empty" class="muted">No past jobs.</p>
-    </section>
-
     <div id="run-tab-api" class="run-panel" hidden>
         <p class="muted">Replay the same request from a terminal using an API key or a signed-in session.</p>
         <p>
@@ -177,6 +178,7 @@
 (function () {
     const tabs = document.querySelectorAll('.run-tab');
     const panels = {
+        jobs: document.getElementById('run-tab-jobs'),
         run: document.getElementById('run-tab-run'),
         api: document.getElementById('run-tab-api')
     };

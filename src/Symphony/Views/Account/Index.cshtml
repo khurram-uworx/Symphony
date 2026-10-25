@@ -37,6 +37,13 @@
             @Html.AntiForgeryToken()
             <div asp-validation-summary="All" class="validation" role="alert"></div>
 
+            <div class="config-tabs" role="tablist">
+                <button type="button" class="config-tab is-active" data-tab="worksource" role="tab" aria-selected="true">Work source</button>
+                <button type="button" class="config-tab" data-tab="copilot" role="tab" aria-selected="false">Copilot settings</button>
+                <button type="button" class="config-tab" data-tab="hooks" role="tab" aria-selected="false">Hooks</button>
+            </div>
+
+            <div id="config-tab-worksource" class="config-panel">
             <h2>Work source</h2>
             <p class="muted">Optional. Needed only when submitting ticket IDs; inline work items need no tracker.</p>
             <label>
@@ -81,61 +88,9 @@
                 <span asp-validation-for="TrackerTerminalStates" class="field-error"></span>
             </div>
 
-            <h2>Workspace</h2>
-            <label>
-                Workspace root
-                <input asp-for="WorkspaceRoot" autocomplete="off" />
-            </label>
-            <span asp-validation-for="WorkspaceRoot" class="field-error"></span>
+            </div>
 
-            <h2>Hooks</h2>
-            <label>
-                After create
-                <textarea asp-for="HookAfterCreate" rows="3"></textarea>
-            </label>
-            <label>
-                Before run
-                <textarea asp-for="HookBeforeRun" rows="3"></textarea>
-            </label>
-            <label>
-                After run
-                <textarea asp-for="HookAfterRun" rows="3"></textarea>
-            </label>
-            <label>
-                Before remove
-                <textarea asp-for="HookBeforeRemove" rows="3"></textarea>
-            </label>
-            <label>
-                Hook timeout (ms)
-                <input asp-for="HookTimeoutMs" type="number" />
-            </label>
-            <span asp-validation-for="HookTimeoutMs" class="field-error"></span>
-
-            <h2>Agent</h2>
-            <label>
-                Max concurrent agents
-                <input asp-for="MaxConcurrentAgents" type="number" />
-            </label>
-            <span asp-validation-for="MaxConcurrentAgents" class="field-error"></span>
-
-            <label>
-                Max retry backoff (ms)
-                <input asp-for="MaxRetryBackoffMs" type="number" />
-            </label>
-            <span asp-validation-for="MaxRetryBackoffMs" class="field-error"></span>
-
-            <label>
-                Max turns
-                <input asp-for="MaxTurns" type="number" />
-            </label>
-            <span asp-validation-for="MaxTurns" class="field-error"></span>
-
-            <label>
-                Max concurrent agents by state
-                <input asp-for="MaxConcurrentAgentsByState" autocomplete="off" />
-            </label>
-            <span asp-validation-for="MaxConcurrentAgentsByState" class="field-error"></span>
-
+            <div id="config-tab-copilot" class="config-panel" hidden>
             <h2>Copilot BYOM</h2>
             <label>
                 Provider
@@ -180,19 +135,63 @@
                 <span asp-validation-for="CopilotWireApi" class="field-error"></span>
             </div>
 
+            <h2>Agent</h2>
+            <label>
+                Max concurrent agents
+                <input asp-for="MaxConcurrentAgents" type="number" />
+            </label>
+            <span asp-validation-for="MaxConcurrentAgents" class="field-error"></span>
+
+            <label>
+                Max retry backoff (ms)
+                <input asp-for="MaxRetryBackoffMs" type="number" />
+            </label>
+            <span asp-validation-for="MaxRetryBackoffMs" class="field-error"></span>
+
+            <label>
+                Max turns
+                <input asp-for="MaxTurns" type="number" />
+            </label>
+            <span asp-validation-for="MaxTurns" class="field-error"></span>
+
+            <label>
+                Max concurrent agents by state
+                <input asp-for="MaxConcurrentAgentsByState" autocomplete="off" />
+            </label>
+            <span asp-validation-for="MaxConcurrentAgentsByState" class="field-error"></span>
+
             <h2>GitHub</h2>
             <label>
                 Personal access token
                 <input asp-for="GitHubPersonalAccessToken" type="password" autocomplete="off" placeholder="Leave blank to keep" />
             </label>
             <span asp-validation-for="GitHubPersonalAccessToken" class="field-error"></span>
+            </div>
 
-            <h2>Workflow</h2>
+            <div id="config-tab-hooks" class="config-panel" hidden>
+            <h2>Hooks</h2>
             <label>
-                Default workflow name
-                <input asp-for="DefaultWorkflowName" autocomplete="off" />
+                After create
+                <textarea asp-for="HookAfterCreate" rows="3"></textarea>
             </label>
-            <span asp-validation-for="DefaultWorkflowName" class="field-error"></span>
+            <label>
+                Before run
+                <textarea asp-for="HookBeforeRun" rows="3"></textarea>
+            </label>
+            <label>
+                After run
+                <textarea asp-for="HookAfterRun" rows="3"></textarea>
+            </label>
+            <label>
+                Before remove
+                <textarea asp-for="HookBeforeRemove" rows="3"></textarea>
+            </label>
+            <label>
+                Hook timeout (ms)
+                <input asp-for="HookTimeoutMs" type="number" />
+            </label>
+            <span asp-validation-for="HookTimeoutMs" class="field-error"></span>
+            </div>
 
             <button type="submit">Save configuration</button>
         </form>
@@ -360,7 +359,32 @@
         });
         activateTab(window.activeAccountTab || 'configuration');
     })();
-</script>
+
+    (function () {
+        const tabs = document.querySelectorAll('.config-tab');
+        const panels = {
+            worksource: document.getElementById('config-tab-worksource'),
+            copilot: document.getElementById('config-tab-copilot'),
+            hooks: document.getElementById('config-tab-hooks')
+        };
+        function activateTab(name) {
+            if (!panels[name]) return;
+            Object.keys(panels).forEach(function (key) {
+                panels[key].hidden = key !== name;
+            });
+            tabs.forEach(function (tab) {
+                const active = tab.getAttribute('data-tab') === name;
+                tab.classList.toggle('is-active', active);
+                tab.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+        }
+        tabs.forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                activateTab(tab.getAttribute('data-tab'));
+            });
+        });
+        activateTab('worksource');
+    })();
 <script>
     (function () {
         var provider = document.getElementById('copilot-provider');

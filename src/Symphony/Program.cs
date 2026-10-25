@@ -19,6 +19,7 @@ builder.Logging.AddSimpleConsole(options =>
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
+builder.Services.AddAntiforgery();
 builder.Services.AddSymphonyDatabase(builder.Configuration, builder.Environment.ContentRootPath);
 builder.Services.AddSymphonyDataProtection(builder.Configuration, builder.Environment.ContentRootPath);
 builder.Services.AddSymphonySecretProtection(builder.Configuration, builder.Environment.ContentRootPath);
@@ -80,6 +81,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseApiKeyAuthentication();
 app.UseAuthorization();
+app.UseAntiforgery();
 app.UseRateLimiter();
 
 app.MapStaticAssets();

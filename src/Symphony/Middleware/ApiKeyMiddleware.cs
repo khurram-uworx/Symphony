@@ -3,9 +3,10 @@ using Symphony.Services;
 
 namespace Symphony.Middleware;
 
+
 public sealed class ApiKeyMiddleware(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext context, ApiKeyService apiKeyService, UserManager<IdentityUser> userManager)
+    public async Task InvokeAsync(HttpContext context, ApiKeyService apiKeyService, SignInManager<IdentityUser> signInManager)
     {
         if (context.User?.Identity?.IsAuthenticated == true)
         {
@@ -28,7 +29,7 @@ public sealed class ApiKeyMiddleware(RequestDelegate next)
             var user = await apiKeyService.ValidateAsync(key);
             if (user is not null)
             {
-                var claimsPrincipal = await userManager.CreateAsync(user);
+                var claimsPrincipal = await signInManager.CreateUserPrincipalAsync(user);
                 context.User = claimsPrincipal;
                 await next(context);
                 return;

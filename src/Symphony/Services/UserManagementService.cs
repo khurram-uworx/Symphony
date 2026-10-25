@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Symphony.Data;\nusing Symphony.Services;
+using Symphony.Data;
 
 namespace Symphony.Services;
 
@@ -10,7 +10,8 @@ public sealed class UserManagementService(
     RoleManager<IdentityRole> roles,
     SignInManager<IdentityUser>? signInManager = null,
     IDbContextFactory<SymphonyDbContext>? dbContextFactory = null,
-    WorkflowService? workflowService = null)
+    WorkflowService? workflowService = null,
+    ApiKeyService? apiKeyService = null)
 {
     const string Upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const string Lower = "abcdefghijklmnopqrstuvwxyz";
@@ -22,6 +23,7 @@ public sealed class UserManagementService(
     readonly SignInManager<IdentityUser>? signInManager = signInManager;
     readonly IDbContextFactory<SymphonyDbContext>? dbContextFactory = dbContextFactory;
     readonly WorkflowService? workflowService = workflowService;
+    readonly ApiKeyService? apiKeyService = apiKeyService;
 
     public Task<IReadOnlyList<IdentityUser>> GetUsersAsync(CancellationToken cancellationToken = default) =>
         GetAllUsersAsync(users, cancellationToken);
@@ -170,11 +172,17 @@ public sealed class UserManagementService(
         return (user, password);
     }
 
-    public Task DisableUserAsync(string userId, CancellationToken cancellationToken = default) =>
-        DisableUserAsync(users, userId, cancellationToken);
+    public async Task DisableUserAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        await DisableUserAsync(users, userId, cancellationToken);
+        if (apiKeyService is not null) await apiKeyService.InvalidateAllForUserAsync(userId, cancellationToken);
+    }
 
-    public Task DisableUserAsync(IdentityUser user, CancellationToken cancellationToken = default) =>
-        DisableUserAsync(users, user, cancellationToken);
+    public async Task DisableUserAsync(IdentityUser user, CancellationToken cancellationToken = default)
+    {
+        await DisableUserAsync(users, user, cancellationToken);
+        if (apiKeyService is not null) await apiKeyService.InvalidateAllForUserAsync(user.Id, cancellationToken);
+    }
 
     public static async Task DisableUserAsync(
         UserManager<IdentityUser> users,
@@ -249,17 +257,23 @@ public sealed class UserManagementService(
         CancellationToken cancellationToken = default) =>
         enabled ? EnableUserAsync(users, user, cancellationToken) : DisableUserAsync(users, user, cancellationToken);
 
-    public Task DeleteUserAsync(string userId, CancellationToken cancellationToken = default) =>
-        DeleteUserAsync(users, userId, cancellationToken);
+    public async Task DeleteUserAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        if (apiKeyService is not null) await apiKeyService.InvalidateAllForUserAsync(userId, cancellationToken);
+        await DeleteUserAsync(users, userId, cancellationToken);
+    }
 
-    public Task DeleteUserAsync(IdentityUser user, CancellationToken cancellationToken = default) =>
-        DeleteUserAsync(users, user, cancellationToken);
+    public async Task DeleteUserAsync(IdentityUser user, CancellationToken cancellationToken = default)
+    {
+        if (apiKeyService is not null) await apiKeyService.InvalidateAllForUserAsync(user.Id, cancellationToken);
+        await DeleteUserAsync(users, user, cancellationToken);
+    }
 
     public Task RemoveUserAsync(string userId, CancellationToken cancellationToken = default) =>
-        DeleteUserAsync(users, userId, cancellationToken);
+        DeleteUserAsync(userId, cancellationToken);
 
     public Task RemoveUserAsync(IdentityUser user, CancellationToken cancellationToken = default) =>
-        DeleteUserAsync(users, user, cancellationToken);
+        DeleteUserAsync(user, cancellationToken);
 
     public static async Task DeleteUserAsync(
         UserManager<IdentityUser> users,

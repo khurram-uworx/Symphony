@@ -5,7 +5,8 @@ using Symphony.Api;
 using Symphony.Data;
 using Symphony.Processing;
 using Symphony.Security;
-using Symphony.Services;\nusing Symphony.Middleware;
+using Symphony.Services;
+using Symphony.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 

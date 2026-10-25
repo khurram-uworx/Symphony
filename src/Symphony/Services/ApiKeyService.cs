@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -16,8 +16,7 @@ public sealed class ApiKeyService
     {
         this.factory = factory;
         this.userManager = userManager;
-        var key = configuration[\
-ApiKeys:ServerKey\] ?? configuration[\DataProtection:ServerKey\] ?? \symphony-api-key-server-secret-change-in-prod\;
+        var key = configuration["ApiKeys:ServerKey"] ?? configuration["DataProtection:ServerKey"] ?? "symphony-api-key-server-secret-change-in-prod";
         serverKey = Encoding.UTF8.GetBytes(key);
     }
 
@@ -126,12 +125,41 @@ ApiKeys:ServerKey\] ?? configuration[\DataProtection:ServerKey\] ?? \symphony-ap
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         var keys = await db.ApiKeys.Where(k => k.OwnerUserId == ownerUserId && k.IsEnabled).ToListAsync(cancellationToken);
-        foreach (var k in keys) { k.IsEnabled = false; k.RevokedAt = DateTimeOffset.UtcNow; }
+        foreach (var k in keys)
+        {
+            k.IsEnabled = false;
+            k.RevokedAt = DateTimeOffset.UtcNow;
+        }
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    static string GenerateKey() { var bytes = RandomNumberGenerator.GetBytes(32); return Convert.ToBase64String(bytes).Replace(\
-+\,\-\).Replace(\/\,\_\).TrimEnd('='); }
-    string ComputeHash(string key) { using var hmac = new HMACSHA256(serverKey); var bytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(key)); return Convert.ToBase64String(bytes); }
-    static bool FixedTimeEquals(string a,string b){ try{ var ba=Convert.FromBase64String(a); var bb=Convert.FromBase64String(b); if(ba.Length!=bb.Length)return false; int r=0; for(int i=0;i<ba.Length;i++)r|=ba[i]^bb[i]; return r==0; }catch{return false;} }
+    static string GenerateKey()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(32);
+        return Convert.ToBase64String(bytes).Replace("+", "-").Replace("/", "_").TrimEnd('=');
+    }
+
+    string ComputeHash(string key)
+    {
+        using var hmac = new HMACSHA256(serverKey);
+        var bytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(key));
+        return Convert.ToBase64String(bytes);
+    }
+
+    static bool FixedTimeEquals(string a, string b)
+    {
+        try
+        {
+            var ba = Convert.FromBase64String(a);
+            var bb = Convert.FromBase64String(b);
+            if (ba.Length != bb.Length) return false;
+            int r = 0;
+            for (int i = 0; i < ba.Length; i++) r |= ba[i] ^ bb[i];
+            return r == 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }

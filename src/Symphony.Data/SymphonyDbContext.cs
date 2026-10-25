@@ -20,6 +20,8 @@ public sealed class SymphonyDbContext(DbContextOptions<SymphonyDbContext> option
 
     public DbSet<AppSetting> AppSettings { get; set; } = default!;
 
+    public DbSet<ApiKey> ApiKeys { get; set; } = default!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

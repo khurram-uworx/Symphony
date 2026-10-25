@@ -36,6 +36,13 @@ builder.Services.AddScoped<ConfigurationService>(serviceProvider =>
     new ConfigurationService(
         serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),
         serviceProvider.GetRequiredService<ISecretProtector>()));
+builder.Services.AddScoped<SystemWorkspaceRootProvider>(serviceProvider =>
+    new SystemWorkspaceRootProvider(
+        serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),
+        serviceProvider.GetService<ILogger<SystemWorkspaceRootProvider>>()));
+builder.Services.AddScoped<RepositoryWorkspaceService>(serviceProvider =>
+    new RepositoryWorkspaceService(
+        serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>()));
 
 builder.Services.AddScoped<WorkflowService>(serviceProvider =>
     new WorkflowService(

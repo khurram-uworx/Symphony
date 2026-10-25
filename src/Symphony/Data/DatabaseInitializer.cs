@@ -10,8 +10,7 @@ public static class DatabaseInitializer
     [
         new("GlobalConcurrency", "10"),
         new("MaxConcurrentAgents", "10"),
-        new("DefaultWorkspaceRoot", "workspaces"),
-        new("WorkspaceRoot", "workspaces"),
+        new("SystemWorkspaceRoot", "%TEMP%/Symphony"),
         new("MaxRetryBackoffMs", "300000"),
         new("MaxRetryBackoff", "300000")
     ];

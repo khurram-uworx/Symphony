@@ -25,6 +25,18 @@ The web host uses ASP.NET Core Identity for sign-in, selects its database throug
 
 ## Quick Start
 
+### Run the published container image (no .NET SDK needed)
+
+```bash
+git clone https://github.com/khurram-uworx/symphony
+cd symphony
+docker compose -f samples/docker-compose.yml up
+```
+
+Then open `http://localhost:8080`. The image is published at `ghcr.io/khurram-uworx/symphony:latest` (and version tags); see [CONTAINER-README.md](CONTAINER-README.md) for full container setup.
+
+### Run with the .NET SDK
+
 ```bash
 git clone https://github.com/khurram-uworx/symphony
 cd symphony

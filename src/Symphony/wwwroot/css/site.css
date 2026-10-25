@@ -392,6 +392,26 @@ tbody tr:last-child td {
     font-size: 0.8rem;
 }
 
+#new-key-banner {
+    margin-top: 20px;
+    padding: 16px 18px;
+    background: rgba(124, 108, 255, 0.08);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+}
+
+#new-key-banner code {
+    display: block;
+    margin-top: 8px;
+    padding: 10px 14px;
+    background: var(--inset);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    word-break: break-all;
+    user-select: all;
+}
+
 @media (max-width: 720px) {
     .topbar {
         padding: 14px 18px;

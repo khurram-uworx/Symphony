@@ -11,9 +11,10 @@
 
     @if (!string.IsNullOrEmpty(newKey))
     {
-        <div class="validation validation-summary-valid" id="new-key-banner" role="alert">
+        <div id="new-key-banner">
             <strong>@(string.IsNullOrEmpty(newKeyName) ? "New API key" : newKeyName) — copy it now:</strong>
-            <code id="new-key-value">@newKey</code>
+            <br />
+            <code id="new-key-value" class="new-key-value">@newKey</code>
             <p class="muted">It will not be shown again. Rotate to get a new key if you lose it.</p>
         </div>
     }

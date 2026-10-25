@@ -18,6 +18,7 @@ public static class JobEndpoints
         group.MapGet("/", ListAsync);
         group.MapGet("/{id:guid}", GetAsync);
         group.MapDelete("/{id:guid}", DeleteAsync);
+        group.MapPost("/{id:guid}/retry", RetryAsync);
 
         return endpoints;
     }
@@ -129,6 +130,42 @@ public static class JobEndpoints
             return Results.Conflict(new { error = "Job could not be cancelled." });
 
         return Results.Ok(new { jobId = id, cancelled = true });
+    }
+
+    static async Task<IResult> RetryAsync(
+        Guid id,
+        ClaimsPrincipal user,
+        JobService jobService,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetUserId(user);
+        if (string.IsNullOrWhiteSpace(userId))
+            return Results.Unauthorized();
+
+        var isAdmin = IsAdmin(user);
+        if (!isAdmin)
+            return Results.Forbid();
+
+        var original = await jobService.GetJobAsync(id, cancellationToken);
+        if (original is null)
+            return Results.NotFound(new { error = "Job not found." });
+
+        try
+        {
+            var retryJob = await jobService.RetryJobAsync(original.Id, userId, cancellationToken);
+            if (retryJob is null)
+                return Results.Conflict(new { error = "Job could not be retried." });
+
+            return Results.Accepted($"/api/jobs/{retryJob.Id}", new { jobId = retryJob.Id, statusUrl = $"/api/jobs/{retryJob.Id}", retryOfJobId = original.Id });
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(new { error = ex.Message });
+        }
     }
 
     static bool IsAdmin(ClaimsPrincipal user) =>

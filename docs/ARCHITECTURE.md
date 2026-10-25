@@ -2,6 +2,31 @@
 
 Design rationale and runtime shape for the Symphony .NET web host. For feature inventory, see [FEATURES.md](FEATURES.md).
 
+## Folder Structure
+
+```text
+src/Symphony/                    # Web host
+  Program.cs                    # ASP.NET Core entry point
+  Controllers/                  # MVC controllers
+  Views/                        # MVC views
+  Agent/                        # Copilot SDK and Codex runners
+  Config/
+  Domain/
+  IssueTracker/                 # Linear and Jira
+  Orchestration/                # Orchestration components
+  Workflows/
+  Workspaces/
+  Utils/
+tests/
+  Symphony.Tests/               # NUnit suite (CI)
+  Symphony.CodingAgentsProbe/   # Manual Copilot SDK probes (not CI)
+  Symphony.PerformanceTests/    # Manual performance harness (not CI)
+docs/
+  CONFIG.md
+  adr/                          # Accepted architecture decisions
+  plans/                        # Product and implementation plans
+```
+
 ## Runtime Shape
 
 - `src/Symphony/Program.cs` configures MVC, Identity, database, data protection, secret protection, queue, and processor.
@@ -32,7 +57,7 @@ Design rationale and runtime shape for the Symphony .NET web host. For feature i
 
 ## Views and APIs
 
-- Iterator Views are MVC Razor; API endpoints are minimal APIs grouped under `/api`.
+- MVC Razor views; API endpoints are minimal APIs grouped under `/api`.
 - Runtime status DTO masks secrets and snapshots.
 
 ## Data Protection and Secrets

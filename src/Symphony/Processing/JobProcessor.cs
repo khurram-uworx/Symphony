@@ -120,7 +120,7 @@ public sealed class JobProcessor : BackgroundService
                 null,
                 "job.interrupted",
                 "Job was interrupted by a restart.",
-                null,
+                new { reason = "interrupted-run" },
                 cancellationToken);
         }
     }

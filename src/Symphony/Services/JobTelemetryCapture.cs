@@ -70,23 +70,24 @@ public sealed class JobTelemetryCapture
         var rows = await db.JobTelemetry
             .AsNoTracking()
             .Where(item => item.JobId == jobId)
-            .OrderBy(item => item.Timestamp)
             .ToListAsync(cancellationToken);
 
         return new JobTelemetryBundle
         {
-            Entries = rows.Select(row => new JobTelemetryEntry
-            {
-                Signal = row.Signal,
-                Timestamp = row.Timestamp,
-                TraceId = row.TraceId,
-                SpanId = row.SpanId,
-                ParentSpanId = row.ParentSpanId,
-                Name = row.Name,
-                Severity = row.Severity,
-                DurationMs = row.DurationMs,
-                PayloadJson = row.PayloadJson
-            }).ToList()
+            Entries = rows
+                .OrderBy(row => row.Timestamp)
+                .Select(row => new JobTelemetryEntry
+                {
+                    Signal = row.Signal,
+                    Timestamp = row.Timestamp,
+                    TraceId = row.TraceId,
+                    SpanId = row.SpanId,
+                    ParentSpanId = row.ParentSpanId,
+                    Name = row.Name,
+                    Severity = row.Severity,
+                    DurationMs = row.DurationMs,
+                    PayloadJson = row.PayloadJson
+                }).ToList()
         };
     }
 

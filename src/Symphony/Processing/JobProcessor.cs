@@ -192,6 +192,9 @@ public sealed class JobProcessor : BackgroundService
 
     async Task RunClaimedJobAsync(Job job, CancellationTokenSource jobCts, CancellationToken hostToken)
     {
+        using var scope = scopeFactory.CreateScope();
+        var jobTelemetryCapture = scope.ServiceProvider.GetService<JobTelemetryCapture>();
+
         try
         {
             await ProcessJobAsync(job, jobCts.Token);
@@ -206,6 +209,11 @@ public sealed class JobProcessor : BackgroundService
             logger.LogError(ex, "Job {JobId} failed.", job.Id);
             await new JobService(dbFactory).MarkJobStateAsync(job.Id, "Failed", "job_error", Trim(ex.Message), null, CancellationToken.None);
             await new JobService(dbFactory).AppendEventAsync(job.Id, null, "job.failed", Trim(ex.Message), null, CancellationToken.None);
+        }
+        finally
+        {
+            if (jobTelemetryCapture is not null)
+                await jobTelemetryCapture.FinalizeAsync(job.Id, CancellationToken.None);
         }
     }
 
@@ -329,7 +337,10 @@ public sealed class JobProcessor : BackgroundService
         var workspaceManager = new WorkspaceManager(configProvider, shell, processorLogger is ILogger<WorkspaceManager> wmLogger ? wmLogger : Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkspaceManager>.Instance);
         if (!string.IsNullOrWhiteSpace(githubRepo))
             workspaceManager.GitHubEnvironment = GitHubEnvironment.Build(Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>().Where(e => e.Key is not null).ToDictionary(e => e.Key!.ToString()!, e => e.Value?.ToString() ?? string.Empty), githubRepo, githubToken);
-        var codingAgent = TryCreateCodingAgent(scopedConfig, processorLogger) ?? throw new InvalidOperationException("agent_unavailable: no coding agent configured.");
+        var telemetryCapture = sp.GetService<JobTelemetryCapture>();
+    telemetryCapture?.BeginJob(job.Id, userConfig?.TelemetryContentEnabled ?? false);
+
+    var codingAgent = TryCreateCodingAgent(scopedConfig, processorLogger, telemetryCapture) ?? throw new InvalidOperationException("agent_unavailable: no coding agent configured.");
 
         foreach (var issue in issues)
         {
@@ -529,7 +540,7 @@ public sealed class JobProcessor : BackgroundService
         return new Issue(id, identifier, title, description, priority, state, null, null, [], [], DateTimeOffset.UtcNow, null);
     }
 
-    static ICodingAgent? TryCreateCodingAgent(ServiceConfig config, ILogger logger)
+    static ICodingAgent? TryCreateCodingAgent(ServiceConfig config, ILogger logger, JobTelemetryCapture? telemetryCapture = null)
     {
         if (config.Copilot is null)
             return new NoOpCodingAgent();
@@ -538,7 +549,7 @@ public sealed class JobProcessor : BackgroundService
 
         try
         {
-            return CodingAgentFactory.Create(config);
+            return CodingAgentFactory.Create(config, logger: null, telemetryCapture: telemetryCapture);
         }
         catch (Exception ex)
         {

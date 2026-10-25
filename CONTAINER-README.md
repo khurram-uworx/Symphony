@@ -48,6 +48,8 @@ Then open `http://localhost:8080`, sign in, and you should see `Hello, <user>`.
 | `ConnectionStrings__Npgsql` | postgresql | fallback | Used only when `PostgreSQL` is not set. |
 | `SeedAdmin__UserName` | all | no | First admin username. Defaults to `testadmin`. |
 | `SeedAdmin__Password` | all | no | First admin password. Empty generates and prints one once; a configured value is used verbatim without policy validation and is never printed. |
+| `ApiKeys__ServerKey` | all | yes in Production for API keys | Server key for API key HMAC hashing. Required in Production; a development default is used otherwise. |
+| `DataProtection__KeysPath` | all | no | Directory for Data Protection key ring. Defaults to `App_Data/DataProtection-Keys` under the content root. |
 | `ASPNETCORE_ENVIRONMENT` | all | no | Use `Production` in containers. |
 | `ASPNETCORE_URLS` | all | no | Image sets `http://+:8080`. |
 

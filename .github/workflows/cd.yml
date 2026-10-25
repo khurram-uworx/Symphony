@@ -45,3 +45,6 @@ jobs:
         tags: |
           ghcr.io/${{ github.repository_owner }}/symphony:${{ steps.version.outputs.VERSION }}
           ghcr.io/${{ github.repository_owner }}/symphony:latest
+        labels: |
+          org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          org.opencontainers.image.documentation=${{ github.server_url }}/${{ github.repository }}/blob/main/CONTAINER-README.md

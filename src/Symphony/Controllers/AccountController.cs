@@ -120,7 +120,7 @@ public sealed class AccountController(
         ViewData["NewApiKey"] = TempData["NewApiKey"];
         ViewData["NewApiKeyName"] = TempData["NewApiKeyName"];
         ViewData["WorkflowTemplate"] = LoadWorkflowTemplate(WebHostEnvironment);
-        ViewData["ActiveTab"] = tab is "jobs" or "repository" or "worksource" or "copilot" or "workflows" or "apikeys" ? tab : "jobs";
+        ViewData["ActiveTab"] = tab is "repository" or "worksource" or "copilot" or "workflows" or "apikeys" ? tab : "repository";
         return View(ConfigurationDto.From(configuration));
     }
 

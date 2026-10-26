@@ -26,6 +26,8 @@ sealed class GitHubIssuesClient : IIssueTracker
 
         var token = config.Tracker.ApiKey;
         if (string.IsNullOrWhiteSpace(token))
+            token = config.Repository?.Token;
+        if (string.IsNullOrWhiteSpace(token))
             throw new InvalidOperationException("GitHub tracker api key is not configured.");
 
         var (owner, repo) = ParseRepository(config.Tracker.ProjectSlug);

@@ -250,6 +250,14 @@ public sealed class JobProcessor : BackgroundService
         var repositoryToken = string.IsNullOrWhiteSpace(githubToken) ? userConfig.GitHubPersonalAccessToken : githubToken;
 
         if (string.Equals(config.Tracker.Kind, "github", StringComparison.OrdinalIgnoreCase) &&
+            string.IsNullOrWhiteSpace(config.Tracker.ApiKey) &&
+            !string.IsNullOrWhiteSpace(repositoryToken))
+        {
+            var tracker = config.Tracker with { ApiKey = repositoryToken };
+            config = config with { Tracker = tracker };
+        }
+
+        if (string.Equals(config.Tracker.Kind, "github", StringComparison.OrdinalIgnoreCase) &&
             string.IsNullOrWhiteSpace(config.Tracker.ProjectSlug) &&
             !string.IsNullOrWhiteSpace(githubRepo))
         {

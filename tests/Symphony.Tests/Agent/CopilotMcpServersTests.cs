@@ -1,9 +1,10 @@
 using GitHub.Copilot;
 using NUnit.Framework;
+using Symphony.Agent;
 using Symphony.Config;
 using static Symphony.Tests.NUnitConstants;
 
-namespace Symphony.Agent;
+namespace Symphony.Tests.Agent;
 
 [TestFixture, Category(TestCatory.Unit)]
 class CopilotMcpServersTests

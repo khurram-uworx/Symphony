@@ -77,7 +77,7 @@ class CopilotAgent : ICodingAgent
         if (!string.IsNullOrWhiteSpace(config.CopilotHome))
         {
             Directory.CreateDirectory(config.CopilotHome);
-            environment.Remove("COPILOT_HOME");
+            environment["COPILOT_HOME"] = config.CopilotHome;
             clientOptions.BaseDirectory = config.CopilotHome;
         }
 

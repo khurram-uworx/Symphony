@@ -12,7 +12,8 @@ public record ServiceConfig(
     AgentConfig Agent,
     CodexConfig? Codex,
     CopilotConfig? Copilot,
-    RepositoryConfig? Repository = null)
+    RepositoryConfig? Repository = null,
+    string? CopilotHome = null)
 {
     public CopilotConfig? CopilotConfig => Copilot;
     public HashSet<string> ActiveStates => Tracker.ActiveStates;

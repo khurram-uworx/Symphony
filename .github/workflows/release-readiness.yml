@@ -51,7 +51,13 @@ jobs:
           set -euo pipefail
           user="$(docker image inspect symphony:release-readiness --format '{{.Config.User}}')"
           echo "Image user: ${user}"
-          test "${user}" = "app"
+          case "${user}" in
+            app|1654) ;;
+            *)
+              echo "Expected the non-root app user, got '${user}'." >&2
+              exit 1
+              ;;
+          esac
           docker run --rm --user app --entrypoint sh symphony:release-readiness -c \
             'test "$(id -u)" != "0" && touch /app/App_Data/.write-probe && echo "App_Data writable"'
 

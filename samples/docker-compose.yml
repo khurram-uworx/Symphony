@@ -28,6 +28,7 @@ services:
       SeedAdmin__UserName: ${SeedAdmin__UserName}
       ApiKeys__ServerKey: ${ApiKeys__ServerKey}
       SYMPHONY_WORKSPACE_ROOT: ${SYMPHONY_WORKSPACE_ROOT:-/home/app/workspaces}
+      LINEAR_API_KEY: ${LINEAR_API_KEY:-}
     volumes:
       - dataprotection:/home/app/.aspnet/DataProtection-Keys
       - workspaces:/home/app/workspaces

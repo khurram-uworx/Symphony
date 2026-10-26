@@ -73,7 +73,7 @@ Each Symphony user gets an isolated Copilot home under `/home/app/workspaces/<us
 
 The Linear MCP server is reached over native Streamable HTTP at `https://mcp.linear.app/mcp` with an `Authorization: Bearer` header built from the Linear credential. There is no browser OAuth step and no shared `~/.mcp-auth` directory, so it works headlessly.
 
-Provide the credential as `LINEAR_API_KEY` (or as `tracker.api_key`, using `$LINEAR_API_KEY`). A job that submits Linear tickets without a credential fails immediately with `linear_credentials_missing`. Jobs submitted as work items only do not need Linear.
+Provide the credential as `LINEAR_API_KEY` (or as `tracker.api_key`, using `$LINEAR_API_KEY`). The sample stack forwards `LINEAR_API_KEY` into the app container, so setting it in `samples/.env` or the shell that runs `docker compose` is enough. A job that submits Linear tickets without a credential fails immediately with `linear_credentials_missing`. Jobs submitted as work items only do not need Linear and do not get the Linear MCP server attached.
 
 ## Git tooling in the image
 

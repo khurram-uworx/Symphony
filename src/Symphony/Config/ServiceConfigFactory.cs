@@ -72,6 +72,7 @@ public class ServiceConfigFactory
             tracker.TerminalStates);
 
         hooks = ApplyHooksOverride(hooks, workflow);
+        workspace = ApplyWorkspaceOverrides(workspace, workflow);
         agent = ApplyAgentOverrides(agent, workflow);
 
         return new ServiceConfig(workflow, tracker, workspace, hooks, agent, codex, copilot);
@@ -259,6 +260,16 @@ public class ServiceConfigFactory
         return null;
     }
 
+
+    static WorkspaceConfig ApplyWorkspaceOverrides(WorkspaceConfig workspace, WorkflowDefinition workflow)
+    {
+        var workspaceMap = ConfigReader.ReadMap(workflow.Config, "workspace");
+        if (!workspaceMap.TryGetValue("clone_timeout_ms", out _))
+            return workspace;
+
+        var timeout = ConfigReader.ReadInt(workspaceMap, "clone_timeout_ms");
+        return timeout is > 0 ? workspace with { CloneTimeoutMs = timeout.Value } : workspace;
+    }
 
     static HooksConfig ApplyHooksOverride(HooksConfig hooks, WorkflowDefinition workflow)
     {

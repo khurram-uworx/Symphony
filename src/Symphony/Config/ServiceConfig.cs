@@ -1,3 +1,4 @@
+using Symphony.Repositories;
 using Symphony.Workflows;
 using Symphony.Workspaces;
 
@@ -10,11 +11,23 @@ public record ServiceConfig(
     HooksConfig Hooks,
     AgentConfig Agent,
     CodexConfig? Codex,
-    CopilotConfig? Copilot)
+    CopilotConfig? Copilot,
+    RepositoryConfig? Repository = null)
 {
     public CopilotConfig? CopilotConfig => Copilot;
     public HashSet<string> ActiveStates => Tracker.ActiveStates;
     public HashSet<string> TerminalStates => Tracker.TerminalStates;
+}
+
+public record RepositoryConfig(
+    GitHubRepository Repository,
+    string? Token,
+    GitHubIdentity? Identity = null,
+    string? CloneUrl = null)
+{
+    public string Slug => Repository.Slug;
+
+    public string Url => string.IsNullOrWhiteSpace(CloneUrl) ? Repository.CloneUrl : CloneUrl!;
 }
 
 public record TrackerConfig(
@@ -91,14 +104,23 @@ public record TrackerConfig(
     }
 }
 
-public record WorkspaceConfig(string Root)
+public record WorkspaceConfig(string Root, int CloneTimeoutMs = WorkspaceConfig.DefaultCloneTimeoutMs)
 {
+    public const int DefaultCloneTimeoutMs = 300000;
+
     public static WorkspaceConfig From(IReadOnlyDictionary<string, object> root, string? systemWorkspaceRoot = null)
     {
+        var workspace = ConfigReader.ReadMap(root, "workspace");
+        var cloneTimeout = ConfigReader.ReadInt(workspace, "clone_timeout_ms") ?? DefaultCloneTimeoutMs;
+        if (cloneTimeout <= 0)
+            cloneTimeout = DefaultCloneTimeoutMs;
+
         var rawRoot = string.IsNullOrWhiteSpace(systemWorkspaceRoot)
             ? Path.Combine(Path.GetTempPath(), "symphony_workspaces")
             : systemWorkspaceRoot!;
-        return new WorkspaceConfig(WorkspacePath.RequireAbsoluteRoot(ConfigReader.ResolvePath(rawRoot)));
+        return new WorkspaceConfig(
+            WorkspacePath.RequireAbsoluteRoot(ConfigReader.ResolvePath(rawRoot)),
+            cloneTimeout);
     }
 }
 

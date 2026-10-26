@@ -121,6 +121,7 @@ Key behavior:
 - Disabling or deleting a user immediately invalidates all of their keys, and a disabled user cannot sign in.
 - API requests are rate limited per user (120 requests per minute; `429 Too Many Requests` beyond that).
 - The `X-API-Key` header is accepted as an alternative to `Authorization: Bearer`.
+- Unauthenticated or unauthorized API calls return `401 Unauthorized` or `403 Forbidden`. They never redirect to the login page, so do not follow redirects when scripting API calls. Browser requests to protected screens still redirect to `/Account/Login`.
 
 Key material is hashed with HMAC-SHA256 using a server key read from `ApiKeys:ServerKey` (a development-only default is used outside Production; the host refuses to start in Production without it). Set `ApiKeys__ServerKey` explicitly when running multiple instances so hashes stay comparable across nodes.
 

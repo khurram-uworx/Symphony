@@ -37,12 +37,12 @@ class CopilotAgent : ICodingAgent
             WorkingDirectory = workspacePath
         };
 
-        if (telemetryCapture?.CurrentFilePath is string telemetryPath)
+        if (telemetryCapture is not null)
         {
             clientOptions.Telemetry = new TelemetryConfig
             {
-                FilePath = telemetryPath,
-                ExporterType = "file",
+                OtlpEndpoint = telemetryCapture.ReceiverBaseUrl,
+                OtlpProtocol = "json",
                 SourceName = "symphony",
                 CaptureContent = telemetryCapture.CurrentContentEnabled,
             };
@@ -50,18 +50,31 @@ class CopilotAgent : ICodingAgent
 
         var repository = config.Repository;
         var usesGitHubTracker = string.Equals(config.Tracker.Kind, "github", StringComparison.OrdinalIgnoreCase);
+        Dictionary<string, string> environment;
         if (repository is not null || usesGitHubTracker)
         {
             var token = repository?.Token;
             if (string.IsNullOrWhiteSpace(token) && usesGitHubTracker)
                 token = config.Tracker.ApiKey;
 
-            clientOptions.Environment = GitHubEnvironment.Build(
+            environment = GitHubEnvironment.Build(
                 GitHubEnvironment.FromProcessEnvironment(),
                 repository?.Slug ?? config.Tracker.ProjectSlug,
                 token,
                 repository?.Identity);
         }
+        else
+        {
+            environment = GitHubEnvironment.FromProcessEnvironment();
+        }
+
+        if (telemetryCapture is not null && telemetryCapture.CurrentJobId is Guid jobId)
+        {
+            environment["OTEL_RESOURCE_ATTRIBUTES"] =
+                $"job.id={jobId},service.name=symphony";
+        }
+
+        clientOptions.Environment = environment;
 
         copilotClient = new CopilotClient(clientOptions);
         await copilotClient.StartAsync();

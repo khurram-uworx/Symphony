@@ -9,28 +9,22 @@ namespace Symphony.Services;
 public sealed class JobTelemetryCapture
 {
     readonly IDbContextFactory<SymphonyDbContext> dbFactory;
-    readonly string rootPath;
+    readonly string receiverBaseUrl;
     readonly AsyncLocal<Guid?> currentJob = new();
-    readonly ConcurrentDictionary<Guid, string> jobFiles = new();
+    readonly ConcurrentDictionary<Guid, ConcurrentQueue<JobTelemetryEntry>> jobBuffers = new();
     readonly ConcurrentDictionary<Guid, bool> jobContent = new();
 
-    public JobTelemetryCapture(IDbContextFactory<SymphonyDbContext> dbFactory)
+    public JobTelemetryCapture(IDbContextFactory<SymphonyDbContext> dbFactory, string receiverBaseUrl)
     {
         this.dbFactory = dbFactory;
-        rootPath = Path.Combine(Path.GetTempPath(), "symphony-telemetry");
-        Directory.CreateDirectory(rootPath);
+        this.receiverBaseUrl = string.IsNullOrWhiteSpace(receiverBaseUrl) ? "http://127.0.0.1:5080" : receiverBaseUrl.TrimEnd('/');
     }
 
-    public string? CurrentFilePath
-    {
-        get
-        {
-            if (currentJob.Value is not Guid jobId)
-                return null;
+    public Guid? CurrentJobId => currentJob.Value;
 
-            return jobFiles.TryGetValue(jobId, out var path) ? path : null;
-        }
-    }
+    public string ReceiverBaseUrl => receiverBaseUrl;
+
+    public string? CurrentFilePath => null;
 
     public bool CurrentContentEnabled
     {
@@ -46,31 +40,31 @@ public sealed class JobTelemetryCapture
     public void BeginJob(Guid jobId, bool captureContent)
     {
         currentJob.Value = jobId;
-        var path = Path.Combine(rootPath, jobId + ".jsonl");
-        jobFiles[jobId] = path;
+        jobBuffers[jobId] = new ConcurrentQueue<JobTelemetryEntry>();
         jobContent[jobId] = captureContent;
-        try
-        {
-            if (File.Exists(path))
-                File.Delete(path);
-        }
-        catch
-        {
-        }
     }
 
     public void EndJobScope() => currentJob.Value = null;
 
+    public bool IsActive(Guid jobId) => jobBuffers.ContainsKey(jobId);
+
+    public void AppendEntry(Guid jobId, JobTelemetryEntry entry)
+    {
+        if (jobBuffers.TryGetValue(jobId, out var queue))
+            queue.Enqueue(entry);
+    }
+
     public async Task<JobTelemetryBundle> ReadAsync(Guid jobId, CancellationToken cancellationToken)
     {
-        if (jobFiles.TryGetValue(jobId, out var path) && File.Exists(path))
+        if (jobBuffers.TryGetValue(jobId, out var queue))
         {
-            var parsed = ParseFile(path);
-            var allEntries = parsed.Entries
-                .OrderByDescending(entry => entry.Timestamp)
-                .ToList();
-            parsed.Entries = allEntries.Take(100).ToList();
-            parsed.Truncated = parsed.Truncated || allEntries.Count > 100;
+            var parsed = new JobTelemetryBundle
+            {
+                Entries = queue.ToArray()
+                    .OrderByDescending(entry => entry.Timestamp)
+                    .Take(100)
+                    .ToList()
+            };
             return parsed;
         }
 
@@ -78,28 +72,25 @@ public sealed class JobTelemetryCapture
         var rows = await db.JobTelemetry
             .AsNoTracking()
             .Where(item => item.JobId == jobId)
+            .OrderByDescending(item => item.Timestamp)
+            .Take(100)
             .ToListAsync(cancellationToken);
-
-        var entries = rows
-            .Select(row => new JobTelemetryEntry
-            {
-                Signal = row.Signal,
-                Timestamp = row.Timestamp,
-                TraceId = row.TraceId,
-                SpanId = row.SpanId,
-                ParentSpanId = row.ParentSpanId,
-                Name = row.Name,
-                Severity = row.Severity,
-                DurationMs = row.DurationMs,
-                PayloadJson = row.PayloadJson
-            })
-            .OrderByDescending(entry => entry.Timestamp)
-            .ToList();
 
         return new JobTelemetryBundle
         {
-            Entries = entries.Take(100).ToList(),
-            Truncated = entries.Count > 100
+            Entries = rows
+                .Select(row => new JobTelemetryEntry
+                {
+                    Signal = row.Signal,
+                    Timestamp = row.Timestamp,
+                    TraceId = row.TraceId,
+                    SpanId = row.SpanId,
+                    ParentSpanId = row.ParentSpanId,
+                    Name = row.Name,
+                    Severity = row.Severity,
+                    DurationMs = row.DurationMs,
+                    PayloadJson = row.PayloadJson
+                }).ToList()
         };
     }
 
@@ -107,10 +98,10 @@ public sealed class JobTelemetryCapture
     {
         try
         {
-            if (!jobFiles.TryGetValue(jobId, out var path))
-                return;
+            var bundle = new JobTelemetryBundle();
+            if (jobBuffers.TryRemove(jobId, out var queue))
+                bundle.Entries = queue.ToArray().ToList();
 
-            var bundle = File.Exists(path) ? ParseFile(path) : new JobTelemetryBundle();
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
             await db.JobTelemetry
@@ -137,69 +128,14 @@ public sealed class JobTelemetryCapture
                 await db.SaveChangesAsync(cancellationToken);
             }
 
-            try
-            {
-                if (File.Exists(path))
-                    File.Delete(path);
-            }
-            catch
-            {
-            }
-
             await ApplyRetentionAsync(jobId, db, cancellationToken);
         }
         finally
         {
-            jobFiles.TryRemove(jobId, out _);
             jobContent.TryRemove(jobId, out _);
             if (currentJob.Value == jobId)
                 currentJob.Value = null;
         }
-    }
-
-    static JobTelemetryBundle ParseFile(string path)
-    {
-        var bundle = new JobTelemetryBundle();
-        try
-        {
-            using var reader = new StreamReader(path);
-            string? line;
-            while ((line = reader.ReadLine()) is not null)
-            {
-                if (string.IsNullOrWhiteSpace(line))
-                    continue;
-
-                try
-                {
-                    using var document = JsonDocument.Parse(line);
-                    var root = document.RootElement;
-                    var signal = GetString(root, "type") ?? "event";
-                    var entry = new JobTelemetryEntry
-                    {
-                        Signal = signal,
-                        Timestamp = ParseTimestamp(root),
-                        TraceId = GetString(root, "traceId"),
-                        SpanId = GetString(root, "spanId"),
-                        ParentSpanId = GetString(root, "parentSpanId"),
-                        Name = GetString(root, "name") ?? signal,
-                        Severity = GetString(root, "severity") ?? GetString(root, "level"),
-                        DurationMs = ParseDuration(root),
-                        PayloadJson = line
-                    };
-
-                    bundle.Entries.Add(entry);
-                }
-                catch
-                {
-                    bundle.Truncated = true;
-                }
-            }
-        }
-        catch
-        {
-        }
-
-        return bundle;
     }
 
     async Task ApplyRetentionAsync(Guid jobId, SymphonyDbContext db, CancellationToken cancellationToken)
@@ -241,71 +177,282 @@ public sealed class JobTelemetryCapture
             .ExecuteDeleteAsync(cancellationToken);
     }
 
+    public static Guid? TryGetJobId(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+            {
+                var found = TryGetJobId(item);
+                if (found is not null)
+                    return found;
+            }
+            return null;
+        }
+
+        if (element.ValueKind != JsonValueKind.Object)
+            return null;
+
+        foreach (var property in element.EnumerateObject())
+        {
+            if (string.Equals(property.Name, "resourceSpans", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(property.Name, "resourceMetrics", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(property.Name, "resourceLogs", StringComparison.OrdinalIgnoreCase))
+            {
+                var found = TryGetJobId(property.Value);
+                if (found is not null)
+                    return found;
+            }
+
+            if (string.Equals(property.Name, "resource", StringComparison.OrdinalIgnoreCase))
+            {
+                if (property.Value.TryGetProperty("attributes", out var attributes))
+                {
+                    foreach (var attribute in attributes.EnumerateArray())
+                    {
+                        if (!attribute.TryGetProperty("key", out var key) || key.GetString() != "job.id")
+                            continue;
+
+                        if (attribute.TryGetProperty("value", out var value) &&
+                            value.TryGetProperty("stringValue", out var stringValue))
+                        {
+                            var text = stringValue.GetString();
+                            if (Guid.TryParse(text, out var jobId))
+                                return jobId;
+                        }
+                    }
+                }
+            }
+
+            var nested = TryGetJobId(property.Value);
+            if (nested is not null)
+                return nested;
+        }
+
+        return null;
+    }
+
+    public static Guid? TryGetJobId(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            return TryGetJobId(document.RootElement);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public static List<JobTelemetryEntry> ParseOtlpTraces(string json)
+    {
+        var entries = new List<JobTelemetryEntry>();
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (!document.RootElement.TryGetProperty("resourceSpans", out var resourceSpans) ||
+                resourceSpans.ValueKind != JsonValueKind.Array)
+            {
+                return entries;
+            }
+
+            foreach (var resourceSpan in resourceSpans.EnumerateArray())
+            {
+                if (!resourceSpan.TryGetProperty("scopeSpans", out var scopeSpans) ||
+                    scopeSpans.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (var scopeSpan in scopeSpans.EnumerateArray())
+                {
+                    if (!scopeSpan.TryGetProperty("spans", out var spans) ||
+                        spans.ValueKind != JsonValueKind.Array)
+                    {
+                        continue;
+                    }
+
+                    foreach (var span in spans.EnumerateArray())
+                    {
+                        var start = FromUnixNanos(GetString(span, "startTimeUnixNano"));
+                        var end = FromUnixNanos(GetString(span, "endTimeUnixNano"));
+                        long? duration = null;
+                        if (GetString(span, "startTimeUnixNano") is string startText &&
+                            GetString(span, "endTimeUnixNano") is string endText &&
+                            long.TryParse(startText, out var startNanos) &&
+                            long.TryParse(endText, out var endNanos))
+                        {
+                            duration = (long)Math.Round((endNanos - startNanos) / 1_000_000.0);
+                        }
+
+                        var severity = span.TryGetProperty("status", out var status) && status.TryGetProperty("code", out var code) && code.ValueKind == JsonValueKind.Number
+                            ? code.GetInt32() switch { 1 => "unset", 2 => "error", _ => "ok" }
+                            : null;
+
+                        entries.Add(new JobTelemetryEntry
+                        {
+                            Signal = "span",
+                            Timestamp = start,
+                            TraceId = GetString(span, "traceId"),
+                            SpanId = GetString(span, "spanId"),
+                            ParentSpanId = GetString(span, "parentSpanId"),
+                            Name = GetString(span, "name") ?? "span",
+                            Severity = severity,
+                            DurationMs = duration,
+                            PayloadJson = span.GetRawText()
+                        });
+                    }
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return entries;
+    }
+
+    public static List<JobTelemetryEntry> ParseOtlpMetrics(string json)
+    {
+        var entries = new List<JobTelemetryEntry>();
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (!document.RootElement.TryGetProperty("resourceMetrics", out var resourceMetrics) ||
+                resourceMetrics.ValueKind != JsonValueKind.Array)
+            {
+                return entries;
+            }
+
+            foreach (var resourceMetric in resourceMetrics.EnumerateArray())
+            {
+                if (!resourceMetric.TryGetProperty("scopeMetrics", out var scopeMetrics) ||
+                    scopeMetrics.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (var scopeMetric in scopeMetrics.EnumerateArray())
+                {
+                    if (!scopeMetric.TryGetProperty("metrics", out var metrics) ||
+                        metrics.ValueKind != JsonValueKind.Array)
+                    {
+                        continue;
+                    }
+
+                    foreach (var metric in metrics.EnumerateArray())
+                    {
+                        var name = GetString(metric, "name") ?? "metric";
+                        if (metric.TryGetProperty("sum", out var sum) && sum.TryGetProperty("dataPoints", out var points))
+                            AddMetricPoints(entries, name, points);
+                        else if (metric.TryGetProperty("gauge", out var gauge) && gauge.TryGetProperty("dataPoints", out var gaugePoints))
+                            AddMetricPoints(entries, name, gaugePoints);
+                        else if (metric.TryGetProperty("histogram", out var histogram) && histogram.TryGetProperty("dataPoints", out var histogramPoints))
+                            AddMetricPoints(entries, name, histogramPoints);
+                    }
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return entries;
+    }
+
+    public static List<JobTelemetryEntry> ParseOtlpLogs(string json)
+    {
+        var entries = new List<JobTelemetryEntry>();
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (!document.RootElement.TryGetProperty("resourceLogs", out var resourceLogs) ||
+                resourceLogs.ValueKind != JsonValueKind.Array)
+            {
+                return entries;
+            }
+
+            foreach (var resourceLog in resourceLogs.EnumerateArray())
+            {
+                if (!resourceLog.TryGetProperty("scopeLogs", out var scopeLogs) ||
+                    scopeLogs.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (var scopeLog in scopeLogs.EnumerateArray())
+                {
+                    if (!scopeLog.TryGetProperty("logRecords", out var logRecords) ||
+                        logRecords.ValueKind != JsonValueKind.Array)
+                    {
+                        continue;
+                    }
+
+                    foreach (var record in logRecords.EnumerateArray())
+                    {
+                        var timestamp = FromUnixNanos(GetString(record, "timeUnixNano"));
+                        var severity = GetString(record, "severityText");
+                        string? name = null;
+                        if (record.TryGetProperty("body", out var body) && body.TryGetProperty("stringValue", out var bodyValue))
+                            name = bodyValue.GetString();
+                        entries.Add(new JobTelemetryEntry
+                        {
+                            Signal = "log",
+                            Timestamp = timestamp,
+                            TraceId = GetString(record, "traceId"),
+                            SpanId = GetString(record, "spanId"),
+                            Name = string.IsNullOrWhiteSpace(name) ? "log" : name!,
+                            Severity = severity,
+                            PayloadJson = record.GetRawText()
+                        });
+                    }
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return entries;
+    }
+
+    static void AddMetricPoints(List<JobTelemetryEntry> entries, string name, JsonElement points)
+    {
+        if (points.ValueKind != JsonValueKind.Array)
+            return;
+
+        foreach (var point in points.EnumerateArray())
+        {
+            DateTimeOffset timestamp = DateTimeOffset.UtcNow;
+            if (GetString(point, "timeUnixNano") is string timeText && long.TryParse(timeText, out var nanos))
+                timestamp = DateTimeOffset.FromUnixTimeMilliseconds(nanos / 1_000_000).AddTicks((nanos % 1_000_000) / 100);
+
+            entries.Add(new JobTelemetryEntry
+            {
+                Signal = "metric",
+                Timestamp = timestamp,
+                Name = name,
+                PayloadJson = point.GetRawText()
+            });
+        }
+    }
+
+    static DateTimeOffset FromUnixNanos(string? value)
+    {
+        if (value is not null && long.TryParse(value, out var nanos))
+        {
+            return DateTimeOffset.FromUnixTimeMilliseconds(nanos / 1_000_000).AddTicks((nanos % 1_000_000) / 100);
+        }
+
+        return DateTimeOffset.UtcNow;
+    }
+
     static string? GetString(JsonElement element, string propertyName)
     {
         if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(propertyName, out var value))
             return null;
 
         return value.ValueKind == JsonValueKind.String ? value.GetString() : value.ToString();
-    }
-
-    static DateTimeOffset ParseTimestamp(JsonElement element)
-    {
-        if (element.TryGetProperty("startTime", out var startTime))
-        {
-            if (startTime.ValueKind == JsonValueKind.Array && startTime.GetArrayLength() >= 2 &&
-                startTime[0].TryGetInt64(out var seconds) && startTime[1].TryGetInt64(out var nanos))
-            {
-                return DateTimeOffset.FromUnixTimeSeconds(seconds).AddTicks(nanos / 100);
-            }
-
-            if (startTime.ValueKind == JsonValueKind.String && long.TryParse(startTime.GetString(), out var epoch))
-                return FromUnixTimeSecondsSafe(epoch);
-        }
-
-        if (element.TryGetProperty("timestamp", out var timestamp) && timestamp.ValueKind == JsonValueKind.String &&
-            DateTimeOffset.TryParse(timestamp.GetString(), out var parsed))
-        {
-            return parsed;
-        }
-
-        return DateTimeOffset.UtcNow;
-    }
-
-    static long? ParseDuration(JsonElement element)
-    {
-        DateTimeOffset? start = null;
-        DateTimeOffset? end = null;
-
-        if (element.TryGetProperty("startTime", out var startTime) && startTime.ValueKind == JsonValueKind.Array && startTime.GetArrayLength() >= 2 &&
-            startTime[0].TryGetInt64(out var startSeconds) && startTime[1].TryGetInt64(out var startNanos))
-        {
-            start = DateTimeOffset.FromUnixTimeSeconds(startSeconds).AddTicks(startNanos / 100);
-        }
-
-        if (element.TryGetProperty("endTime", out var endTime) && endTime.ValueKind == JsonValueKind.Array && endTime.GetArrayLength() >= 2 &&
-            endTime[0].TryGetInt64(out var endSeconds) && endTime[1].TryGetInt64(out var endNanos))
-        {
-            end = DateTimeOffset.FromUnixTimeSeconds(endSeconds).AddTicks(endNanos / 100);
-        }
-
-        if (start is null || end is null)
-            return null;
-
-        return (long)Math.Round((end.Value - start.Value).TotalMilliseconds);
-    }
-
-    static DateTimeOffset FromUnixTimeSecondsSafe(long epoch)
-    {
-        try
-        {
-            return epoch > 10_000_000_000
-                ? DateTimeOffset.FromUnixTimeMilliseconds(epoch)
-                : DateTimeOffset.FromUnixTimeSeconds(epoch);
-        }
-        catch
-        {
-            return DateTimeOffset.UtcNow;
-        }
     }
 }

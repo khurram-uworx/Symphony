@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Symphony.Services;
 using System.Security.Claims;
 
 namespace Symphony.Hubs;
@@ -7,6 +8,32 @@ namespace Symphony.Hubs;
 [Authorize]
 public sealed class JobUpdateHub : Hub
 {
+    readonly IServiceScopeFactory scopeFactory;
+
+    public JobUpdateHub(IServiceScopeFactory scopeFactory)
+    {
+        this.scopeFactory = scopeFactory;
+    }
+
+    public async Task SubscribeTelemetry(Guid jobId)
+    {
+        var userId = GetUserId(Context.User);
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new HubException("Unauthorized.");
+
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var jobService = scope.ServiceProvider.GetRequiredService<JobService>();
+        var isAdmin = IsAdmin(Context.User);
+        var job = isAdmin
+            ? await jobService.GetJobAsync(jobId, Context.ConnectionAborted)
+            : await jobService.GetJobAsync(userId, jobId, false, Context.ConnectionAborted);
+
+        if (job is null || (!isAdmin && job.OwnerUserId != userId))
+            throw new HubException("Job not found.");
+
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"telemetry:{jobId}", Context.ConnectionAborted);
+    }
+
     public override async Task OnConnectedAsync()
     {
         var userId = GetUserId(Context.User);

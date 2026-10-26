@@ -35,3 +35,53 @@ jobs:
           name: release-readiness-durations
           path: TestResults/**/*.trx
           if-no-files-found: warn
+
+  container-non-root:
+    name: Container non-root smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build image
+        run: docker build --file src/Symphony/Dockerfile --tag symphony:release-readiness .
+
+      - name: Verify image runs as the non-root app user
+        run: |
+          set -euo pipefail
+          user="$(docker image inspect symphony:release-readiness --format '{{.Config.User}}')"
+          echo "Image user: ${user}"
+          test "${user}" = "app"
+          docker run --rm --user app --entrypoint sh symphony:release-readiness -c \
+            'test "$(id -u)" != "0" && touch /app/App_Data/.write-probe && echo "App_Data writable"'
+
+      - name: Smoke startup as the non-root app user
+        run: |
+          set -euo pipefail
+          docker run --detach --name symphony-release-readiness \
+            --env ApiKeys__ServerKey=release-readiness-smoke \
+            --env SeedAdmin__Password='ReleaseReadiness!1' \
+            symphony:release-readiness
+          waited=0
+          while [ "${waited}" -lt 60 ]; do
+            if docker logs symphony-release-readiness 2>&1 | grep -q "Application started"; then
+              break
+            fi
+            sleep 2
+            waited=$((waited + 2))
+          done
+          docker logs symphony-release-readiness
+          if ! docker logs symphony-release-readiness 2>&1 | grep -q "Application started"; then
+            echo "Container did not start within 60 seconds." >&2
+            exit 1
+          fi
+          docker exec symphony-release-readiness id
+          docker exec symphony-release-readiness sh -c 'test -s /app/App_Data/symphony.db'
+          status="$(docker exec symphony-release-readiness curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/)"
+          echo "GET / -> ${status}"
+          test "${status}" != "000"
+          test "${status}" -lt 500
+
+      - name: Remove smoke container
+        if: always()
+        run: docker rm --force symphony-release-readiness || true

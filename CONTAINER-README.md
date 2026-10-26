@@ -83,7 +83,7 @@ Do not run the container with `-u 0`; root is neither required nor supported.
 
 ## Image build path
 
-`src/Symphony/Dockerfile` is the supported image. The publish workflows (`.github/workflows/docker.yml`, `cd.yml`), both compose files, and the published `ghcr.io` tags build from it, and it installs the agent toolchain and creates the writable directories above.
+`src/Symphony/Dockerfile` is the supported image. The publish workflows (`.github/workflows/docker.yml`, `cd.yml`) build and push it, the root `docker-compose.yml` builds it directly, and the sample stack pulls the published tags. It installs the agent toolchain and creates the writable directories above.
 
 `dotnet publish /t:PublishContainer` builds a different, SDK-generated image with no writable data directory and no agent toolchain. Running that image as a non-root user fails on `/app/App_Data`. Build from the Dockerfile instead.
 

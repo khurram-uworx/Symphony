@@ -125,4 +125,4 @@ Reminder: as each task executes, create an issue immediately via
 `gh issue create --repo khurram-uworx/Symphony` for any deferred work or concern found, and record the
 number here. Do not rely on memory; compaction can lose it.
 
-- (none yet)
+- [ ] #116 — API 401/403 responses still carry a `Location` header to the login page (found while verifying #23; framework behavior, documented, decision pending)

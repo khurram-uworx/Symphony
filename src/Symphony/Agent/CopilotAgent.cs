@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Symphony.Config;
 using Symphony.Services;
 using System.Text.Json;
+using GitHubEnvironment = Symphony.Repositories.GitHubEnvironment;
 
 namespace Symphony.Agent;
 
@@ -55,8 +56,8 @@ class CopilotAgent : ICodingAgent
             if (string.IsNullOrWhiteSpace(token) && usesGitHubTracker)
                 token = config.Tracker.ApiKey;
 
-            clientOptions.Environment = Symphony.Repositories.GitHubEnvironment.Build(
-                Symphony.Repositories.GitHubEnvironment.FromProcessEnvironment(),
+            clientOptions.Environment = GitHubEnvironment.Build(
+                GitHubEnvironment.FromProcessEnvironment(),
                 repository?.Slug ?? config.Tracker.ProjectSlug,
                 token,
                 repository?.Identity);

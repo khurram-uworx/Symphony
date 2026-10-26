@@ -154,7 +154,9 @@ class WorkspaceManager
                 }
                 catch (WorkspaceCloneException ex)
                 {
-                    throw new InvalidOperationException("after_create hook failed and the repository checkout could not be completed.", ex);
+                    throw new InvalidOperationException(
+                        $"after_create hook failed and the repository checkout could not be completed: {ex.Message}",
+                        ex);
                 }
 
                 logger.LogWarning("after_create hook failed; the repository checkout was completed by the platform.");

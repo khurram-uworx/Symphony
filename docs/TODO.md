@@ -165,9 +165,16 @@ named `workspaces` volume.
 
 ## GitHub issues log
 
-- [ ] #NNN — Linear MCP uses interactive OAuth and a shared `~/.mcp-auth`, so it cannot run
-      headlessly in a container and leaks credentials across jobs. (created while working on
-      container agent environment)
+- [x] #109 — Linear MCP uses interactive OAuth and a shared `~/.mcp-auth`, so it cannot run
+      headlessly in a container and leaks credentials across jobs.
+      https://github.com/khurram-uworx/Symphony/issues/109
+
+## Progress log
+
+- Commits: plan, repositories, config, workspaces, agent, workflow, container, tests, docs.
+- `dotnet build Symphony.slnx`: 0 errors.
+- Filtered test run: 111 passed, including a real local bare-repo clone test.
+
 
 ## Reminder
 

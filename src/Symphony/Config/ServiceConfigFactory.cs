@@ -260,7 +260,6 @@ public class ServiceConfigFactory
         return null;
     }
 
-
     static WorkspaceConfig ApplyWorkspaceOverrides(WorkspaceConfig workspace, WorkflowDefinition workflow)
     {
         var workspaceMap = ConfigReader.ReadMap(workflow.Config, "workspace");

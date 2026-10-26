@@ -71,7 +71,7 @@ Each Symphony user gets an isolated Copilot home under `/home/app/workspaces/<us
 
 ## Non-root runtime
 
-The image runs as the non-root `app` user, UID/GID `1654`, matching `APP_UID`/`APP_GID` in the .NET base images. `src/Symphony/Dockerfile` creates these paths with that ownership before switching users:
+The image runs as the non-root `app` user, UID/GID `1654`, matching the `APP_UID=1654` value in the .NET base images. `src/Symphony/Dockerfile` creates these paths with that ownership before switching users:
 
 - `/app/App_Data` -> SQLite database and the default Data Protection key ring.
 - `/home/app/.aspnet/DataProtection-Keys` -> key ring used by the sample stack.

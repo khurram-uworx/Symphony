@@ -265,6 +265,9 @@ public sealed class JobProcessor : BackgroundService
             config = config with { Tracker = tracker };
         }
 
+        if (CopilotMcpServers.Validate(config, hasTickets) is { } linearError)
+            throw new InvalidOperationException(linearError);
+
         if (workItems.Count > 0)
         {
             if (string.IsNullOrWhiteSpace(githubRepo))

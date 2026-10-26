@@ -119,15 +119,25 @@ jobs without a credential must not stop on it.
 
 ## Planned commits
 
-1. `docs: plan headless Linear MCP fix in TODO.md`
-2. `feat(agent): reach Linear over native HTTP MCP with bearer auth`
-3. `fix(jobs): fail fast when a Linear ticket job has no credential`
-4. `fix(config): fall back to LINEAR_API_KEY for saved user configuration`
-5. `feat(agent): isolate Copilot session state per user`
-6. `test(agent): cover Linear MCP construction and credential validation`
-7. `test(config): cover LINEAR_API_KEY resolution in ServiceConfigFactory`
-8. `docs: describe headless Linear MCP and per-user Copilot home`
-9. `docs: remove TODO.md — plan executed`
+1. `docs: plan headless Linear MCP fix in TODO.md` — `a050e95`
+2. `feat(agent): reach Linear over native HTTP MCP with bearer auth` — `52ca073`
+3. `fix(jobs): fail fast when a Linear ticket job has no credential` — `1b1d991`
+4. `fix(config): fall back to LINEAR_API_KEY for saved user configuration` — `a1384ba`
+5. `feat(agent): isolate Copilot session state per user` — `86d953f`
+6. `test(agent): cover Linear MCP construction and credential validation` — `82fe49c`
+7. `test(config): cover LINEAR_API_KEY resolution in ServiceConfigFactory` — `e4d4e5b`
+8. `docs: describe headless Linear MCP and per-user Copilot home` — `c496a8e`
+9. `fix(agent): make the per-user Copilot home explicit in the runtime environment` — `9fd2682`
+10. `docs: remove TODO.md — plan executed`
+
+## Verification log
+
+- `dotnet build src/Symphony/Symphony.csproj` — 0 errors (2026-10-26).
+- `dotnet build tests/Symphony.Tests/Symphony.Tests.csproj` — 0 errors (2026-10-26).
+- `dotnet test tests/Symphony.Tests --filter "Category!=Integration&Category!=Smoke&Category!=ReleaseReadiness"` — 129 passed, 0 failed (2026-10-26).
+- G2 branch review: fixed three findings (explicit `COPILOT_HOME` export, per-user path
+  precedence over SDK merge order, test namespace) in `9fd2682`; no regressions found.
+- Docker image rebuild and runtime smoke test: pending after push/PR.
 
 ## GitHub issues log
 

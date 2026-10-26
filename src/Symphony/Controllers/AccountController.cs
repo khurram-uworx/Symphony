@@ -14,13 +14,15 @@ public sealed class AccountController(
     UserManager<IdentityUser> userManager,
     ConfigurationService? configurationService = null,
     ApiKeyService? apiKeyService = null,
-    IWebHostEnvironment? environment = null) : Controller
+    IWebHostEnvironment? environment = null,
+    JobService? jobService = null) : Controller
 {
     readonly SignInManager<IdentityUser> signInManager = signInManager;
     readonly UserManager<IdentityUser> userManager = userManager;
     readonly ConfigurationService? configuredConfigurationService = configurationService;
     readonly ApiKeyService? configuredApiKeyService = apiKeyService;
     readonly IWebHostEnvironment? configuredEnvironment = environment;
+    readonly JobService? configuredJobService = jobService;
     ConfigurationService ConfigurationService =>
         configuredConfigurationService
         ?? HttpContext?.RequestServices?.GetService<ConfigurationService>()
@@ -34,6 +36,11 @@ public sealed class AccountController(
     IWebHostEnvironment? WebHostEnvironment =>
         configuredEnvironment
         ?? HttpContext?.RequestServices?.GetService<IWebHostEnvironment>();
+
+    JobService JobService =>
+        configuredJobService
+        ?? HttpContext?.RequestServices?.GetService<JobService>()
+        ?? throw new InvalidOperationException("JobService is not available.");
 
     static bool isLoginPath(string returnUrl)
     {
@@ -124,6 +131,26 @@ public sealed class AccountController(
     {
         await signInManager.SignOutAsync();
         return RedirectToAction(nameof(Login));
+    }
+
+    [HttpGet]
+    [Authorize]
+    [Route("Account/JobDetail/{id:guid}")]
+    public async Task<IActionResult> JobDetail(Guid id, CancellationToken cancellationToken = default)
+    {
+        var userId = await GetUserIdAsync();
+        var isAdmin = User.IsInRole(AdminSeeder.AdminRole);
+        var job = await JobService.GetJobAsync(userId, id, isAdmin, cancellationToken);
+        if (job is null)
+            return NotFound();
+
+        var issues = await JobService.GetIssuesAsync(id, cancellationToken);
+        var events = await JobService.GetEventsAsync(id, 100, cancellationToken);
+
+        ViewData["Title"] = $"Job {job.Id}";
+        ViewBag.Issues = issues;
+        ViewBag.Events = events;
+        return View("JobDetail", job);
     }
 
     [HttpGet]

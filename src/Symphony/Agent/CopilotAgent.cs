@@ -111,7 +111,12 @@ class CopilotAgent : ICodingAgent
         if (mcpServers.Count > 0)
             logger.LogInformation("Registered MCP server(s): {Servers}", string.Join(", ", mcpServers.Keys));
         else if (string.Equals(config.Tracker.Kind, "linear", StringComparison.OrdinalIgnoreCase))
-            logger.LogWarning("Linear tracker has no credential; the Linear MCP server is disabled for this job.");
+        {
+            if (string.IsNullOrWhiteSpace(config.Tracker.ApiKey))
+                logger.LogWarning("Linear tracker has no credential; the Linear MCP server is disabled for this job.");
+            else
+                logger.LogInformation("Job does not submit Linear tickets; the Linear MCP server is not attached.");
+        }
 
         var copilotConfig = config.Copilot;
         if (copilotConfig is not null)

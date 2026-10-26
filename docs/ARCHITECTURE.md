@@ -60,6 +60,7 @@ docs/
 ## Identity, Authentication, and Authorization
 
 - ASP.NET Core Identity with cookie auth. Custom login/logout on AccountController (no Identity UI/Razor Pages).
+- Cookie challenge behavior depends on the endpoint: `/api/*` endpoints call `DisableCookieRedirect()`, so unauthenticated or unauthorized calls return 401/403 and never a login redirect. MVC screens keep the browser redirects to `/Account/Login` and `/Account/AccessDenied`. The 401/403 responses still include a `Location` header (framework behavior), so clients branch on status code, not on the redirect target.
 - API key auth via X-API-Key or Authorization: Bearer through ApiKeyMiddleware; keys user-owned, hashed, support enable/disable/rotate/revoke, raw value shown only once.
 - Role Admin required for /admin/*; users manage only their own resources; admins can view/cancel/retry any job and manage users/settings. Disabling/deleting a user invalidates sessions and API keys.
 

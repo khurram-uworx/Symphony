@@ -10,7 +10,7 @@ public static class ConfigurationEndpoints
 {
     public static IEndpointRouteBuilder MapConfigurationEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/configuration").RequireRateLimiting(ApiRateLimitPolicy.PolicyName);
+        var group = endpoints.MapGroup("/api/configuration").RequireRateLimiting(ApiRateLimitPolicy.PolicyName).DisableCookieRedirect();
 
         group.MapGet("/", GetAsync);
         group.MapPut("/", PutAsync);

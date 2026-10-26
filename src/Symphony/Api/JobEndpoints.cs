@@ -10,7 +10,7 @@ public static class JobEndpoints
 {
     public static IEndpointRouteBuilder MapJobEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/jobs").RequireRateLimiting(ApiRateLimitPolicy.PolicyName);
+        var group = endpoints.MapGroup("/api/jobs").RequireRateLimiting(ApiRateLimitPolicy.PolicyName).DisableCookieRedirect();
 
         group.MapGet("/", ListAsync);
         group.MapGet("/{id:guid}", GetAsync);

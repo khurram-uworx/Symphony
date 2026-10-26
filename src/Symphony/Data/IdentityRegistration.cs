@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 
 namespace Symphony.Data;
@@ -50,7 +51,33 @@ public static class IdentityRegistration
                 : CookieSecurePolicy.SameAsRequest;
             options.ExpireTimeSpan = TimeSpan.FromDays(14);
             options.SlidingExpiration = true;
+
+            options.Events.OnRedirectToLogin = context =>
+            {
+                if (IsApiOrAjax(context.Request))
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    return Task.CompletedTask;
+                }
+                context.Response.Redirect(context.RedirectUri);
+                return Task.CompletedTask;
+            };
+
+            options.Events.OnRedirectToAccessDenied = context =>
+            {
+                if (IsApiOrAjax(context.Request))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return Task.CompletedTask;
+                }
+                context.Response.Redirect(context.RedirectUri);
+                return Task.CompletedTask;
+            };
         });
+
+        static bool IsApiOrAjax(HttpRequest request) =>
+            request.Path.Value?.StartsWith("/api", StringComparison.OrdinalIgnoreCase) == true ||
+            string.Equals(request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
 
         services.Configure<SecurityStampValidatorOptions>(options =>
         {

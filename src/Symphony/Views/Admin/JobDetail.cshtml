@@ -16,108 +16,122 @@
         <p class="validation">@error</p>
     }
 
-    <dl>
-        <dt>Id</dt><dd>@Model.Id</dd>
-        <dt>Owner</dt><dd>@Model.OwnerUserId</dd>
-        <dt>Workflow</dt><dd>@Model.WorkflowName</dd>
-        <dt>State</dt><dd>@Model.State</dd>
-        <dt>Queued</dt><dd>@Model.QueuedAt</dd>
-        <dt>Started</dt><dd>@Model.StartedAt</dd>
-        <dt>Completed</dt><dd>@Model.CompletedAt</dd>
-        <dt>Repository</dt><dd>@Model.Repository</dd>
-        @if (!string.IsNullOrWhiteSpace(Model.ErrorCode) || !string.IsNullOrWhiteSpace(Model.ErrorMessage))
-        {
-            <dt>Error</dt><dd>@Model.ErrorCode @Model.ErrorMessage</dd>
-        }
-        @if (!string.IsNullOrWhiteSpace(Model.SummaryJson))
-        {
-            <dt>Summary</dt><dd>@Model.SummaryJson</dd>
-        }
-    </dl>
+    <div class="account-tabs" role="tablist" aria-label="Job detail tabs">
+        <button type="button" class="account-tab is-active" data-tab="details" role="tab" aria-selected="true">Details</button>
+        <button type="button" class="account-tab" data-tab="telemetry" role="tab" aria-selected="false">Telemetry</button>
+    </div>
 
-    @if (Model.State is not ("Completed" or "CompletedWithFailures" or "Failed" or "Cancelled"))
-    {
-        <form asp-action="CancelJob" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Cancel this job?');">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="danger">Cancel job</button>
-        </form>
-    }
-
-    <h2>Issues</h2>
-    @if (!issues.Any())
-    {
-        <p class="muted">No issues recorded.</p>
-    }
-    else
-    {
-        <table>
-            <thead>
-                <tr>
-                    <th>Identifier</th>
-                    <th>Title</th>
-                    <th>State</th>
-                    <th>Success</th>
-                    <th>Turns</th>
-                    <th>Started</th>
-                    <th>Completed</th>
-                    <th>Reason</th>
-                </tr>
-            </thead>
-            <tbody>
-            @foreach (var issue in issues)
+    <section id="job-tab-details" class="account-panel">
+        <dl>
+            <dt>Id</dt><dd>@Model.Id</dd>
+            <dt>Owner</dt><dd>@Model.OwnerUserId</dd>
+            <dt>Workflow</dt><dd>@Model.WorkflowName</dd>
+            <dt>State</dt><dd>@Model.State</dd>
+            <dt>Queued</dt><dd>@Model.QueuedAt</dd>
+            <dt>Started</dt><dd>@Model.StartedAt</dd>
+            <dt>Completed</dt><dd>@Model.CompletedAt</dd>
+            <dt>Repository</dt><dd>@Model.Repository</dd>
+            @if (!string.IsNullOrWhiteSpace(Model.ErrorCode) || !string.IsNullOrWhiteSpace(Model.ErrorMessage))
             {
-                <tr>
-                    <td>@(issue.Identifier ?? issue.IssueId)</td>
-                    <td>@issue.Title</td>
-                    <td>@issue.State</td>
-                    <td>@issue.Success</td>
-                    <td>@issue.TurnCount</td>
-                    <td>@issue.StartedAt</td>
-                    <td>@issue.CompletedAt</td>
-                    <td>@issue.Reason</td>
-                </tr>
+                <dt>Error</dt><dd>@Model.ErrorCode @Model.ErrorMessage</dd>
             }
-            </tbody>
-        </table>
-    }
-
-    <h2>Events</h2>
-    @if (!events.Any())
-    {
-        <p class="muted">No events recorded.</p>
-    }
-    else
-    {
-        <table>
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>Event</th>
-                    <th>Summary</th>
-                </tr>
-            </thead>
-            <tbody>
-            @foreach (var item in events)
+            @if (!string.IsNullOrWhiteSpace(Model.SummaryJson))
             {
-                <tr>
-                    <td>@item.Timestamp</td>
-                    <td>@item.EventName</td>
-                    <td>@item.Summary</td>
-                </tr>
+                <dt>Summary</dt><dd>@Model.SummaryJson</dd>
             }
-            </tbody>
-        </table>
-    }
+        </dl>
 
-    <h2>Telemetry</h2>
-    <p class="muted" id="telemetry-status">Loading telemetry…</p>
-    <div id="telemetry-root"></div>
+        @if (Model.State is not ("Completed" or "CompletedWithFailures" or "Failed" or "Cancelled"))
+        {
+            <form asp-action="CancelJob" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Cancel this job?');">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="danger">Cancel job</button>
+            </form>
+        }
+
+        <h2>Issues</h2>
+        @if (!issues.Any())
+        {
+            <p class="muted">No issues recorded.</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>Identifier</th>
+                        <th>Title</th>
+                        <th>State</th>
+                        <th>Success</th>
+                        <th>Turns</th>
+                        <th>Started</th>
+                        <th>Completed</th>
+                        <th>Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var issue in issues)
+                {
+                    <tr>
+                        <td>@(issue.Identifier ?? issue.IssueId)</td>
+                        <td>@issue.Title</td>
+                        <td>@issue.State</td>
+                        <td>@issue.Success</td>
+                        <td>@issue.TurnCount</td>
+                        <td>@issue.StartedAt</td>
+                        <td>@issue.CompletedAt</td>
+                        <td>@issue.Reason</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+
+        <h2>Events</h2>
+        @if (!events.Any())
+        {
+            <p class="muted">No events recorded.</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Event</th>
+                        <th>Summary</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var item in events)
+                {
+                    <tr>
+                        <td>@item.Timestamp</td>
+                        <td>@item.EventName</td>
+                        <td>@item.Summary</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+    </section>
+
+    <section id="job-tab-telemetry" class="account-panel" hidden>
+        <p class="muted" id="telemetry-status">Telemetry loads when this tab is opened.</p>
+        <div id="telemetry-root"></div>
+    </section>
 
     <script>
     (function () {
         const jobId = '@Model.Id';
         const status = document.getElementById('telemetry-status');
         const root = document.getElementById('telemetry-root');
+        const tabs = document.querySelectorAll('.account-tab');
+        const panels = {
+            details: document.getElementById('job-tab-details'),
+            telemetry: document.getElementById('job-tab-telemetry')
+        };
+        let telemetryTimer = null;
 
         function shortDate(value) {
             if (!value) return '—';
@@ -168,14 +182,45 @@
                 table.appendChild(thead);
                 table.appendChild(tbody);
                 root.appendChild(table);
+                if (bundle.truncated) {
+                    const note = document.createElement('p');
+                    note.className = 'muted';
+                    note.textContent = 'Showing the most recent 100 telemetry records.';
+                    root.appendChild(note);
+                }
             })
             .catch(function () {
                 status.textContent = 'Telemetry unavailable.';
             });
         }
 
-        loadTelemetry();
-        setInterval(loadTelemetry, 5000);
+        function activateTab(name) {
+            Object.keys(panels).forEach(function (key) {
+                panels[key].hidden = key !== name;
+            });
+            tabs.forEach(function (tab) {
+                const active = tab.getAttribute('data-tab') === name;
+                tab.classList.toggle('is-active', active);
+                tab.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+            if (name === 'telemetry') {
+                loadTelemetry();
+                if (!telemetryTimer) {
+                    telemetryTimer = setInterval(loadTelemetry, 5000);
+                }
+            } else if (telemetryTimer) {
+                clearInterval(telemetryTimer);
+                telemetryTimer = null;
+            }
+        }
+
+        tabs.forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                activateTab(tab.getAttribute('data-tab'));
+            });
+        });
+
+        activateTab('details');
     })();
     </script>
 </section>

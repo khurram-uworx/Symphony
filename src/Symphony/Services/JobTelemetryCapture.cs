@@ -66,10 +66,11 @@ public sealed class JobTelemetryCapture
         if (jobFiles.TryGetValue(jobId, out var path) && File.Exists(path))
         {
             var parsed = ParseFile(path);
-            parsed.Entries = parsed.Entries
+            var allEntries = parsed.Entries
                 .OrderByDescending(entry => entry.Timestamp)
-                .Take(100)
                 .ToList();
+            parsed.Entries = allEntries.Take(100).ToList();
+            parsed.Truncated = parsed.Truncated || allEntries.Count > 100;
             return parsed;
         }
 
@@ -77,25 +78,28 @@ public sealed class JobTelemetryCapture
         var rows = await db.JobTelemetry
             .AsNoTracking()
             .Where(item => item.JobId == jobId)
-            .OrderByDescending(item => item.Timestamp)
-            .Take(100)
             .ToListAsync(cancellationToken);
+
+        var entries = rows
+            .Select(row => new JobTelemetryEntry
+            {
+                Signal = row.Signal,
+                Timestamp = row.Timestamp,
+                TraceId = row.TraceId,
+                SpanId = row.SpanId,
+                ParentSpanId = row.ParentSpanId,
+                Name = row.Name,
+                Severity = row.Severity,
+                DurationMs = row.DurationMs,
+                PayloadJson = row.PayloadJson
+            })
+            .OrderByDescending(entry => entry.Timestamp)
+            .ToList();
 
         return new JobTelemetryBundle
         {
-            Entries = rows
-                .Select(row => new JobTelemetryEntry
-                {
-                    Signal = row.Signal,
-                    Timestamp = row.Timestamp,
-                    TraceId = row.TraceId,
-                    SpanId = row.SpanId,
-                    ParentSpanId = row.ParentSpanId,
-                    Name = row.Name,
-                    Severity = row.Severity,
-                    DurationMs = row.DurationMs,
-                    PayloadJson = row.PayloadJson
-                }).ToList()
+            Entries = entries.Take(100).ToList(),
+            Truncated = entries.Count > 100
         };
     }
 

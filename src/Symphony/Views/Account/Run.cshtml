@@ -368,8 +368,7 @@
             queued.textContent = shortDate(job.queuedAt);
             const statusCell = document.createElement('td');
             const link = document.createElement('a');
-            link.href = '/api/jobs/' + job.id;
-            link.target = '_blank';
+            link.href = '/Account/JobDetail/' + encodeURIComponent(job.id);
             link.textContent = 'View';
             statusCell.appendChild(link);
 

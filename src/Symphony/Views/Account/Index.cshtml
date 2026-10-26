@@ -11,12 +11,6 @@
     var newKey = ViewData["NewApiKey"] as string;
     var newKeyName = ViewData["NewApiKeyName"] as string;
 }
-<style>
-    #job-details-dialog { width: min(46rem, 92vw); }
-    .job-details-grid { display: grid; grid-template-columns: minmax(8rem, 10rem) 1fr; gap: 0.35rem 1rem; margin: 0.75rem 0; }
-    .job-details-grid dt { font-weight: 600; }
-    .job-details-grid dd { margin: 0; }
-</style>
 <section class="panel">
     <div class="account-header">
         <h1>Account</h1>
@@ -28,7 +22,6 @@
     <p class="muted">Hello, @displayName <span class="muted">(@((roles.Any() ? string.Join(", ", roles) : "User")))</span></p>
 
     <div class="account-tabs" role="tablist">
-        <button type="button" class="account-tab @(activeTab == "jobs" ? "is-active" : null)" data-tab="jobs" role="tab" aria-selected="@(activeTab == "jobs" ? "true" : "false")">Jobs</button>
         <button type="button" class="account-tab @(activeTab == "repository" ? "is-active" : null)" data-tab="repository" role="tab" aria-selected="@(activeTab == "repository" ? "true" : "false")">Repository</button>
         <button type="button" class="account-tab @(activeTab == "worksource" ? "is-active" : null)" data-tab="worksource" role="tab" aria-selected="@(activeTab == "worksource" ? "true" : "false")">Work source</button>
         <button type="button" class="account-tab @(activeTab == "copilot" ? "is-active" : null)" data-tab="copilot" role="tab" aria-selected="@(activeTab == "copilot" ? "true" : "false")">Copilot settings</button>
@@ -340,47 +333,7 @@
         }
     </div>
 
-    <div id="account-tab-jobs" class="account-panel" @(activeTab == "jobs" ? null : "hidden")>
-        <h2>Active jobs</h2>
-        <table class="workflow-table" aria-label="Active jobs">
-            <thead>
-                <tr>
-                    <th>Job</th>
-                    <th>Workflow</th>
-                    <th>State</th>
-                    <th>Queued</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody id="account-active-jobs"></tbody>
-        </table>
-        <p id="account-active-jobs-empty" class="muted">No active jobs.</p>
-
-        <h2>Past jobs</h2>
-        <table class="workflow-table" aria-label="Past jobs">
-            <thead>
-                <tr>
-                    <th>Job</th>
-                    <th>Workflow</th>
-                    <th>State</th>
-                    <th>Queued</th>
-                    <th>Completed</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody id="account-past-jobs"></tbody>
-        </table>
-        <p id="account-past-jobs-empty" class="muted">No past jobs.</p>
-    </div>
 </section>
-
-<dialog id="job-details-dialog">
-    <h2>Job details</h2>
-    <div id="job-details-body"></div>
-    <div class="dialog-actions">
-        <button type="button" onclick="this.closest('dialog').close()">Close</button>
-    </div>
-</dialog>
 
 <script>
     window.activeAccountTab = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(activeTab));
@@ -418,14 +371,11 @@
             const queued = document.createElement('td');
             queued.textContent = shortDate(job.queuedAt);
             const statusCell = document.createElement('td');
-            const viewButton = document.createElement('button');
-            viewButton.type = 'button';
-            viewButton.className = 'job-details-trigger';
-            viewButton.textContent = 'View';
-            viewButton.addEventListener('click', function () {
-                openJobDetails(job.id);
-            });
-            statusCell.appendChild(viewButton);
+            const viewLink = document.createElement('a');
+            viewLink.href = '/Account/JobDetail/' + encodeURIComponent(job.id);
+            viewLink.className = 'job-details-trigger';
+            viewLink.textContent = 'View';
+            statusCell.appendChild(viewLink);
 
             row.appendChild(jobId);
             row.appendChild(workflow);
@@ -452,191 +402,14 @@
         if (pastEmpty) pastEmpty.hidden = pastCount !== 0;
     }
 
-    async function openJobDetails(jobId) {
-        const dialog = document.getElementById('job-details-dialog');
-        const body = document.getElementById('job-details-body');
-        body.replaceChildren();
-        const oldRetry = dialog.querySelector('.job-retry-trigger');
-        if (oldRetry) oldRetry.remove();
-        const loading = document.createElement('p');
-        loading.className = 'muted';
-        loading.textContent = 'Loading job details…';
-        body.appendChild(loading);
-        dialog.showModal();
 
-        try {
-            const response = await fetch('/api/jobs/' + jobId, { credentials: 'same-origin' });
-            if (!response.ok) throw new Error('Job not found.');
-            const job = await response.json();
-            body.replaceChildren();
 
-            const grid = document.createElement('dl');
-            grid.className = 'job-details-grid';
-
-            function addDetail(label, value) {
-                const dt = document.createElement('dt');
-                dt.textContent = label;
-                const dd = document.createElement('dd');
-                dd.textContent = value === null || value === undefined || value === '' ? '—' : String(value);
-                grid.appendChild(dt);
-                grid.appendChild(dd);
-            }
-
-            addDetail('Job ID', job.id);
-            addDetail('External ID', job.externalId);
-            addDetail('Workflow', job.workflowName);
-            addDetail('Repository', job.repository || (job.github && job.github.repository));
-            addDetail('State', job.state);
-            addDetail('Queued', shortDate(job.queuedAt));
-            addDetail('Started', shortDate(job.startedAt));
-            addDetail('Completed', shortDate(job.completedAt));
-            addDetail('Issue count', job.issueCount);
-            addDetail('Failed issues', job.failedIssueCount);
-            if (job.error || job.errorMessage || job.errorCode) {
-                addDetail('Error', job.errorMessage || job.error || job.errorCode);
-            }
-            if (job.summary) addDetail('Summary', job.summary);
-
-            body.appendChild(grid);
-
-            if (Array.isArray(job.issues) && job.issues.length > 0) {
-                const heading = document.createElement('h3');
-                heading.textContent = 'Issues';
-                body.appendChild(heading);
-
-                const table = document.createElement('table');
-                table.className = 'workflow-table';
-                const thead = document.createElement('thead');
-                thead.innerHTML = '<tr><th>#</th><th>Identifier</th><th>Title</th><th>State</th><th>Result</th></tr>';
-                const tbody = document.createElement('tbody');
-                job.issues.forEach(function (issue, index) {
-                    const row = document.createElement('tr');
-                    const idCell = document.createElement('td');
-                    idCell.textContent = index + 1;
-                    const identifierCell = document.createElement('td');
-                    identifierCell.textContent = issue.identifier || issue.id || '—';
-                    const titleCell = document.createElement('td');
-                    titleCell.textContent = issue.title || '—';
-                    const stateCell = document.createElement('td');
-                    stateCell.textContent = issue.state || '—';
-                    const resultCell = document.createElement('td');
-                    resultCell.textContent = issue.reason || issue.success === true ? 'OK' : (issue.success === false ? 'Failed' : '—');
-                    row.appendChild(idCell);
-                    row.appendChild(identifierCell);
-                    row.appendChild(titleCell);
-                    row.appendChild(stateCell);
-                    row.appendChild(resultCell);
-                    tbody.appendChild(row);
-                });
-                table.appendChild(thead);
-                table.appendChild(tbody);
-                body.appendChild(table);
-            }
-
-            try {
-                const telemetryResponse = await fetch('/api/jobs/' + jobId + '/telemetry', { credentials: 'same-origin' });
-                if (telemetryResponse.ok) {
-                    const telemetryBundle = await telemetryResponse.json();
-                    const telemetryEntries = (Array.isArray(telemetryBundle.entries) ? telemetryBundle.entries : [])
-                        .slice()
-                        .sort(function (a, b) { return new Date(b.timestamp || 0) - new Date(a.timestamp || 0); });
-                    if (telemetryEntries.length > 0) {
-                        const telemetryHeading = document.createElement('h3');
-                        telemetryHeading.textContent = 'Telemetry';
-                        body.appendChild(telemetryHeading);
-
-                        const telemetryTable = document.createElement('table');
-                        telemetryTable.className = 'workflow-table';
-                        const telemetryHead = document.createElement('thead');
-                        telemetryHead.innerHTML = '<tr><th>Time</th><th>Signal</th><th>Name</th><th>Duration</th></tr>';
-                        const telemetryBody = document.createElement('tbody');
-                        telemetryEntries.slice(0, 100).forEach(function (entry) {
-                            const row = document.createElement('tr');
-                            const cells = [
-                                shortDate(entry.timestamp),
-                                entry.signal || '—',
-                                entry.name || '—',
-                                (entry.durationMs === null || entry.durationMs === undefined) ? '—' : (entry.durationMs + ' ms')
-                            ];
-                            cells.forEach(function (value) {
-                                const td = document.createElement('td');
-                                td.textContent = String(value);
-                                row.appendChild(td);
-                            });
-                            telemetryBody.appendChild(row);
-                        });
-                        telemetryTable.appendChild(telemetryHead);
-                        telemetryTable.appendChild(telemetryBody);
-                        body.appendChild(telemetryTable);
-                        if (telemetryEntries.length > 100) {
-                            const note = document.createElement('p');
-                            note.className = 'muted';
-                            note.textContent = 'Showing most recent 100 of ' + telemetryEntries.length + ' telemetry records.';                            body.appendChild(note);
-                        }
-                    }
-                }
-            } catch (_) { }
-
-            const normalizedState = String(job.state || '').toLowerCase();
-            if (normalizedState === 'failed' || normalizedState === 'completedwithfailures') {
-                const actions = dialog.querySelector('.dialog-actions');
-                const retryButton = document.createElement('button');
-                retryButton.type = 'button';
-                retryButton.className = 'primary-button job-retry-trigger';
-                retryButton.textContent = 'Retry job';
-                retryButton.addEventListener('click', async function () {
-                    retryButton.disabled = true;
-                    retryButton.textContent = 'Retrying…';
-                    try {
-                        const response = await fetch('/api/jobs/' + jobId + '/retry', {
-                            method: 'POST',
-                            credentials: 'same-origin'
-                        });
-                        if (!response.ok) {
-                            const payload = await response.json().catch(function () { return {}; });
-                            throw new Error((payload && (payload.error || payload.message)) || 'Retry failed.');
-                        }
-                        dialog.close();
-                        loadJobs();
-                    } catch (retryError) {
-                        retryButton.disabled = false;
-                        retryButton.textContent = 'Retry job';
-                        window.alert(retryError.message || 'Retry failed.');
-                    }
-                });
-                actions.insertBefore(retryButton, actions.firstChild);
-            }
-        } catch (error) {
-            body.replaceChildren();
-            const message = document.createElement('p');
-            message.className = 'validation';
-            message.textContent = 'Unable to load job details.';
-            body.appendChild(message);
-        }
-    }
-
-    async function loadJobs() {
-        try {
-            const response = await fetch('/api/jobs?pageSize=20', { credentials: 'same-origin' });
-            if (!response.ok) return;
-            const jobs = await response.json();
-            const sortedJobs = Array.isArray(jobs) ? jobs.slice().sort(function (a, b) {
-                return new Date(b.queuedAt || 0) - new Date(a.queuedAt || 0);
-            }) : [];
-            renderJobs(sortedJobs);
-        } catch (_) {
-        }
-    }
-
-    loadJobs();
-    setInterval(loadJobs, 5000);
 })();
 </script>
 <script>
     (function () {
         const tabs = document.querySelectorAll('.account-tab');
         const panels = {
-            jobs: document.getElementById('account-tab-jobs'),
             worksource: document.getElementById('account-tab-worksource'),
             copilot: document.getElementById('account-tab-copilot'),
             repository: document.getElementById('account-tab-repository'),

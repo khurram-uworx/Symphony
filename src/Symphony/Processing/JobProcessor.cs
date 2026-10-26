@@ -360,7 +360,7 @@ public sealed class JobProcessor : BackgroundService
         var telemetryCapture = sp.GetService<JobTelemetryCapture>();
         telemetryCapture?.BeginJob(job.Id, userConfig?.TelemetryContentEnabled ?? false);
 
-        var codingAgent = TryCreateCodingAgent(scopedConfig, processorLogger, telemetryCapture) ?? throw new InvalidOperationException("agent_unavailable: no coding agent configured.");
+        var codingAgent = TryCreateCodingAgent(scopedConfig, sp.GetRequiredService<ILoggerFactory>(), telemetryCapture) ?? throw new InvalidOperationException("agent_unavailable: no coding agent configured.");
 
         foreach (var issue in issues)
         {
@@ -573,7 +573,7 @@ public sealed class JobProcessor : BackgroundService
         return new Issue(id, identifier, title, description, priority, state, null, null, [], [], DateTimeOffset.UtcNow, null);
     }
 
-    static ICodingAgent? TryCreateCodingAgent(ServiceConfig config, ILogger logger, JobTelemetryCapture? telemetryCapture = null)
+    static ICodingAgent? TryCreateCodingAgent(ServiceConfig config, ILoggerFactory loggerFactory, JobTelemetryCapture? telemetryCapture = null)
     {
         if (config.Copilot is null)
             return new NoOpCodingAgent();
@@ -582,11 +582,11 @@ public sealed class JobProcessor : BackgroundService
 
         try
         {
-            return CodingAgentFactory.Create(config, logger: null, telemetryCapture: telemetryCapture);
+            return CodingAgentFactory.Create(config, loggerFactory, telemetryCapture);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to create coding agent.");
+            loggerFactory.CreateLogger<JobProcessor>().LogError(ex, "Failed to create coding agent.");
             throw;
         }
     }

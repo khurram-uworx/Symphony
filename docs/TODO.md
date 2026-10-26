@@ -135,6 +135,14 @@ documented `LINEAR_API_KEY` path could not work with the sample stack even thoug
 `LINEAR_API_KEY: ${LINEAR_API_KEY:-}` to the app service, document it in `samples/.env`, and
 note the forwarding in `CONTAINER-README.md`.
 
+### 12. Follow-up: give `CopilotAgent` a real logger (Docker smoke, 2026-10-26)
+
+`JobProcessor.TryCreateCodingAgent` called `CodingAgentFactory.Create(config, logger: null, …)`,
+so `CopilotAgent` always ran with `NullLogger`: the "Registered MCP server(s)" line and the
+headless MCP auth cancellation warning never reached the container log. That is exactly the
+diagnostic an operator needs for this feature, and ADR-0004 already promises a logged warning.
+Pass the job's `ILoggerFactory` so both lines are emitted.
+
 ## Verification
 
 - `dotnet build Symphony.slnx`

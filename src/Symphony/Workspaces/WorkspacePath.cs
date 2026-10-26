@@ -56,4 +56,7 @@ public static class WorkspacePath
         var root = RequireAbsoluteRoot(baseRoot);
         return EnsureContainedBy(root, Path.Combine(root, ownerUserId));
     }
+
+    internal static string CopilotHomeFor(string userRoot) =>
+        EnsureContainedBy(userRoot, Path.Combine(userRoot, ".copilot"));
 }

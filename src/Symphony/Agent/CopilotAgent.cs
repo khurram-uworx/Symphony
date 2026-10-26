@@ -74,28 +74,48 @@ class CopilotAgent : ICodingAgent
                 $"job.id={jobId},service.name=symphony";
         }
 
+        if (!string.IsNullOrWhiteSpace(config.CopilotHome))
+        {
+            Directory.CreateDirectory(config.CopilotHome);
+            environment["COPILOT_HOME"] = config.CopilotHome;
+            clientOptions.BaseDirectory = config.CopilotHome;
+        }
+
         clientOptions.Environment = environment;
 
         copilotClient = new CopilotClient(clientOptions);
         await copilotClient.StartAsync();
 
+        var mcpServers = CopilotMcpServers.Build(config);
         var sessionConfig = new SessionConfig
         {
 #pragma warning disable GHCP001
             OnPermissionRequest = (req, inv) => Task.FromResult(PermissionDecision.ApproveOnce()),
 #pragma warning restore GHCP001
-            McpServers = new Dictionary<string, McpServerConfig>(),
-            WorkingDirectory = workspacePath
+            McpServers = mcpServers,
+            WorkingDirectory = workspacePath,
+            McpOAuthTokenStorage = McpOAuthTokenStorageMode.InMemory,
+            InteractiveUser = false,
+#pragma warning disable GHCP001
+            OnMcpAuthRequest = context =>
+            {
+                logger.LogWarning(
+                    "MCP server {ServerName} requested interactive authentication ({Reason}); cancelling because the agent runs headless.",
+                    context.ServerName,
+                    context.Reason);
+                return Task.FromResult<McpAuthResult?>(new McpAuthResult { Cancelled = true });
+            }
+#pragma warning restore GHCP001
         };
 
-        if (string.Equals(config.Tracker.Kind, "linear", StringComparison.OrdinalIgnoreCase))
+        if (mcpServers.Count > 0)
+            logger.LogInformation("Registered MCP server(s): {Servers}", string.Join(", ", mcpServers.Keys));
+        else if (string.Equals(config.Tracker.Kind, "linear", StringComparison.OrdinalIgnoreCase))
         {
-            sessionConfig.McpServers["linear"] = new McpStdioServerConfig
-            {
-                Command = "npx",
-                Args = ["-y", "mcp-remote", "https://mcp.linear.app/mcp"],
-                Tools = ["*"],
-            };
+            if (string.IsNullOrWhiteSpace(config.Tracker.ApiKey))
+                logger.LogWarning("Linear tracker has no credential; the Linear MCP server is disabled for this job.");
+            else
+                logger.LogInformation("Job does not submit Linear tickets; the Linear MCP server is not attached.");
         }
 
         var copilotConfig = config.Copilot;

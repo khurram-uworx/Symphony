@@ -48,6 +48,8 @@ Current, implemented capabilities of the Symphony .NET web host. For runtime/des
 ## Trackers and Agents
 
 - Linear, Jira, and GitHub Issues trackers (optional context sources).
+- Linear MCP over native Streamable HTTP with tracker-key bearer auth, so ticket jobs work headlessly in containers.
+- Per-user Copilot session state; interactive MCP OAuth is disabled for unattended jobs.
 - Copilot SDK and Codex coding agents.
 - Workspace management and hooks.
 - Null tracker for inline work items.

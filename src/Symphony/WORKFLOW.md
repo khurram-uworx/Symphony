@@ -55,9 +55,9 @@ Instructions:
 
 Work only in the provided repository copy. Do not touch any other path.
 
-## Prerequisite: Linear MCP or `linear_graphql` tool is available
+## Prerequisite: Linear access for ticket jobs
 
-The agent should be able to talk to Linear, either via a configured Linear MCP server or injected `linear_graphql` tool. If none are present, stop and ask the user to configure Linear.
+Jobs that submit Linear tickets need to talk to Linear, either via the configured Linear MCP server (Streamable HTTP authenticated with the tracker API key) or the injected `linear_graphql` tool. Jobs submitted as work items only do not need Linear access. A ticket job without a Linear credential fails fast with `linear_credentials_missing`; record that as the blocker instead of waiting for interactive authentication.
 
 ## Default posture
 

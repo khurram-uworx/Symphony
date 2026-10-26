@@ -94,6 +94,25 @@ class WorkspacePathSafetyTests
     }
 
     [Test]
+    public void CopilotHomeFor_UserRoot_ReturnsContainedCopilotDirectory()
+    {
+        var userRoot = WorkspacePath.UserScopedRoot(Root, "user-1");
+
+        var home = WorkspacePath.CopilotHomeFor(userRoot);
+
+        Assert.That(home, Is.EqualTo(Path.Combine(userRoot, ".copilot")));
+    }
+
+    [Test]
+    public void CopilotHomeFor_TwoOwners_ProduceDifferentDirectories()
+    {
+        var first = WorkspacePath.CopilotHomeFor(WorkspacePath.UserScopedRoot(Root, "user-1"));
+        var second = WorkspacePath.CopilotHomeFor(WorkspacePath.UserScopedRoot(Root, "user-2"));
+
+        Assert.That(first, Is.Not.EqualTo(second));
+    }
+
+    [Test]
     public void CreateForIssueAsync_EscapingIdentifier_Throws()
     {
         var manager = createManager(Path.Combine(Root, "user-1"));

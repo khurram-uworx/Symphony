@@ -24,6 +24,10 @@ services:
       DataProtection__KeysPath: /home/app/.aspnet/DataProtection-Keys
       Database__Provider: postgresql
       ConnectionStrings__PostgreSQL: "Host=postgres;Port=5432;Database=symphony;Username=symphony;Password=symphony"
+      # Local development defaults. Use the samples/ stack (and change every value) for anything else.
+      SeedAdmin__UserName: testadmin
+      SeedAdmin__Password: Symphony!dev1
+      ApiKeys__ServerKey: symphony-change-me-in-production
       # Provider switching examples:
       # Database__Provider: sqlite
       # ConnectionStrings__Sqlite: "Data Source=App_Data/symphony.db"

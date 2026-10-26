@@ -352,7 +352,8 @@ public sealed class JobProcessor : BackgroundService
         {
             Workspace = config.Workspace with { Root = repositoryRoot },
             Repository = repositoryContext,
-            CopilotHome = WorkspacePath.CopilotHomeFor(userRoot)
+            CopilotHome = WorkspacePath.CopilotHomeFor(userRoot),
+            SubmitsTickets = hasTickets
         };
         var configProvider = new StaticServiceConfigProvider(scopedConfig);
         var workspaceManager = new WorkspaceManager(configProvider, shell, processorLogger is ILogger<WorkspaceManager> wmLogger ? wmLogger : Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkspaceManager>.Instance);

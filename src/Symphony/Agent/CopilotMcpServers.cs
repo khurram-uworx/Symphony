@@ -11,7 +11,7 @@ static class CopilotMcpServers
     internal static Dictionary<string, McpServerConfig> Build(ServiceConfig config)
     {
         var servers = new Dictionary<string, McpServerConfig>();
-        if (!IsLinear(config.Tracker) || string.IsNullOrWhiteSpace(config.Tracker.ApiKey))
+        if (!config.SubmitsTickets || !IsLinear(config.Tracker) || string.IsNullOrWhiteSpace(config.Tracker.ApiKey))
             return servers;
 
         servers[LinearServerName] = new McpHttpServerConfig

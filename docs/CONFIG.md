@@ -115,7 +115,7 @@ Source resolution order:
 
 - `LinearClient` sends `tracker.api_key` unchanged as the HTTP `Authorization` header.
 - Agent sessions register the Linear MCP server at `https://mcp.linear.app/mcp` over native Streamable HTTP with `Authorization: Bearer <tracker.api_key>`. No `npx` proxy, browser, or OAuth callback is involved, so this works headlessly in containers.
-- The MCP server is registered only when the tracker is Linear and the key is non-empty. Jobs submitted as work items only run without Linear MCP.
+- The MCP server is registered only when the job submits ticket IDs, the tracker is Linear, and the key is non-empty. Work-item-only jobs get no Linear MCP server, even on an account with a Linear tracker and key.
 - A job that submits Linear tickets without a credential fails before the agent starts with `linear_credentials_missing`.
 - Recommended configuration:
 

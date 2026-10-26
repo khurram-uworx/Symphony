@@ -20,7 +20,7 @@ with no credential. `mcp-remote` therefore started OAuth 2.1 with a loopback cal
 ## Decision
 
 - The Linear MCP server is declared as native Streamable HTTP (`McpHttpServerConfig`) at `https://mcp.linear.app/mcp` with `Authorization: Bearer <tracker api key>`. No `npx`, no proxy, and no `~/.mcp-auth`.
-- `CopilotMcpServers` is the single place that decides which MCP servers a job gets. A server is registered only for a Linear tracker with a non-blank key. Every other job gets an empty map.
+- `CopilotMcpServers` is the single place that decides which MCP servers a job gets. A server is registered only for a job that submits ticket IDs on a Linear tracker with a non-blank key. Work-item-only jobs and non-Linear trackers get an empty map, so an unattended job only carries the tools its work source needs.
 - A job that submits Linear tickets without a credential fails before the issue fetch and before the agent starts, with `linear_credentials_missing`. Work-item-only jobs never require Linear access.
 - `ServiceConfigFactory.BuildTracker` falls back to `LINEAR_API_KEY`, matching `TrackerConfig.From`.
 - MCP authentication is headless-only: `McpOAuthTokenStorage` is in-memory, `InteractiveUser` is false, and `OnMcpAuthRequest` cancels with a warning log. A rejected key therefore fails immediately instead of waiting for a callback that cannot happen.

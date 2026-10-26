@@ -49,11 +49,12 @@ Issue #109: the Linear MCP integration cannot run headlessly in containers.
 
 - `LinearServerName = "linear"`, `LinearMcpUrl = "https://mcp.linear.app/mcp"`.
 - `Build(ServiceConfig)` returns a map of MCP server configs:
-  - Linear tracker with a non-blank key -> one `McpHttpServerConfig` with `Url`,
-    `Tools = ["*"]`, and `Headers["Authorization"] = "Bearer " + key`.
-  - Linear tracker without a key -> no server (never a credential-less linear server, which
-    is what triggers interactive OAuth).
-  - Any other tracker -> empty map.
+  - Job submits Linear tickets, tracker is Linear, and the key is non-blank -> one
+    `McpHttpServerConfig` with `Url`, `Tools = ["*"]`, and
+    `Headers["Authorization"] = "Bearer " + key`.
+  - Any other job (work-item-only job, Linear tracker without a key, non-Linear tracker) ->
+    no server. A work-item job on a Linear account must not open an MCP connection it does
+    not need; a credential-less Linear server is also what triggers interactive OAuth.
 - `BuildAuthorizationHeader(key)` normalizes an already-prefixed `Bearer ` value.
 - `Validate(ServiceConfig, bool requiresLinearTracker)` returns
   `"linear_credentials_missing: set the Linear API key in configuration or provide LINEAR_API_KEY."`
@@ -87,7 +88,8 @@ Add trailing optional `string? CopilotHome = null` to the `ServiceConfig` record
 
 - After `hasTickets` and the GitHub overrides:
   `if (CopilotMcpServers.Validate(config, hasTickets) is { } error) throw new InvalidOperationException(error);`
-- `scopedConfig` gains `CopilotHome = WorkspacePath.CopilotHomeFor(userRoot)`.
+- `scopedConfig` gains `CopilotHome = WorkspacePath.CopilotHomeFor(userRoot)` and
+  `SubmitsTickets = hasTickets`, so MCP registration follows the job's work source.
 
 ### 7. `src/Symphony/WORKFLOW.md`
 
@@ -108,6 +110,30 @@ jobs without a credential must not stop on it.
 - `CONTAINER-README.md` — how to supply the Linear credential, where agent state lives.
 - `docs/adr/0004-headless-linear-mcp.md` (new) and the ADR-0003 deferral note.
 - `docs/FEATURES.md` — one-line entry.
+
+### 10. Follow-up: gate MCP on the work source (human review, 2026-10-26)
+
+Linear MCP must be attached only when the job's work source is Linear tickets **and** a key is
+available. An account-level Linear tracker is not enough: a work-item-only job on that account
+does not need Linear, should not open an MCP connection, and should keep the smallest tool
+surface. Implementation:
+
+- `ServiceConfig` gains a trailing optional `bool SubmitsTickets = false` (job-scoped flag, same
+  pattern as `CopilotHome`).
+- `CopilotMcpServers.Build` requires `config.SubmitsTickets` in addition to
+  Linear tracker + non-blank key.
+- `JobProcessor` sets `SubmitsTickets = hasTickets` on `scopedConfig`.
+- Tests: `Build_WorkItemJobWithLinearTrackerAndKey_ReturnsNoServers`.
+- Docs: make the work-source condition explicit in `docs/CONFIG.md`, ADR-0004, and
+  `CONTAINER-README.md`.
+
+### 11. Follow-up: forward `LINEAR_API_KEY` in the sample stack (Docker smoke, 2026-10-26)
+
+`samples/docker-compose.yml` passed no Linear credential into the app container, so the
+documented `LINEAR_API_KEY` path could not work with the sample stack even though
+`CONTAINER-README.md` told operators to set it. Add
+`LINEAR_API_KEY: ${LINEAR_API_KEY:-}` to the app service, document it in `samples/.env`, and
+note the forwarding in `CONTAINER-README.md`.
 
 ## Verification
 

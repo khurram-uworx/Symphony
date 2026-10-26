@@ -73,7 +73,13 @@ class CopilotMcpServersTests
         Assert.That(CopilotMcpServers.Validate(Config("github", string.Empty), requiresLinearTracker: true), Is.Null);
     }
 
-    static ServiceConfig Config(string kind, string apiKey) =>
+    [Test]
+    public void Build_WorkItemJobWithLinearTrackerAndKey_ReturnsNoServers()
+    {
+        Assert.That(CopilotMcpServers.Build(Config("linear", "lin_api_key", submitsTickets: false)), Is.Empty);
+    }
+
+    static ServiceConfig Config(string kind, string apiKey, bool submitsTickets = true) =>
         new(
             new Workflows.WorkflowDefinition(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase), ""),
             new TrackerConfig(kind, "endpoint", apiKey, "slug", [], []),
@@ -81,5 +87,6 @@ class CopilotMcpServersTests
             new HooksConfig(null, null, null, null, 60000),
             new AgentConfig(1, 1, 1, new Dictionary<string, int>()),
             null,
-            null);
+            null,
+            SubmitsTickets: submitsTickets);
 }

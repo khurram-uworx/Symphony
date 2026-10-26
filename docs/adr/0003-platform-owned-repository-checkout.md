@@ -33,4 +33,4 @@ That put a required job step in user-editable content, so deleting the hook prod
 - Checkouts survive only as long as the workspace directory; the `workspaces` volume keeps them across container restarts, and losing it only forces a re-clone.
 - History is truncated. `git fetch --deepen=<n>` reaches older commits; a full history would cost a much larger clone per job.
 - With no token, a job that has a repository fails at clone time with a clear git error instead of failing later inside the agent.
-- Headless Linear MCP authentication is not solved by this decision; it is tracked separately (issue #109).
+- Headless Linear MCP authentication is not solved by this decision; it is tracked separately (issue #109) and resolved by [ADR-0004](0004-headless-linear-mcp.md).

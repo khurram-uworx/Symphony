@@ -107,13 +107,16 @@ Symphony reads tracker credentials from configuration and/or the environment. Va
 
 Source resolution order:
 
-1. If `tracker.api_key` is set, use it (literal value).
-2. If it is missing for **Linear**, Symphony also checks the `LINEAR_API_KEY` environment variable directly.
-3. If the value starts with `$` (for example `$LINEAR_API_KEY`), resolve it from the named environment variable.
+1. If `tracker.api_key` starts with `$` (for example `$LINEAR_API_KEY`), resolve it from the named environment variable.
+2. Otherwise use `tracker.api_key` literally.
+3. If the resolved value is empty and the tracker is **Linear**, Symphony falls back to the `LINEAR_API_KEY` environment variable directly. This applies to the saved user configuration used by jobs as well as to workflow front matter.
 
 #### Linear
 
 - `LinearClient` sends `tracker.api_key` unchanged as the HTTP `Authorization` header.
+- Agent sessions register the Linear MCP server at `https://mcp.linear.app/mcp` over native Streamable HTTP with `Authorization: Bearer <tracker.api_key>`. No `npx` proxy, browser, or OAuth callback is involved, so this works headlessly in containers.
+- The MCP server is registered only when the tracker is Linear and the key is non-empty. Jobs submitted as work items only run without Linear MCP.
+- A job that submits Linear tickets without a credential fails before the agent starts with `linear_credentials_missing`.
 - Recommended configuration:
 
 ```yaml
@@ -122,7 +125,7 @@ tracker:
   api_key: $LINEAR_API_KEY
 ```
 
-or (for backwards compatibility) rely on the implicit `LINEAR_API_KEY` environment variable when `api_key` is omitted.
+or (for backwards compatibility) rely on the implicit `LINEAR_API_KEY` environment variable when `api_key` is omitted or blank.
 
 ### Jira
 
@@ -151,14 +154,16 @@ or (for backwards compatibility) rely on the implicit `LINEAR_API_KEY` environme
 
 - Symphony does not store Copilot credentials in the workflow file.
 - `CopilotAgent` creates a `CopilotClient` and relies on the GitHub Copilot runtime/CLI authentication and environment state.
+- Each job gets its own Copilot home at `<user workspace root>/.copilot`; the shared `~/.copilot` is never used. Session state and cached configuration therefore stay isolated per Symphony user.
+- Interactive MCP authentication is disabled: OAuth tokens are in-memory only and an MCP auth request is cancelled with a warning, so a rejected credential fails instead of waiting for a browser.
 
 ### Validation
 
-Tracker configuration is optional. A tracker is only required when submitting ticket IDs. When submitting ticket IDs without a tracker configured, requests are rejected.
+Tracker configuration is optional. A tracker is only required when submitting ticket IDs. When submitting ticket IDs without a tracker configured, requests are rejected. A job that submits Linear tickets with a Linear tracker but no credential is rejected with `linear_credentials_missing`.
 
 ## Environment variables
 
-- `LINEAR_API_KEY` — Linear (and fallback Jira-style) API token. Used when `tracker.api_key` is missing or referenced as `$LINEAR_API_KEY`.
+- `LINEAR_API_KEY` — Linear API token. Used by the Linear tracker and by the Linear MCP server when `tracker.api_key` is missing or referenced as `$LINEAR_API_KEY`.
 - `GITHUB_TOKEN` / `GH_TOKEN` — GitHub token fallback for `tracker.kind: github`. The job's repository token also reaches workspace hooks and the coding agent through these variables.
 - `SYMPHONY_WORKSPACE_ROOT` — optional override for the system workspace root. Admin configuration defaults to `%TEMP%/Symphony`; environment variable takes precedence. The container image sets it to `/home/app/workspaces`.
 - `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL` — set per job from the resolved GitHub identity so `git commit` works in a clean container.

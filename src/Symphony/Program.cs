@@ -49,7 +49,9 @@ builder.Services.AddScoped<WorkflowService>(serviceProvider =>
         serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>()));
 
 builder.Services.AddSingleton<JobTelemetryCapture>(serviceProvider =>
-    new JobTelemetryCapture(serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>()));
+    new JobTelemetryCapture(
+        serviceProvider.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),
+        serviceProvider.GetRequiredService<IConfiguration>()["Otlp:ReceiverBaseUrl"] ?? "http://127.0.0.1:5080"));
 
 builder.Services.AddSingleton(JobQueue.Default);
 builder.Services.AddSingleton<IJobQueue>(JobQueue.Default);
@@ -103,6 +105,7 @@ app.MapWorkflowEndpoints();
 app.MapWorkEndpoints();
 app.MapJobEndpoints();
 app.MapApiKeyEndpoints();
+app.MapOtlpEndpoints();
 app.MapHub<Symphony.Hubs.JobUpdateHub>("/hubs/jobs");
 await DatabaseInitializer.InitializeAsync(
     app.Services.GetRequiredService<IDbContextFactory<SymphonyDbContext>>(),

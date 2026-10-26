@@ -67,6 +67,7 @@ docs/
 
 - Explicit submission via POST /api/work (requires ticketIds/workItems, github.repository, workflowName). GitHub personal access token may be supplied in the request or configured once on the Configuration page. Creates queued job with encrypted snapshot.
 - JobQueue provides wake-up signals; database remains source of truth. JobProcessor (hosted service) recovers queued/stale jobs, claims with concurrency (per-user primary, global ceiling), processes per issue with retry, persists issues/events, marks terminal states.
+- Per job, JobProcessor builds a `RepositoryConfig` (repository, job token, resolved git identity) and passes it through `ServiceConfig`. `WorkspaceManager` owns the checkout: create directory, run `hooks.after_create`, then clone shallowly if `.git` is missing. `GitHubEnvironment` is the single place that turns that config into git/gh environment variables for hooks, the workspace, and the agent session.
 - Cancellation via DELETE /api/jobs/{id} sets Cancelled. Stale Running jobs become Failed with interrupted-run events on startup.
 - Trackers fetched only when ticket IDs supplied; inline work uses NullIssueTracker. Copilot SDK is first-cut agent (Codex retained but not registered/exposed).
 

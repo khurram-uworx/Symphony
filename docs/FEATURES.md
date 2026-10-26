@@ -41,7 +41,7 @@ Current, implemented capabilities of the Symphony .NET web host. For runtime/des
 ## GitHub Integration
 
 - GitHub Issues can be used as the work source (`tracker.kind: github`).
-- GitHub repositories are cloned and synchronized per job using per-user Personal Access Tokens.
+- GitHub repositories are cloned per job using per-user Personal Access Tokens; workspace creation owns the shallow checkout and passes the token and commit identity to hooks and the coding agent.
 - Secrets are encrypted and never returned in plaintext.
 - See [FEATURES-GITHUB.md](FEATURES-GITHUB.md) for details.
 

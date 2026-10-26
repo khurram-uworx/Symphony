@@ -50,6 +50,7 @@ Then open `http://localhost:8080`, sign in, and you should see `Hello, <user>`.
 | `SeedAdmin__Password` | all | no | First admin password. Empty generates and prints one once; a configured value is used verbatim without policy validation and is never printed. |
 | `ApiKeys__ServerKey` | all | yes in Production for API keys | Server key for API key HMAC hashing. Required in Production; a development default is used otherwise. |
 | `DataProtection__KeysPath` | all | no | Directory for Data Protection key ring. Defaults to `App_Data/DataProtection-Keys` under the content root. |
+| `SYMPHONY_WORKSPACE_ROOT` | all | no | Root directory for job workspaces. The image sets `/home/app/workspaces`; compose mounts the `workspaces` volume there. |
 | `ASPNETCORE_ENVIRONMENT` | all | no | Use `Production` in containers. |
 | `ASPNETCORE_URLS` | all | no | Image sets `http://+:8080`. |
 
@@ -59,10 +60,18 @@ Volumes used by the sample stack:
 
 - `pgdata` -> PostgreSQL data (`/var/lib/postgresql/data`).
 - `dataprotection` -> ASP.NET Core Data Protection keys (`/home/app/.aspnet/DataProtection-Keys`).
+- `workspaces` -> job workspaces and repository checkouts (`/home/app/workspaces`).
 
-Losing the `dataprotection` volume invalidates cookie-based sign-in and requires users to sign in again.
+Losing the `dataprotection` volume invalidates cookie-based sign-in and requires users to sign in again. Losing the `workspaces` volume only discards checkouts; new jobs clone again.
 
-The image runs as the `app` user and already creates `/home/app/.aspnet/DataProtection-Keys`.
+The image runs as the `app` user and already creates `/home/app/.aspnet/DataProtection-Keys` and `/home/app/workspaces`.
+
+## Git tooling in the image
+
+The runtime stage installs what a coding agent needs to work on a repository: `git`, `gh`, `node`/`npm` (for stdio MCP servers launched with `npx`), `openssh-client`, `curl`, `jq`, and `unzip`. The image does not include the .NET SDK.
+
+Workspace creation clones the submitted repository automatically (shallow, single branch), so the default workflow no longer needs a clone hook. Commit identity and the repository token are provided through the job environment, and the token reaches git as an `http.extraheader` value rather than being written to `.git/config`.
+
 
 ## Schema initialization
 

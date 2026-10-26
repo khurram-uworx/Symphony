@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Symphony.Config;
 using Symphony.Services;
 using System.Text.Json;
+using GitHubEnvironment = Symphony.Repositories.GitHubEnvironment;
 
 namespace Symphony.Agent;
 
@@ -47,25 +48,19 @@ class CopilotAgent : ICodingAgent
             };
         }
 
-        if (string.Equals(config.Tracker.Kind, "github", StringComparison.OrdinalIgnoreCase) &&
-            !string.IsNullOrWhiteSpace(config.Tracker.ApiKey))
+        var repository = config.Repository;
+        var usesGitHubTracker = string.Equals(config.Tracker.Kind, "github", StringComparison.OrdinalIgnoreCase);
+        if (repository is not null || usesGitHubTracker)
         {
-            var token = config.Tracker.ApiKey;
-            var environment = Environment.GetEnvironmentVariables()
-                .Cast<System.Collections.DictionaryEntry>()
-                .Where(entry => entry.Key is string)
-                .ToDictionary(
-                    entry => (string)entry.Key,
-                    entry => entry.Value?.ToString() ?? string.Empty,
-                    StringComparer.OrdinalIgnoreCase);
+            var token = repository?.Token;
+            if (string.IsNullOrWhiteSpace(token) && usesGitHubTracker)
+                token = config.Tracker.ApiKey;
 
-            environment["GH_TOKEN"] = token;
-            environment["GITHUB_TOKEN"] = token;
-            environment["GIT_TERMINAL_PROMPT"] = "0";
-            if (!string.IsNullOrWhiteSpace(config.Tracker.ProjectSlug))
-                environment["GITHUB_REPOSITORY"] = config.Tracker.ProjectSlug;
-
-            clientOptions.Environment = environment;
+            clientOptions.Environment = GitHubEnvironment.Build(
+                GitHubEnvironment.FromProcessEnvironment(),
+                repository?.Slug ?? config.Tracker.ProjectSlug,
+                token,
+                repository?.Identity);
         }
 
         copilotClient = new CopilotClient(clientOptions);

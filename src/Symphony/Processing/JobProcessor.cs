@@ -17,11 +17,13 @@ namespace Symphony.Processing;
 
 public sealed class JobProcessor : BackgroundService
 {
+    const int GlobalConcurrency = 4;
+    static readonly GitHubIdentityResolver identityResolver = new();
+
     readonly IServiceScopeFactory scopeFactory;
     readonly IDbContextFactory<SymphonyDbContext> dbFactory;
     readonly IJobQueue jobQueue;
     readonly ILogger<JobProcessor> logger;
-    const int GlobalConcurrency = 4;
     readonly ConcurrentDictionary<Guid, CancellationTokenSource> running = new();
     readonly ConcurrentDictionary<string, int> runningByOwner = new(StringComparer.Ordinal);
 
@@ -245,6 +247,7 @@ public sealed class JobProcessor : BackgroundService
         var snapshot = TryParseSnapshot(job, secretProtector);
         var workItems = ReadWorkItems(snapshot);
         var (githubRepo, githubToken) = ReadGitHubCredentials(snapshot);
+        var repositoryToken = string.IsNullOrWhiteSpace(githubToken) ? userConfig.GitHubPersonalAccessToken : githubToken;
 
         if (string.Equals(config.Tracker.Kind, "github", StringComparison.OrdinalIgnoreCase) &&
             string.IsNullOrWhiteSpace(config.Tracker.ProjectSlug) &&
@@ -258,7 +261,7 @@ public sealed class JobProcessor : BackgroundService
         {
             if (string.IsNullOrWhiteSpace(githubRepo))
                 throw new InvalidOperationException("github_credentials_missing: repository not found in job snapshot.");
-            if (string.IsNullOrWhiteSpace(githubToken))
+            if (string.IsNullOrWhiteSpace(repositoryToken))
                 throw new InvalidOperationException("github_credentials_missing: personal access token not found in job snapshot.");
         }
         var issues = new List<Issue>();
@@ -332,11 +335,15 @@ public sealed class JobProcessor : BackgroundService
         var repositoryNumber = await repositoryWorkspaceService.GetOrCreateAsync(job.OwnerUserId, job.Repository, cancellationToken);
         var repositoryRoot = WorkspacePath.EnsureContainedBy(userRoot, Path.Combine(userRoot, repositoryNumber.ToString()));
 
-        var scopedConfig = config with { Workspace = new WorkspaceConfig(repositoryRoot) };
+        var repositoryContext = await buildRepositoryAsync(githubRepo, repositoryToken, sanitizedOwnerName, cancellationToken);
+
+        var scopedConfig = config with
+        {
+            Workspace = config.Workspace with { Root = repositoryRoot },
+            Repository = repositoryContext
+        };
         var configProvider = new StaticServiceConfigProvider(scopedConfig);
         var workspaceManager = new WorkspaceManager(configProvider, shell, processorLogger is ILogger<WorkspaceManager> wmLogger ? wmLogger : Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkspaceManager>.Instance);
-        if (!string.IsNullOrWhiteSpace(githubRepo))
-            workspaceManager.GitHubEnvironment = GitHubEnvironment.Build(Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>().Where(e => e.Key is not null).ToDictionary(e => e.Key!.ToString()!, e => e.Value?.ToString() ?? string.Empty), githubRepo, githubToken);
         var telemetryCapture = sp.GetService<JobTelemetryCapture>();
         telemetryCapture?.BeginJob(job.Id, userConfig?.TelemetryContentEnabled ?? false);
 
@@ -484,6 +491,19 @@ public sealed class JobProcessor : BackgroundService
             result.Add(item.Clone());
 
         return result;
+    }
+
+    static async Task<RepositoryConfig?> buildRepositoryAsync(
+        string? repository,
+        string? token,
+        string? actorName,
+        CancellationToken cancellationToken)
+    {
+        if (!GitHubRepository.TryParse(repository, out var parsed, out _) || parsed is null)
+            return null;
+
+        var identity = await identityResolver.ResolveAsync(token, actorName, cancellationToken);
+        return new RepositoryConfig(parsed, token, identity);
     }
 
     static (string? Repository, string? Token) ReadGitHubCredentials(JsonElement? snapshot)

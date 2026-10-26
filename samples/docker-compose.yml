@@ -27,8 +27,10 @@ services:
       ConnectionStrings__PostgreSQL: ${ConnectionStrings__PostgreSQL}
       SeedAdmin__UserName: ${SeedAdmin__UserName}
       ApiKeys__ServerKey: ${ApiKeys__ServerKey}
+      SYMPHONY_WORKSPACE_ROOT: ${SYMPHONY_WORKSPACE_ROOT:-/home/app/workspaces}
     volumes:
       - dataprotection:/home/app/.aspnet/DataProtection-Keys
+      - workspaces:/home/app/workspaces
     depends_on:
       postgres:
         condition: service_healthy
@@ -42,3 +44,4 @@ services:
 volumes:
   pgdata:
   dataprotection:
+  workspaces:

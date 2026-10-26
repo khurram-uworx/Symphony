@@ -8,8 +8,13 @@ Every job runs inside a Git working copy. On submission, users provide (or confi
 
 - Repository slugs may be `owner/repo`, HTTPS URLs, or SSH addresses.
 - Tokens are stored encrypted per user and are never returned in plaintext.
-- `WorkspaceManager` creates per-issue workspaces and injects `GITHUB_REPOSITORY`, `GH_TOKEN`, `GITHUB_TOKEN`, `GIT_TERMINAL_PROMPT`, and git `http.extraheader` via `GitHubEnvironment.Build`.
+- `WorkspaceManager.CreateForIssueAsync` ensures the workspace is a git checkout: after any `hooks.after_create` command runs, it clones the repository with `git clone --depth 1 --single-branch --no-tags` when `.git` is missing. Existing saved workflows that still contain a clone hook keep working, and the platform step then does nothing.
+- A failing `after_create` hook does not fail the job when the platform can still clone. A failed clone removes the partial directory and fails the job with the git error (token redacted).
+- Clone duration is bounded by `workspace.clone_timeout_ms` (default 300000).
+- `GitHubEnvironment.Build` injects `GITHUB_REPOSITORY`, `GH_TOKEN`, `GITHUB_TOKEN`, `GIT_TERMINAL_PROMPT=0`, `GH_PROMPT_DISABLED`, `GH_NO_UPDATE_NOTIFIER`, a git `http.extraheader` (so the token never lands in `.git/config`), and `GIT_AUTHOR_*`/`GIT_COMMITTER_*` commit identity variables.
+- Commit identity comes from `GitHubIdentityResolver`, which calls `GET /user` with the job token and falls back to a static `<user>@users.noreply.github.com` identity when the call fails.
 - `gh` CLI operations inside hooks or the coding agent use these environment variables.
+
 
 ## GitHub Issues as a Work Source
 
@@ -40,7 +45,7 @@ Symphony does not mutate issue state through the tracker client. Coding agents a
 - the `gh` CLI, or
 - a configured GitHub MCP server.
 
-The local coding-agent environment contains the repository token where workspace hooks execute; direct Copilot token injection is tracked separately.
+The coding agent receives the same repository environment as workspace hooks (`GH_TOKEN`, `GITHUB_TOKEN`, git `http.extraheader`, commit identity) for any job that has a repository, not only GitHub-tracker jobs. That covers `git commit`, `git push`, and `gh` from inside the agent session.
 
 ## Security Notes
 

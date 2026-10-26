@@ -56,12 +56,21 @@ Description: {{ issue.description }}
 | Key | Description | Default |
 | --- | --- | --- |
 | `root` | Root directory for issue workspaces; supports `~` | OS temp path + `symphony_workspaces` |
+| `clone_timeout_ms` | Timeout for the automatic repository checkout | `300000` |
+
+When a job has a GitHub repository, workspace creation ensures the workspace is a git checkout:
+
+1. The directory is created.
+2. `hooks.after_create` runs, if configured.
+3. If `.git` is still missing, Symphony runs `git clone --depth 1 --single-branch --no-tags <url> .` using the job token and `workspace.clone_timeout_ms`.
+
+A failed `after_create` hook is tolerated when the platform clone then succeeds. A failed clone deletes the partial directory, fails the job, and reports the git error with the token redacted. Because history is truncated, `git fetch --deepen=<n>` is the way to reach older commits.
 
 ### hooks
 
 | Key | Description | Default |
 | --- | --- | --- |
-| `after_create` | Shell command run after workspace creation | none |
+| `after_create` | Shell command run after workspace creation and before the automatic repository checkout | none |
 | `before_run` | Shell command run before agent execution | none |
 | `after_run` | Shell command run after agent completion | none |
 | `before_remove` | Shell command run before workspace removal | none |
@@ -150,8 +159,9 @@ Tracker configuration is optional. A tracker is only required when submitting ti
 ## Environment variables
 
 - `LINEAR_API_KEY` — Linear (and fallback Jira-style) API token. Used when `tracker.api_key` is missing or referenced as `$LINEAR_API_KEY`.
-- `GITHUB_TOKEN` / `GH_TOKEN` — GitHub token fallback for `tracker.kind: github`. Also used by agents/workspaces as the repository token when provided.
-- `SYMPHONY_WORKSPACE_ROOT` — optional override for the system workspace root. Admin configuration defaults to `%TEMP%/Symphony`; environment variable takes precedence.
+- `GITHUB_TOKEN` / `GH_TOKEN` — GitHub token fallback for `tracker.kind: github`. The job's repository token also reaches workspace hooks and the coding agent through these variables.
+- `SYMPHONY_WORKSPACE_ROOT` — optional override for the system workspace root. Admin configuration defaults to `%TEMP%/Symphony`; environment variable takes precedence. The container image sets it to `/home/app/workspaces`.
+- `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL` — set per job from the resolved GitHub identity so `git commit` works in a clean container.
 - Standard environment variables used by the Codex/Copilot CLIs for their own authentication.
 
 ## Allowed workflow front matter overrides
@@ -164,13 +174,14 @@ only the following front matter keys may override the user-level configuration:
 - `hooks.after_run`
 - `hooks.before_remove`
 - `hooks.timeout_ms`
+- `workspace.clone_timeout_ms`
 - `agent.max_turns`
 - `agent.max_concurrent_agents_by_state`
 - top-level `max_turns`
 - top-level `max_concurrent_agents_by_state`
 
 The tracker (`kind`, `endpoint`, `api_key`, `project_slug`, active/terminal states),
-polling, Codex, and Copilot settings are not replaced by workflow front matter.
+polling, `workspace.root`, Codex, and Copilot settings are not replaced by workflow front matter.
 
 Malformed YAML front matter fails parsing and no overrides are applied.
 EOF

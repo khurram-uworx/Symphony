@@ -81,7 +81,7 @@ class ShellCommandRunner
         CancellationToken cancellationToken) =>
         await RunAsync(command, workingDirectory, timeoutMs, null, cancellationToken);
 
-    public async Task<CommandResult> RunAsync(string command, string workingDirectory, int timeoutMs,
+    public virtual async Task<CommandResult> RunAsync(string command, string workingDirectory, int timeoutMs,
         IReadOnlyDictionary<string, string>? environment, CancellationToken cancellationToken)
     {
         var expandedCommand = ExpandEnvironmentVariables(command, environment);

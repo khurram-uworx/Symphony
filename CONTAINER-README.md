@@ -65,9 +65,27 @@ Volumes used by the sample stack:
 
 Losing the `dataprotection` volume invalidates cookie-based sign-in and requires users to sign in again. Losing the `workspaces` volume only discards checkouts and per-user agent state; new jobs clone again.
 
-The image runs as the `app` user and already creates `/home/app/.aspnet/DataProtection-Keys` and `/home/app/workspaces`.
+When you use SQLite instead of PostgreSQL, mount a volume at `/app/App_Data` so the database and the default key ring survive container replacement. The root `docker-compose.yml` does this with the `appdata` volume.
 
 Each Symphony user gets an isolated Copilot home under `/home/app/workspaces/<user>/.copilot`. The image does not use the shared `~/.copilot` because the container runs as a single OS user.
+
+## Non-root runtime
+
+The image runs as the non-root `app` user, UID/GID `1654`, matching `APP_UID`/`APP_GID` in the .NET base images. `src/Symphony/Dockerfile` creates these paths with that ownership before switching users:
+
+- `/app/App_Data` -> SQLite database and the default Data Protection key ring.
+- `/home/app/.aspnet/DataProtection-Keys` -> key ring used by the sample stack.
+- `/home/app/workspaces` -> job workspaces and per-user agent state.
+
+Named volumes take their ownership from the image the first time Docker initializes them, so the sample stack works unchanged. Bind mounts do not: make them writable by UID `1654` first (`sudo chown -R 1654:1654 <host-directory>`), or startup fails with `UnauthorizedAccessException` on `/app/App_Data`.
+
+Do not run the container with `-u 0`; root is neither required nor supported.
+
+## Image build path
+
+`src/Symphony/Dockerfile` is the supported image. The publish workflows (`.github/workflows/docker.yml`, `cd.yml`), both compose files, and the published `ghcr.io` tags build from it, and it installs the agent toolchain and creates the writable directories above.
+
+`dotnet publish /t:PublishContainer` builds a different, SDK-generated image with no writable data directory and no agent toolchain. Running that image as a non-root user fails on `/app/App_Data`. Build from the Dockerfile instead.
 
 ## Linear in containers
 

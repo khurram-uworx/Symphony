@@ -88,6 +88,8 @@ public class ServiceConfigFactory
             endpoint = "https://api.linear.app/graphql";
 
         var apiKey = ConfigReader.ResolveEnvValue(user.TrackerApiKey ?? string.Empty);
+        if (string.IsNullOrWhiteSpace(apiKey) && string.Equals(kind, "linear", StringComparison.OrdinalIgnoreCase))
+            apiKey = Environment.GetEnvironmentVariable("LINEAR_API_KEY") ?? string.Empty;
         if (string.IsNullOrWhiteSpace(apiKey) && string.Equals(kind, "github", StringComparison.OrdinalIgnoreCase))
             apiKey = user.GitHubPersonalAccessToken;
 

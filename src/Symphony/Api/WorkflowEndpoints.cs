@@ -8,7 +8,9 @@ public static class WorkflowEndpoints
 {
     public static IEndpointRouteBuilder MapWorkflowEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/workflows").RequireRateLimiting(ApiRateLimitPolicy.PolicyName);
+        var group = endpoints.MapGroup("/api/workflows")
+            .DisableCookieRedirect()
+            .RequireRateLimiting(ApiRateLimitPolicy.PolicyName);
 
         group.MapGet("/", ListAsync);
         group.MapGet("/{name}", GetAsync);

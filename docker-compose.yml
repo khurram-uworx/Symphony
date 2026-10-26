@@ -29,9 +29,11 @@ services:
       # ConnectionStrings__Sqlite: "Data Source=App_Data/symphony.db"
       # Database__Provider: sqlserver
       # ConnectionStrings__SqlServer: "Server=...;Database=symphony;..."
+      SYMPHONY_WORKSPACE_ROOT: /home/app/workspaces
     volumes:
       - appdata:/app/App_Data
       - dataprotection:/home/app/.aspnet/DataProtection-Keys
+      - workspaces:/home/app/workspaces
     depends_on:
       postgres:
         condition: service_healthy
@@ -46,3 +48,4 @@ volumes:
   pgdata:
   appdata:
   dataprotection:
+  workspaces:
